@@ -1293,11 +1293,17 @@ impl PaletteEngine {
                 ctx.problems.count(),
             );
         }
-        if matches!(id, CMD_SEARCH_CLEAR_RESULTS | CMD_SEARCH_CLOSE) {
+        if matches!(
+            id,
+            CMD_SEARCH_RUN | CMD_SEARCH_REPLACE_ALL | CMD_SEARCH_CLEAR_RESULTS | CMD_SEARCH_CLOSE
+        ) {
+            let search_query = ctx.search.query_string();
             return search_contextual_desc(
                 id,
                 base,
                 ctx.active_panel == crate::PANEL_SEARCH,
+                search_query.trim().is_empty(),
+                ctx.search.last_results_query == search_query,
                 ctx.search.match_count(),
             );
         }
@@ -1797,9 +1803,19 @@ fn search_contextual_desc<'a>(
     id: u32,
     base: &'a str,
     active: bool,
+    query_empty: bool,
+    results_query_current: bool,
     match_count: i32,
 ) -> Cow<'a, str> {
     match id {
+        CMD_SEARCH_RUN if query_empty => Cow::Borrowed("Enter text to search"),
+        CMD_SEARCH_RUN if results_query_current && match_count == 0 => {
+            Cow::Borrowed("No project search results")
+        }
+        CMD_SEARCH_REPLACE_ALL if query_empty => Cow::Borrowed("Enter search text to replace"),
+        CMD_SEARCH_REPLACE_ALL if !results_query_current || match_count == 0 => {
+            Cow::Borrowed("Run Search before replacing")
+        }
         CMD_SEARCH_CLEAR_RESULTS if match_count == 0 => {
             Cow::Borrowed("Search results already empty")
         }
@@ -3041,19 +3057,47 @@ mod tests {
     #[test]
     fn search_command_descriptions_reflect_runtime_state() {
         assert_eq!(
-            search_contextual_desc(CMD_SEARCH_CLEAR_RESULTS, "base", true, 0),
+            search_contextual_desc(CMD_SEARCH_RUN, "base", true, true, false, 0),
+            Cow::Borrowed("Enter text to search")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_RUN, "base", true, false, true, 0),
+            Cow::Borrowed("No project search results")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_REPLACE_ALL, "base", true, true, false, 0),
+            Cow::Borrowed("Enter search text to replace")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_REPLACE_ALL, "base", true, false, false, 2),
+            Cow::Borrowed("Run Search before replacing")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_REPLACE_ALL, "base", true, false, true, 0),
+            Cow::Borrowed("Run Search before replacing")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_CLEAR_RESULTS, "base", true, false, false, 0),
             Cow::Borrowed("Search results already empty")
         );
         assert_eq!(
-            search_contextual_desc(CMD_SEARCH_CLOSE, "base", false, 2),
+            search_contextual_desc(CMD_SEARCH_CLOSE, "base", false, false, false, 2),
             Cow::Borrowed("Search panel is already closed")
         );
         assert_eq!(
-            search_contextual_desc(CMD_SEARCH_CLEAR_RESULTS, "base", false, 2),
+            search_contextual_desc(CMD_SEARCH_RUN, "base", true, false, false, 0),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            search_contextual_desc(CMD_SEARCH_CLOSE, "base", true, 0),
+            search_contextual_desc(CMD_SEARCH_REPLACE_ALL, "base", true, false, true, 2),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_CLEAR_RESULTS, "base", false, false, false, 2),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            search_contextual_desc(CMD_SEARCH_CLOSE, "base", true, true, false, 0),
             Cow::Borrowed("base")
         );
     }

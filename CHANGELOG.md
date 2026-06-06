@@ -88,6 +88,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Unstage All, and Commit Staged now mirror SCM runtime feedback for non-git
   workspaces, clean stage sets, missing staged changes, and empty commit
   messages.
+- **Command Palette Search commands explain no-op states**: Run Search and
+  Replace All now mirror Search runtime feedback for empty queries, prior
+  no-result searches, stale results, and replacement attempts before running
+  the current query.
 - **Command Palette Agents lifecycle rows explain no-op states**: Clear Run
   Output and Close Panel now mirror Mighty Agents runtime feedback for empty
   run transcripts and closed panels.

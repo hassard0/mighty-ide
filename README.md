@@ -117,7 +117,8 @@ source state and requires a new package run.
 - Command Palette Problems lifecycle rows mirror Problems panel no-op states,
   including empty diagnostics and closed panel
 - Command Palette Search and Outline lifecycle rows mirror Search and Outline
-  no-op states, including empty result/symbol lists and closed panels
+  no-op states, including empty search queries, stale or missing replacement
+  results, empty result/symbol lists, and closed panels
 - Command Palette Debug lifecycle rows mirror Run and Debug no-op states,
   including unavailable pause, step, restart, and clear-breakpoint actions,
   idle stops, empty sessions, and closed panel

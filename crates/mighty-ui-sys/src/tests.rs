@@ -4578,6 +4578,8 @@ fn search_run_reports_empty_and_missed_queries() {
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("a.mty"), "let needle = 1\n").unwrap();
     ctx.tree.set_root(root.clone());
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SEARCH;
     ctx.search.results.files.push(crate::search::SearchFile {
         path: root.join("old.mty"),
         rel: "old.mty".to_string(),
@@ -4656,6 +4658,8 @@ fn search_replace_all_requires_current_search_results() {
     let path = root.join("a.mty");
     std::fs::write(&path, "foo\nbar\n").unwrap();
     ctx.tree.set_root(root.clone());
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SEARCH;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     for ch in "foo".chars() {
@@ -4680,6 +4684,8 @@ fn search_replace_all_requires_current_search_results() {
 #[test]
 fn search_replace_all_reports_empty_query_and_clears_stale_results() {
     let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SEARCH;
     ctx.search.results.files.push(crate::search::SearchFile {
         path: std::path::PathBuf::from("old.mty"),
         rel: "old.mty".to_string(),
