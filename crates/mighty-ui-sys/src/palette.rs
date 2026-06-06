@@ -1399,6 +1399,14 @@ impl PaletteEngine {
                 .unwrap_or_else(|| "tab".to_string());
             return Cow::Owned(close_dirty_tab_desc(&name));
         }
+        if matches!(id, CMD_SAVE | CMD_SAVE_AS) && active_read_only {
+            let name = ctx
+                .tabs
+                .get(ctx.tabs.active())
+                .map(|tab| tab.basename())
+                .unwrap_or_else(|| "This preview".to_string());
+            return Cow::Owned(read_only_save_desc(&name));
+        }
         if id == CMD_SAVE && !active_read_only {
             if let Some(path) = ctx.tabs.active_path() {
                 if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
@@ -2669,6 +2677,10 @@ fn reload_dirty_target_desc(path: &std::path::Path) -> String {
 
 fn close_dirty_tab_desc(name: &str) -> String {
     format!("Review unsaved changes in {name}")
+}
+
+fn read_only_save_desc(name: &str) -> String {
+    format!("{name} is read-only in the text editor")
 }
 
 fn palette_basename(path: &std::path::Path) -> String {
@@ -5618,6 +5630,36 @@ mod tests {
             close_dirty_tab_desc("(scratch)"),
             "Review unsaved changes in (scratch)"
         );
+    }
+
+    #[test]
+    fn save_descriptions_name_read_only_active_target() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_save_read_only_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("asset.bin");
+        std::fs::write(&path, b"\0binary preview").unwrap();
+
+        ctx.tabs.open_path(path);
+        assert!(ctx.tabs.active_read_only());
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SAVE, "base").as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SAVE_AS, "base").as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
