@@ -1266,6 +1266,14 @@ impl PaletteEngine {
                 ctx.tests_panel.row_count(),
             );
         }
+        if matches!(id, CMD_AGENTS_CLEAR_RUN_OUTPUT | CMD_AGENTS_CLOSE) {
+            return agents_contextual_desc(
+                id,
+                base,
+                ctx.active_panel == crate::PANEL_AGENTS_MTY,
+                ctx.agents.run_line_count(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1550,6 +1558,21 @@ fn test_contextual_desc<'a>(
         CMD_TEST_STOP if !running => Cow::Borrowed("No test run to stop"),
         CMD_TEST_CLEAR_RESULTS if row_count == 0 => Cow::Borrowed("Test results already empty"),
         CMD_TEST_CLOSE if !active => Cow::Borrowed("Testing panel is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn agents_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    run_line_count: usize,
+) -> Cow<'a, str> {
+    match id {
+        CMD_AGENTS_CLEAR_RUN_OUTPUT if run_line_count == 0 => {
+            Cow::Borrowed("Agents run output already empty")
+        }
+        CMD_AGENTS_CLOSE if !active => Cow::Borrowed("Mighty Agents panel is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -2474,6 +2497,26 @@ mod tests {
         );
         assert_eq!(
             test_contextual_desc(CMD_TEST_CLOSE, "base", true, false, 0),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn agents_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_CLEAR_RUN_OUTPUT, "base", true, 0),
+            Cow::Borrowed("Agents run output already empty")
+        );
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_CLOSE, "base", false, 8),
+            Cow::Borrowed("Mighty Agents panel is already closed")
+        );
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_CLEAR_RUN_OUTPUT, "base", true, 8),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_CLOSE, "base", true, 0),
             Cow::Borrowed("base")
         );
     }
