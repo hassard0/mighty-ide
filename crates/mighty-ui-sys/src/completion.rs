@@ -1410,7 +1410,10 @@ pub mod lsp {
             while i < region.len() && region[i].is_ascii_digit() {
                 i += 1;
             }
-            if start < i {
+            if start < i
+                && (i >= region.len()
+                    || matches!(region[i], b' ' | b'\t' | b'\r' | b'\n' | b',' | b']'))
+            {
                 if std::str::from_utf8(&region[start..i])
                     .ok()
                     .and_then(|n| n.parse::<i64>().ok())
@@ -2973,6 +2976,17 @@ mod tests {
         assert!(candidates[0].deprecated);
         assert!(candidates[1].deprecated);
         assert!(!candidates[2].deprecated);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_rejects_fractional_deprecated_tags() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"fractional","tags":[1.5]},{"label":"exponent","tags":[1e0]},{"label":"old","tags":[1]}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 3);
+        assert!(!candidates[0].deprecated);
+        assert!(!candidates[1].deprecated);
+        assert!(candidates[2].deprecated);
     }
 
     #[test]
