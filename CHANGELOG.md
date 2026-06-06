@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,016 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Stale package manifests are rejected in the release docs**: README, build
+  notes, and release handoff templates now state that an archive whose
+  `PACKAGE-MANIFEST.txt` names an older source commit must be deleted and
+  rebuilt from the clean final commit before it can be published.
 - **Surface-open and zoom-limit no-ops coalesce by owner**: already-open Search,
   Outline, Source Control, Run and Debug, and Color Theme states plus zoom
   limits now replace stale workflow feedback instead of remaining unowned.

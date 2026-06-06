@@ -136,6 +136,10 @@ Use this order for a publishable pass:
 6. Record archive size, SHA-256, native payload family, sidecar/foreign-payload
    scan result, manifest summary, and packaged launch result.
 
+If the generated manifest names an older source commit, discard that package
+directory and archive. Rebuild from the clean final commit instead of treating
+the older package as clean release evidence.
+
 If a native macOS or Linux host is not available, leave that platform unbuilt
 for the release. Do not rename the Windows ZIP, reuse its DLL, or publish an
 empty placeholder for another OS.

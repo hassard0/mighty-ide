@@ -121,6 +121,9 @@ For this pass, the package outcome is intentionally platform-scoped:
 Do not reuse archives produced before the final source commit. A platform
 archive is release evidence only when its bundled `PACKAGE-MANIFEST.txt`
 records the same commit as the README and release docs being handed off.
+If `PACKAGE-MANIFEST.txt` names any earlier commit, delete the archive and
+staged package directory and rerun the native package script from the clean
+final commit before publishing.
 
 For this Windows-hosted pass, the expected final binary decisions are:
 

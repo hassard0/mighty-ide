@@ -194,6 +194,10 @@ treating an older archive as clean evidence.
 The final package must be generated after the source commit that defines this
 handoff. If any source file changes after the package is generated, the artifact
 no longer matches the source handoff and must be rebuilt before it is published.
+If an existing `PACKAGE-MANIFEST.txt` names an older commit, treat the staged
+package and archive as stale even if the binary launches. Delete the stale
+artifact and rebuild from the clean final commit so the bundled docs, manifest,
+and native payloads all prove the same source state.
 Use `docs\release-evidence.md` as the concise upload record.
 Use `docs\binary-release-status.md` as the bundled clean-binary status summary.
 Record macOS and Linux as `unbuilt` unless their native package runs completed

@@ -88,6 +88,10 @@ release decision that prevents publishing an unverifiable archive.
 
 If the source tree changes after a package is built, rebuild the package before
 publishing it.
+If a package manifest names an older source commit than the final README and
+release docs, that archive is stale. Remove it and rerun the native package
+script from the final clean commit before changing the platform decision to
+`publish`.
 
 The final answer is part of the release evidence for this Windows-hosted pass.
 It should report the committed source hash and generated Windows archive values

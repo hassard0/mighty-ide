@@ -185,6 +185,10 @@ Linux decision:
 Do not edit source-controlled files after recording those generated values. If
 a source edit is required, commit it first and rebuild the affected native
 package before publishing.
+Reject any package whose `PACKAGE-MANIFEST.txt` records a source commit older
+than the final README, changelog, build notes, package scripts, and release
+docs. The correct fix is a fresh native package run from the clean final
+commit, not a copied manifest or edited archive.
 
 ## Final Upload Note Template
 
