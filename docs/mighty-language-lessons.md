@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14179,3 +14179,19 @@ active only cancelled capture and left the overlay visible.
 - **Language note:** no compiler gap surfaced. Modal capture states should
   separate keyboard cancellation from pointer dismissal so visible close chrome
   remains trustworthy.
+
+## L1117 - Transient Auto-Dismiss Paths Need Quiet Regression Guards
+
+Hover and Signature Help are transient language popups: they should disappear
+when cursor movement makes their anchor stale, but that cleanup is not the same
+as a user explicitly choosing `Hover: Close Popup` or `Signature Help: Close`.
+The runtime already uses silent clear APIs for cursor-move dismissal, but the
+close APIs live nearby and intentionally produce user-visible toasts.
+
+- **IDE note:** the source-level event-router test now requires hover and
+  Signature Help cursor-move auto-dismiss paths to keep using `mui_hover_clear`
+  and `mui_sig_clear`, preserving visible close/no-open feedback only for
+  command-like close routes.
+- **Language note:** no compiler gap surfaced. Transient overlay code should
+  distinguish state cleanup from explicit lifecycle commands in tests, not only
+  in comments.

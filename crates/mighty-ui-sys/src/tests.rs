@@ -20896,6 +20896,18 @@ fn headless_frames_zero_without_env_positive_with_env() {
 fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     let main = include_str!("../../../src/main.mty");
     assert!(
+        main.contains(
+            "if cl != hover_line || cc != hover_col {\n        mui_hover_clear(h)\n        hovering = false\n      }"
+        ),
+        "cursor-move hover auto-dismiss must stay silent and avoid the explicit close toast"
+    );
+    assert!(
+        main.contains(
+            "if sl != sig_line {\n        mui_sig_clear(h)\n        sig_open = false"
+        ),
+        "cursor-move signature auto-dismiss must stay silent and avoid the explicit close toast"
+    );
+    assert!(
         main.contains("command_click_id = mui_palette_selected_id(h)"),
         "palette Enter must queue the selected command id"
     );
