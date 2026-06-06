@@ -269,6 +269,11 @@ impl TabStore {
         Some(self.active)
     }
 
+    /// `true` when the active tab cannot move farther left.
+    pub fn active_tab_is_first(&self) -> bool {
+        self.tabs.len() <= 1 || self.active.min(self.tabs.len().saturating_sub(1)) == 0
+    }
+
     /// Move the active tab one slot to the right. Returns the new active index,
     /// or `None` when the active tab is already last / no move is possible.
     pub fn move_active_right(&mut self) -> Option<usize> {
@@ -284,6 +289,12 @@ impl TabStore {
         self.tabs.swap(active, active + 1);
         self.active = active + 1;
         Some(self.active)
+    }
+
+    /// `true` when the active tab cannot move farther right.
+    pub fn active_tab_is_last(&self) -> bool {
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        self.tabs.len() <= 1 || active + 1 >= self.tabs.len()
     }
 
     /// Sort open tabs by display name, preserving the active logical document.
@@ -313,6 +324,17 @@ impl TabStore {
         self.tabs = indexed.into_iter().map(|(_, tab)| tab).collect();
         self.active = old_to_new[old_active];
         if changed { Some(old_to_new) } else { None }
+    }
+
+    /// `true` when sorting tabs by display name would leave order unchanged.
+    pub fn tabs_already_sorted_by_name(&self) -> bool {
+        if self.tabs.len() <= 1 {
+            return true;
+        }
+        self.tabs.windows(2).all(|pair| {
+            pair[0].basename().to_ascii_lowercase()
+                <= pair[1].basename().to_ascii_lowercase()
+        })
     }
 
     /// Close clean duplicate file-backed tabs, preserving dirty duplicates and
@@ -388,6 +410,24 @@ impl TabStore {
             removed_empty_scratch,
             old_to_new,
         })
+    }
+
+    /// `true` when a clean file-backed duplicate tab can be closed.
+    pub fn has_clean_duplicate_file_tabs(&self) -> bool {
+        let mut paths: Vec<&Path> = Vec::new();
+        for tab in &self.tabs {
+            if tab.is_dirty() {
+                continue;
+            }
+            let Some(path) = tab.path.as_deref() else {
+                continue;
+            };
+            if paths.iter().any(|existing| tab_paths_equal(existing, path)) {
+                return true;
+            }
+            paths.push(path);
+        }
+        false
     }
 
     /// True when any open tab for `path` has unsaved edits.
@@ -813,6 +853,14 @@ impl TabStore {
         })
     }
 
+    /// `true` when close-saved-tabs would remove at least one tab.
+    pub fn has_saved_tabs_to_close(&self) -> bool {
+        if self.tabs.len() == 1 && !self.tabs[0].is_dirty() && self.tabs[0].path.is_none() {
+            return false;
+        }
+        self.tabs.iter().any(|tab| !tab.is_dirty())
+    }
+
     /// Close every clean tab except the active tab, preserving all dirty tabs.
     /// Returns compaction metadata when tabs were removed.
     pub fn close_other_saved(&mut self) -> Option<TabCompaction> {
@@ -859,6 +907,15 @@ impl TabStore {
         })
     }
 
+    /// `true` when close-other-saved-tabs would remove at least one tab.
+    pub fn has_other_saved_tabs_to_close(&self) -> bool {
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        self.tabs
+            .iter()
+            .enumerate()
+            .any(|(idx, tab)| idx != active && !tab.is_dirty())
+    }
+
     /// Close clean tabs to the right of the active tab, preserving dirty tabs.
     /// Returns compaction metadata when tabs were removed.
     pub fn close_saved_to_right(&mut self) -> Option<TabCompaction> {
@@ -895,6 +952,15 @@ impl TabStore {
             removed_empty_scratch,
             old_to_new,
         })
+    }
+
+    /// `true` when close-saved-tabs-to-right would remove at least one tab.
+    pub fn has_saved_tabs_to_right(&self) -> bool {
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        self.tabs
+            .iter()
+            .enumerate()
+            .any(|(idx, tab)| idx > active && !tab.is_dirty())
     }
 
     /// Close clean tabs to the left of the active tab, preserving dirty tabs.
@@ -939,6 +1005,15 @@ impl TabStore {
             removed_empty_scratch,
             old_to_new,
         })
+    }
+
+    /// `true` when close-saved-tabs-to-left would remove at least one tab.
+    pub fn has_saved_tabs_to_left(&self) -> bool {
+        let active = self.active.min(self.tabs.len().saturating_sub(1));
+        self.tabs
+            .iter()
+            .enumerate()
+            .any(|(idx, tab)| idx < active && !tab.is_dirty())
     }
 
     /// True when tab `idx` has unsaved edits.
@@ -1610,6 +1685,38 @@ mod tests {
         let reopened = s.reopen_closed().unwrap();
         assert!(s.get(reopened).unwrap().basename().contains("tabs_close_saved_reopen_a"));
         assert_eq!(s.closed_count(), 0);
+    }
+
+    #[test]
+    fn tab_management_predicates_track_noop_states() {
+        let mut s = TabStore::new();
+        s.ensure_scratch();
+        assert!(s.active_tab_is_first());
+        assert!(s.active_tab_is_last());
+        assert!(s.tabs_already_sorted_by_name());
+        assert!(!s.has_saved_tabs_to_close());
+        assert!(!s.has_other_saved_tabs_to_close());
+        assert!(!s.has_saved_tabs_to_right());
+        assert!(!s.has_saved_tabs_to_left());
+        assert!(!s.has_clean_duplicate_file_tabs());
+
+        let b = write_tmp("tabs_predicate_b.txt", b"b");
+        let a = write_tmp("tabs_predicate_a.txt", b"a");
+        s.open_path(b);
+        let active_a = s.open_path(a);
+        assert_eq!(s.active(), active_a);
+        assert!(!s.active_tab_is_first());
+        assert!(s.active_tab_is_last());
+        assert!(!s.tabs_already_sorted_by_name());
+        assert!(s.has_saved_tabs_to_close());
+        assert!(s.has_other_saved_tabs_to_close());
+        assert!(!s.has_saved_tabs_to_right());
+        assert!(s.has_saved_tabs_to_left());
+
+        let duplicate_a = s.duplicate_active();
+        assert!(s.has_clean_duplicate_file_tabs());
+        s.set_dirty(duplicate_a, true);
+        assert!(!s.has_clean_duplicate_file_tabs());
     }
 
     #[test]

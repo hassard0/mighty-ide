@@ -115,6 +115,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Reopen Closed Tab, Close Bottom Dock, Prompt Cancel, Unsaved Changes Cancel,
   Git Branch Cancel, Breadcrumb Close, and Snippet Cancel now mirror their
   empty/no-open runtime feedback before dispatch.
+- **Command Palette tab-management rows explain no-op states**: Move Active Tab
+  Left/Right, Sort Open Tabs, Close Saved Tabs, Close Duplicate Tabs, Reload,
+  and Revert now mirror tab runtime no-op feedback before dispatch.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.

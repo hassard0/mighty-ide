@@ -1414,6 +1414,30 @@ impl PaletteEngine {
                 ctx.snippet_session.is_active(),
             );
         }
+        if matches!(
+            id,
+            CMD_MOVE_ACTIVE_TAB_LEFT
+                | CMD_MOVE_ACTIVE_TAB_RIGHT
+                | CMD_SORT_TABS_BY_NAME
+                | CMD_CLOSE_DUPLICATE_TABS
+                | CMD_CLOSE_SAVED_TABS
+                | CMD_CLOSE_OTHER_SAVED_TABS
+                | CMD_CLOSE_SAVED_TABS_TO_RIGHT
+                | CMD_CLOSE_SAVED_TABS_TO_LEFT
+        ) {
+            return tab_management_contextual_desc(
+                id,
+                base,
+                ctx.tabs.active_tab_is_first(),
+                ctx.tabs.active_tab_is_last(),
+                ctx.tabs.tabs_already_sorted_by_name(),
+                ctx.tabs.has_clean_duplicate_file_tabs(),
+                ctx.tabs.has_saved_tabs_to_close(),
+                ctx.tabs.has_other_saved_tabs_to_close(),
+                ctx.tabs.has_saved_tabs_to_right(),
+                ctx.tabs.has_saved_tabs_to_left(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1935,6 +1959,40 @@ fn utility_command_contextual_desc<'a>(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+fn tab_management_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active_first: bool,
+    active_last: bool,
+    tabs_sorted: bool,
+    has_clean_duplicate_tabs: bool,
+    has_saved_tabs: bool,
+    has_other_saved_tabs: bool,
+    has_saved_tabs_right: bool,
+    has_saved_tabs_left: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_MOVE_ACTIVE_TAB_LEFT if active_first => Cow::Borrowed("Tab is already first"),
+        CMD_MOVE_ACTIVE_TAB_RIGHT if active_last => Cow::Borrowed("Tab is already last"),
+        CMD_SORT_TABS_BY_NAME if tabs_sorted => Cow::Borrowed("Tabs already sorted"),
+        CMD_CLOSE_DUPLICATE_TABS if !has_clean_duplicate_tabs => {
+            Cow::Borrowed("No duplicate file tabs")
+        }
+        CMD_CLOSE_SAVED_TABS if !has_saved_tabs => Cow::Borrowed("No saved tabs to close"),
+        CMD_CLOSE_OTHER_SAVED_TABS if !has_other_saved_tabs => {
+            Cow::Borrowed("No other saved tabs to close")
+        }
+        CMD_CLOSE_SAVED_TABS_TO_RIGHT if !has_saved_tabs_right => {
+            Cow::Borrowed("No saved tabs to the right")
+        }
+        CMD_CLOSE_SAVED_TABS_TO_LEFT if !has_saved_tabs_left => {
+            Cow::Borrowed("No saved tabs to the left")
+        }
+        _ => Cow::Borrowed(base),
+    }
+}
+
 #[cfg(test)]
 fn command_contextual_desc<'a>(
     id: u32,
@@ -2020,9 +2078,9 @@ fn command_contextual_desc_with_workspace<'a>(
         CMD_SAVE_ALL => Cow::Owned(format!("Write {dirty_count} unsaved tabs")),
         CMD_RELOAD_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before reloading"),
         CMD_RELOAD_ACTIVE_FILE if active_has_path => Cow::Borrowed("Reload the active file from disk"),
-        CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("No file-backed tab to reload"),
         CMD_REVERT_ACTIVE_FILE if active_has_path => Cow::Borrowed("Discard local edits and reload from disk"),
-        CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("No file-backed tab to revert"),
         CMD_HOVER if !active_has_path => Cow::Borrowed("Save this untitled file before requesting hover"),
         CMD_GOTO_DEFINITION if !active_has_path => Cow::Borrowed("Save this untitled file before Go to Definition"),
         CMD_PEEK_DEFINITION if !active_has_path => Cow::Borrowed("Save this untitled file before Peek Definition"),
@@ -3554,6 +3612,149 @@ mod tests {
                 false,
                 false,
                 false,
+                false,
+                false,
+                false,
+                false,
+                true
+            ),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn tab_management_command_descriptions_reflect_runtime_state() {
+        let cases = [
+            (CMD_MOVE_ACTIVE_TAB_LEFT, "Tab is already first"),
+            (CMD_MOVE_ACTIVE_TAB_RIGHT, "Tab is already last"),
+            (CMD_SORT_TABS_BY_NAME, "Tabs already sorted"),
+            (CMD_CLOSE_DUPLICATE_TABS, "No duplicate file tabs"),
+            (CMD_CLOSE_SAVED_TABS, "No saved tabs to close"),
+            (CMD_CLOSE_OTHER_SAVED_TABS, "No other saved tabs to close"),
+            (CMD_CLOSE_SAVED_TABS_TO_RIGHT, "No saved tabs to the right"),
+            (CMD_CLOSE_SAVED_TABS_TO_LEFT, "No saved tabs to the left"),
+        ];
+        for (id, expected) in cases {
+            assert_eq!(
+                tab_management_contextual_desc(
+                    id, "base", true, true, true, false, false, false, false, false
+                ),
+                Cow::Borrowed(expected)
+            );
+        }
+
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_MOVE_ACTIVE_TAB_LEFT,
+                "base",
+                false,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_MOVE_ACTIVE_TAB_RIGHT,
+                "base",
+                true,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_SORT_TABS_BY_NAME,
+                "base",
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_CLOSE_DUPLICATE_TABS,
+                "base",
+                true,
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_CLOSE_SAVED_TABS,
+                "base",
+                true,
+                true,
+                true,
+                false,
+                true,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_CLOSE_OTHER_SAVED_TABS,
+                "base",
+                true,
+                true,
+                true,
+                false,
+                false,
+                true,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_CLOSE_SAVED_TABS_TO_RIGHT,
+                "base",
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                true,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_CLOSE_SAVED_TABS_TO_LEFT,
+                "base",
+                true,
+                true,
+                true,
                 false,
                 false,
                 false,

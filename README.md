@@ -201,6 +201,9 @@ source state and requires a new package run.
   directory targets with explicit `not a file` feedback
 - **Close Saved Tabs**, **Close Other Saved Tabs**, and directional close-left /
   close-right cleanup remove tab clutter while preserving dirty buffers
+- Command Palette tab-management rows for moving, sorting, closing saved tabs,
+  closing duplicate tabs, reload, and revert mirror their no-op runtime feedback
+  before dispatch
 - Unsaved-changes confirmation stale click, cancel, save, and discard routes
   report when the confirmation has already closed
 - Bottom dock stale close, preset, and resize affordances report when no dock is
