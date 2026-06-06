@@ -11643,7 +11643,13 @@ pub extern "C" fn mui_rename_can_commit(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
-    if ctx.tabs.active_read_only() || ctx.file_path.is_none() || !ctx.rename.is_active() {
+    let Some(path) = ctx.file_path.as_deref() else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only()
+        || save_target_is_existing_non_file(path)
+        || !ctx.rename.is_active()
+    {
         return 0;
     }
     let new_name = ctx.rename.name_string();
@@ -11754,15 +11760,7 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
 
     let result = apply_workspace_edit(ctx, &we, &new_name);
     ctx.rename.set_edit(Some(we));
-    if result.skipped_dirty > 0 {
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
-            result
-                .first_skipped_dirty_message
-                .as_deref()
-                .unwrap_or("Skipped dirty file during workspace edit"),
-        );
-    }
+    toast_workspace_edit_skipped_result(ctx, &result);
     ctx.rename.cancel();
     let files_changed = result.changed;
     println!(
@@ -12092,7 +12090,10 @@ fn apply_workspace_edit(
     result
 }
 
-fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEditApplyResult) {
+fn toast_workspace_edit_skipped_result(
+    ctx: &mut MuiContext,
+    result: &WorkspaceEditApplyResult,
+) -> bool {
     if result.skipped_dirty > 0 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
@@ -12101,6 +12102,7 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
                 .as_deref()
                 .unwrap_or("Skipped dirty file during workspace edit"),
         );
+        true
     } else if result.skipped_not_file > 0 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
@@ -12109,6 +12111,7 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
                 .as_deref()
                 .unwrap_or("Skipped non-file during workspace edit"),
         );
+        true
     } else if result.skipped_missing > 0 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
@@ -12117,6 +12120,7 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
                 .as_deref()
                 .unwrap_or("Skipped missing file during workspace edit"),
         );
+        true
     } else if result.skipped_write > 0 {
         ctx.push_toast(
             crate::toast::Kind::Warn,
@@ -12125,7 +12129,17 @@ fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEdi
                 .as_deref()
                 .unwrap_or("Skipped file during workspace edit"),
         );
-    } else if result.changed > 0 {
+        true
+    } else {
+        false
+    }
+}
+
+fn toast_codeaction_workspace_result(ctx: &mut MuiContext, result: &WorkspaceEditApplyResult) {
+    if toast_workspace_edit_skipped_result(ctx, result) {
+        return;
+    }
+    if result.changed > 0 {
         ctx.push_toast(crate::toast::Kind::Success, "Applied code action");
     } else {
         ctx.push_toast(crate::toast::Kind::Info, "Code action produced no edit");

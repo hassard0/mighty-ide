@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Symbol Rename reports non-file workspace skips**: rename commits now surface
+  skipped non-file, missing-file, and write failures from workspace edits, and
+  avoid undo checkpoints when the active rename target is already a directory.
 - **Fix All preflight skips known no-op targets**: Fix all (mty) no longer
   asks Mighty to record an undo point when a directory target or dirty
   duplicate tab will block the fixer before it can run.

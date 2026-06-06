@@ -15970,6 +15970,45 @@ fn rename_commit_rejects_read_only_binary_preview_before_fallback_edit() {
 }
 
 #[test]
+fn rename_commit_non_file_target_reports_visible_feedback() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_rename_non_file_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let blocked = root.join("blocked.txt");
+    std::fs::create_dir_all(&blocked).unwrap();
+
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.set_active_path(blocked.clone());
+    ctx.file_path = Some(blocked.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("alpha\n");
+    ctx.rename.open("alpha");
+    for ch in "beta".chars() {
+        ctx.rename.push(ch as u32);
+    }
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_rename_can_commit(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_rename_commit(h, 0, 0), 0);
+    assert_eq!(ctx.tabs.active_model().as_text(), "alpha\n");
+    assert_eq!(crate::mui_rename_active(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Skipped non-file during workspace edit: blocked.txt"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn rename_commit_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
