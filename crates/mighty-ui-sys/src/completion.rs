@@ -15,7 +15,8 @@
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
 //!   parse `CompletionItem` insert/display/kind/detail/labelDetails/docs/sort/
-//!   deprecated/commit characters text, and merge them ahead of the buffer words.
+//!   deprecated/commit characters/edit ranges text, and merge them ahead of the
+//!   buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
 //!
@@ -1097,8 +1098,9 @@ pub mod lsp {
     }
 
     /// Scrape insertable completion candidates out of a JSON blob. Prefers
-    /// `textEdit.newText`, then `insertText`, then `label`, and flattens LSP
-    /// snippet-formatted insert text to plain text before it reaches the editor.
+    /// `textEdit.newText`, then `textEditText`, then `insertText`, then `label`,
+    /// and flattens LSP snippet-formatted insert text to plain text before it
+    /// reaches the editor.
     /// Preserves `filterText` so prefix matching can follow the server's chosen
     /// key while accept still inserts the selected text, and `sortText` so the
     /// dropdown can honor provider ranking. Preserves provider documentation for
@@ -1155,6 +1157,7 @@ pub mod lsp {
     fn completion_item_insert_text(item: &[u8]) -> Option<String> {
         let snippet_format = top_level_number_value(item, b"insertTextFormat") == Some(2);
         let value = completion_text_edit_new_text(item)
+            .or_else(|| top_level_string_value(item, b"textEditText"))
             .or_else(|| top_level_string_value(item, b"insertText"))
             .or_else(|| top_level_string_value(item, b"label"))?;
         if snippet_format {
@@ -1796,7 +1799,7 @@ pub mod lsp {
         let uri = file_uri(path);
 
         // Compose the JSON-RPC message sequence.
-        let initialize = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#.to_string();
+        let initialize = completion_initialize_message();
         let initialized = r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#.to_string();
         let did_open = format!(
             r#"{{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{{"textDocument":{{"uri":"{}","languageId":"mighty","version":1,"text":"{}"}}}}}}"#,
@@ -1899,6 +1902,10 @@ pub mod lsp {
         // Scrape labels from the completion result payload only; envelope or
         // item metadata labels are not completion candidates.
         scrape_labels(&text)
+    }
+
+    pub fn completion_initialize_message() -> String {
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"completion":{"completionItem":{"snippetSupport":true,"commitCharactersSupport":true,"deprecatedSupport":true,"preselectSupport":true,"tagSupport":{"valueSet":[1]},"insertReplaceSupport":true,"labelDetailsSupport":true,"documentationFormat":["markdown","plaintext"]},"completionItemKind":{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]},"completionList":{"itemDefaults":["commitCharacters","editRange"]}}}}}}}"#.to_string()
     }
 }
 
@@ -3068,6 +3075,43 @@ mod tests {
                 end_col_utf16: 10,
             })
         );
+    }
+
+    #[test]
+    fn lsp_scrape_uses_text_edit_text_with_completion_list_default_range() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":{"itemDefaults":{"editRange":{"start":{"line":0,"character":4},"end":{"line":0,"character":6}}},"items":[{"label":"println!","textEditText":"println!($0)"},{"label":"fallback"}]}}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].text, "println!($0)");
+        assert_eq!(candidates[0].display_text.as_deref(), Some("println!"));
+        assert_eq!(
+            candidates[0].edit_range,
+            Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 4,
+                end_line: 0,
+                end_col_utf16: 6,
+            })
+        );
+        assert_eq!(candidates[1].text, "fallback");
+    }
+
+    #[test]
+    fn lsp_initialize_advertises_supported_completion_capabilities() {
+        let initialize = super::lsp::completion_initialize_message();
+
+        assert!(initialize.contains(r#""completionItem":{"#));
+        assert!(initialize.contains(r#""snippetSupport":true"#));
+        assert!(initialize.contains(r#""commitCharactersSupport":true"#));
+        assert!(initialize.contains(r#""deprecatedSupport":true"#));
+        assert!(initialize.contains(r#""preselectSupport":true"#));
+        assert!(initialize.contains(r#""tagSupport":{"valueSet":[1]}"#));
+        assert!(initialize.contains(r#""insertReplaceSupport":true"#));
+        assert!(initialize.contains(r#""labelDetailsSupport":true"#));
+        assert!(initialize.contains(r#""documentationFormat":["markdown","plaintext"]"#));
+        assert!(initialize.contains(r#""completionItemKind":{"valueSet":[1,2,3"#));
+        assert!(initialize.contains(r#""completionList":{"itemDefaults":["commitCharacters","editRange"]}"#));
     }
 
     #[test]
