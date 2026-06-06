@@ -851,10 +851,52 @@ fn env_surface_cap(keys: &[&str], fallback: u32) -> u32 {
     let cap = keys.iter().find_map(|key| {
         std::env::var(key)
             .ok()
-            .and_then(|v| v.trim().parse::<u32>().ok())
+            .and_then(|v| parse_unsigned_decimal_u32_token(v.trim()))
             .filter(|&n| n >= 64)
     });
     cap.map_or(fallback.max(1), |n| fallback.min(n).max(1))
+}
+
+fn parse_unsigned_decimal_u32_token(text: &str) -> Option<u32> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<u32>().ok()
+}
+
+fn parse_signed_decimal_i32_token(text: &str) -> Option<i32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() {
+        return None;
+    }
+    let digits = if bytes[0] == b'-' { &bytes[1..] } else { bytes };
+    if digits.is_empty() || !digits.iter().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<i32>().ok()
+}
+
+#[cfg(test)]
+mod env_numeric_token_tests {
+    use super::{parse_signed_decimal_i32_token, parse_unsigned_decimal_u32_token};
+
+    #[test]
+    fn unsigned_env_tokens_reject_signs_and_partial_numbers() {
+        assert_eq!(parse_unsigned_decimal_u32_token("128"), Some(128));
+        assert_eq!(parse_unsigned_decimal_u32_token("+128"), None);
+        assert_eq!(parse_unsigned_decimal_u32_token("-128"), None);
+        assert_eq!(parse_unsigned_decimal_u32_token("128px"), None);
+        assert_eq!(parse_unsigned_decimal_u32_token("1.5"), None);
+    }
+
+    #[test]
+    fn signed_env_tokens_reject_plus_prefixes_and_partial_numbers() {
+        assert_eq!(parse_signed_decimal_i32_token("240"), Some(240));
+        assert_eq!(parse_signed_decimal_i32_token("-1"), Some(-1));
+        assert_eq!(parse_signed_decimal_i32_token("+240"), None);
+        assert_eq!(parse_signed_decimal_i32_token("240frames"), None);
+        assert_eq!(parse_signed_decimal_i32_token("2e2"), None);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -884,7 +926,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
     let env_dim = |key: &str, fallback: u32| -> u32 {
         std::env::var(key)
             .ok()
-            .and_then(|v| v.trim().parse::<u32>().ok())
+            .and_then(|v| parse_unsigned_decimal_u32_token(v.trim()))
             .filter(|&n| n >= 64)
             .unwrap_or(fallback)
     };
@@ -1206,7 +1248,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
             // agrees, and a `_force_line` field keeps it pinned past the reset.
             let line = std::env::var("MUI_LIGHTBULB_AUTOOPEN")
                 .ok()
-                .and_then(|v| v.trim().parse::<i32>().ok())
+                .and_then(|v| parse_signed_decimal_i32_token(v.trim()))
                 .filter(|v| *v >= 0)
                 .unwrap_or(0);
             ctx.tabs.active_model_mut().move_to(line, 0);
@@ -1663,7 +1705,7 @@ filename src/main.mty
         if let Some(ctx) = unsafe { ctx(handle) } {
             ctx.settings_panel.open();
             let v = seed.to_string_lossy();
-            if let Ok(row) = v.trim().parse::<i32>() {
+            if let Some(row) = parse_signed_decimal_i32_token(v.trim()) {
                 // move_sel from row 0 to the requested row.
                 ctx.settings_panel.move_sel(row);
             }
@@ -2941,7 +2983,7 @@ pub extern "C" fn mui_headless_frames() -> i32 {
     }
     std::env::var("MUI_HEADLESS_FRAMES")
         .ok()
-        .and_then(|v| v.trim().parse::<i32>().ok())
+        .and_then(|v| parse_signed_decimal_i32_token(v.trim()))
         .filter(|&n| n > 0)
         .unwrap_or(DEFAULT_HEADLESS_FRAMES)
 }
