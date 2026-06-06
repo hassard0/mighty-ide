@@ -49,6 +49,9 @@ runners produce and launch the Mach-O and ELF packages.
   copyable
 - Command Palette copy/cut/paste rows reflect the active editor state, including
   empty copy targets and read-only previews
+- Command Palette edit rows, including undo/redo, indentation, line movement,
+  duplication, deletion, join-line, and comment toggles, report read-only
+  previews as unavailable while navigation and selection remain usable
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
   read-only previews as unavailable before the command is launched
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste

@@ -1445,6 +1445,18 @@ fn command_contextual_desc<'a>(
             CMD_COPY_SELECTION_OR_LINE if active_can_copy => Cow::Borrowed("Read-only preview: copy is available"),
             CMD_COPY_SELECTION_OR_LINE => Cow::Borrowed("Read-only preview has no text to copy"),
             CMD_CUT_SELECTION_OR_LINE | CMD_PASTE_IN_EDITOR => Cow::Borrowed("Read-only preview: editing clipboard actions are unavailable"),
+            CMD_UNDO => Cow::Borrowed("Read-only preview: undo is unavailable"),
+            CMD_REDO => Cow::Borrowed("Read-only preview: redo is unavailable"),
+            CMD_DELETE_PREVIOUS_WORD
+            | CMD_DELETE_NEXT_WORD
+            | CMD_INDENT_LINE_SELECTION
+            | CMD_OUTDENT_LINE_SELECTION
+            | CMD_TOGGLE_LINE_COMMENT
+            | CMD_DUPLICATE_LINE_SELECTION
+            | CMD_MOVE_LINE_UP
+            | CMD_MOVE_LINE_DOWN
+            | CMD_DELETE_LINE
+            | CMD_JOIN_LINE => Cow::Borrowed("Read-only preview: editing is unavailable"),
             CMD_FORMAT_DOCUMENT => Cow::Borrowed("Read-only preview: formatting is unavailable"),
             CMD_RUN_FILE => Cow::Borrowed("Read-only preview: Run is unavailable"),
             CMD_RUN_TESTS | CMD_RUN_TEST_AT_CURSOR => Cow::Borrowed("Read-only preview: tests are unavailable"),
@@ -2083,6 +2095,18 @@ mod tests {
     #[test]
     fn read_only_command_descriptions_reflect_blocked_actions() {
         for (id, expected) in [
+            (CMD_UNDO, "Read-only preview: undo is unavailable"),
+            (CMD_REDO, "Read-only preview: redo is unavailable"),
+            (CMD_DELETE_PREVIOUS_WORD, "Read-only preview: editing is unavailable"),
+            (CMD_DELETE_NEXT_WORD, "Read-only preview: editing is unavailable"),
+            (CMD_INDENT_LINE_SELECTION, "Read-only preview: editing is unavailable"),
+            (CMD_OUTDENT_LINE_SELECTION, "Read-only preview: editing is unavailable"),
+            (CMD_TOGGLE_LINE_COMMENT, "Read-only preview: editing is unavailable"),
+            (CMD_DUPLICATE_LINE_SELECTION, "Read-only preview: editing is unavailable"),
+            (CMD_MOVE_LINE_UP, "Read-only preview: editing is unavailable"),
+            (CMD_MOVE_LINE_DOWN, "Read-only preview: editing is unavailable"),
+            (CMD_DELETE_LINE, "Read-only preview: editing is unavailable"),
+            (CMD_JOIN_LINE, "Read-only preview: editing is unavailable"),
             (CMD_FORMAT_DOCUMENT, "Read-only preview: formatting is unavailable"),
             (CMD_RUN_FILE, "Read-only preview: Run is unavailable"),
             (CMD_RUN_TESTS, "Read-only preview: tests are unavailable"),
