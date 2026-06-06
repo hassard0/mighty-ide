@@ -10168,6 +10168,20 @@ pub extern "C" fn mui_theme_picker_cancel(handle: i64) -> i32 {
     }
 }
 
+/// Close the picker for incidental mouse dismissal without user-visible feedback.
+#[no_mangle]
+pub extern "C" fn mui_theme_picker_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.theme_picker.is_active() {
+        ctx.theme_picker.cancel();
+        1
+    } else {
+        0
+    }
+}
+
 /// Draw the theme-picker overlay (no-op when inactive).
 #[no_mangle]
 pub extern "C" fn mui_theme_picker_draw(handle: i64) {

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Color theme mouse dismissal is quiet**: clicking outside the theme picker or
+  using its mouse close affordance now reverts previews without adding
+  `Color theme picker cancelled`; Escape and the explicit close command still
+  report cancellation feedback.
 - **Language probe cleanup is quiet**: the `MUI_LANG_PROBE` startup diagnostic
   now silently dismisses incidental code-action and rename surfaces after its
   scripted checks, avoiding stray close-command toasts such as

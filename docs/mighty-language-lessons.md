@@ -14060,3 +14060,19 @@ state clean.
 - **Language note:** no compiler gap surfaced. Diagnostic hooks should use
   quiet, idempotent cleanup ABIs so probe output and user-facing UI feedback do
   not get mixed together.
+
+## L1109 - Mouse Dismissal Is Not Always Command Cancellation
+
+The color theme picker previews themes while it is open. Escape and the
+Command Palette close row are explicit cancellation actions, so
+`Color theme picker cancelled` is useful feedback there. A mouse miss or close
+affordance is different: it is incidental surface dismissal after navigation,
+not a command that needs a toast.
+
+- **IDE note:** theme-picker mouse close and outside-click paths now call
+  `mui_theme_picker_dismiss`, which reverts the previewed theme silently. The
+  explicit `mui_theme_picker_cancel` path still owns cancellation and no-open
+  feedback.
+- **Language note:** no compiler gap surfaced. Event-loop code should encode
+  user intent in the ABI it calls; the same visual close can be either an
+  explicit command or incidental cleanup depending on how it was triggered.

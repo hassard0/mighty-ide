@@ -12698,11 +12698,24 @@ fn color_theme_close_command_cancels_picker() {
     assert_eq!(crate::mui_theme_picker_cancel(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No color theme picker open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::mui_theme_picker_dismiss(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
 
     assert_eq!(crate::mui_theme_picker_click(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(ctx.toasts.toasts()[0].message, "No color theme picker open");
     ctx.toasts.clear();
+
+    crate::mui_theme_picker_open(handle);
+    assert_eq!(crate::mui_theme_picker_active(handle), 1);
+    crate::mui_theme_picker_move(handle, 1);
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Aurora);
+    assert_eq!(crate::mui_theme_picker_dismiss(handle), 1);
+    assert_eq!(crate::mui_theme_picker_active(handle), 0);
+    assert_eq!(crate::theme::active_id(), crate::theme::ThemeId::Vivid);
+    assert!(ctx.toasts.toasts().is_empty());
 
     crate::theme::set_active(crate::theme::ThemeId::Vivid);
     crate::mui_theme_picker_move(handle, 1);
@@ -22701,6 +22714,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     for needle in [
         "let _t = mui_theme_picker_apply(h)\n            theme_picker_open = false",
         "let _thc = mui_theme_picker_cancel(h)\n            theme_picker_open = false",
+        "let _thd = mui_theme_picker_dismiss(h)\n            theme_picker_open = false",
         "if th == 2",
         "} else if th == 0",
         "} else {\n            let _t = mui_theme_picker_apply(h)",
