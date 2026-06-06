@@ -27,12 +27,18 @@
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Instant;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex, MutexGuard,
+};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use crate::diagnostics;
+
+pub(crate) const MAX_WEB_BUILD_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
 /// One line of serve/build output, classified for tinting (error rows red).
 #[derive(Debug, Clone)]
@@ -312,16 +318,22 @@ impl WebPlayground {
             file.display(),
             temp.display()
         ));
-        let out = Command::new(&mty)
+        let mut build = Command::new(&mty);
+        build
             .arg("build")
             .arg("--target")
             .arg("wasm32-web")
             .arg(file)
             .arg("--out-dir")
-            .arg(&temp)
-            .output();
-        let out = match out {
-            Ok(o) => o,
+            .arg(&temp);
+        let (status, stdout, stderr) = match run_web_build_command(build) {
+            Ok(Some(o)) => o,
+            Ok(None) => {
+                self.push_line("mty build output too large".to_string());
+                self.saw_error = true;
+                self.finish_now(-1);
+                return false;
+            }
             Err(e) => {
                 self.push_line(format!("failed to run `{mty} build`: {e}"));
                 self.saw_error = true;
@@ -330,7 +342,7 @@ impl WebPlayground {
             }
         };
         // Fold the build's combined output into the panel.
-        for stream in [&out.stdout, &out.stderr] {
+        for stream in [&stdout, &stderr] {
             if !stream.is_empty() {
                 let txt = String::from_utf8_lossy(stream);
                 self.feed(&txt);
@@ -338,10 +350,10 @@ impl WebPlayground {
         }
         self.flush_partial();
         let wasm = temp.join(format!("{stem}.wasm"));
-        if !out.status.success() {
-            self.push_line(format!("build failed (exit {:?})", out.status.code()));
+        if !status.success() {
+            self.push_line(format!("build failed (exit {:?})", status.code()));
             self.saw_error = true;
-            self.finish_now(out.status.code().unwrap_or(-1));
+            self.finish_now(status.code().unwrap_or(-1));
             return false;
         }
         if !wasm_artifact_ready(&wasm) {
@@ -580,6 +592,89 @@ impl WebPlayground {
 
 fn lock_output_buffer(out: &Arc<Mutex<Vec<u8>>>) -> MutexGuard<'_, Vec<u8>> {
     out.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn run_web_build_command(
+    mut cmd: Command,
+) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, String> {
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    let mut child = cmd.spawn().map_err(|e| e.to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "stdout pipe unavailable".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "stderr pipe unavailable".to_string())?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = thread::spawn(move || {
+        read_web_build_stream_capped(stdout, MAX_WEB_BUILD_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = thread::spawn(move || {
+        read_web_build_stream_capped(stderr, MAX_WEB_BUILD_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    let status = loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Ok(None);
+        }
+        match child.try_wait().map_err(|e| e.to_string())? {
+            Some(status) => break status,
+            None => thread::sleep(Duration::from_millis(10)),
+        }
+    };
+
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| "stdout reader panicked".to_string())?;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| "stderr reader panicked".to_string())?;
+    if exceeded.load(Ordering::Relaxed) {
+        Ok(None)
+    } else {
+        Ok(Some((status, stdout, stderr)))
+    }
+}
+
+fn read_web_build_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_web_build_output_with_cap(&mut out, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    out
+}
+
+fn append_web_build_output_with_cap(out: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if out.len().saturating_add(chunk.len()) > cap {
+        out.clear();
+        return false;
+    }
+    out.extend_from_slice(chunk);
+    true
 }
 
 /// Open `url` in the default browser. Windows: `cmd /c start "" <url>`.
@@ -933,6 +1028,35 @@ mod tests {
             w.latest_error_summary().as_deref(),
             Some("build failed: missing wasm artifact C:\\tmp\\main.wasm")
         );
+    }
+
+    #[test]
+    fn web_build_output_cap_accepts_exact_limit() {
+        let mut out = Vec::from(b"web");
+
+        assert!(append_web_build_output_with_cap(&mut out, b"!", 4));
+        assert_eq!(out, b"web!");
+    }
+
+    #[test]
+    fn web_build_output_cap_discards_oversized_stream() {
+        let mut out = Vec::from(b"web:");
+
+        assert!(!append_web_build_output_with_cap(&mut out, b"overflow", 8));
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn web_build_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_web_build_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
     }
 
     #[test]

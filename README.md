@@ -177,6 +177,9 @@ source commit and report only the archive produced by that run.
   including no test run to stop, empty results, and closed panel
 - Command Palette Web lifecycle rows mirror Web Playground no-op states,
   including no running server, missing URL, empty output, and closed panel
+- Web Playground fallback build output is capped at 4 MiB per stdout/stderr
+  stream, so failing `mty build --target wasm32-web` commands keep useful output
+  without allowing unbounded capture
 - Command Palette Agents lifecycle rows mirror Mighty Agents no-op states,
   including empty run output and closed panel
 - Command Palette Terminal lifecycle rows mirror integrated terminal no-op

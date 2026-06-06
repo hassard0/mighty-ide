@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1202).
+(lessons L1-L1203).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Web Playground build output is byte-capped**: fallback `mty build
+  --target wasm32-web` stdout/stderr now stream through 4 MiB per-stream caps,
+  preserving normal build output while rejecting oversized compiler output.
 - **New Project output is byte-capped**: `mty new` stdout/stderr now stream
   through 4 MiB per-stream caps, preserving normal scaffold failure detail while
   rejecting oversized project-creation output.
