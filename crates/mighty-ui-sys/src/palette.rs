@@ -1445,6 +1445,11 @@ fn command_contextual_desc<'a>(
             CMD_COPY_SELECTION_OR_LINE if active_can_copy => Cow::Borrowed("Read-only preview: copy is available"),
             CMD_COPY_SELECTION_OR_LINE => Cow::Borrowed("Read-only preview has no text to copy"),
             CMD_CUT_SELECTION_OR_LINE | CMD_PASTE_IN_EDITOR => Cow::Borrowed("Read-only preview: editing clipboard actions are unavailable"),
+            CMD_FORMAT_DOCUMENT => Cow::Borrowed("Read-only preview: formatting is unavailable"),
+            CMD_RUN_FILE => Cow::Borrowed("Read-only preview: Run is unavailable"),
+            CMD_RUN_TESTS | CMD_RUN_TEST_AT_CURSOR => Cow::Borrowed("Read-only preview: tests are unavailable"),
+            CMD_DEBUG_START_CONTINUE => Cow::Borrowed("Read-only preview: debugging is unavailable"),
+            CMD_RUN_IN_BROWSER => Cow::Borrowed("Read-only preview: browser run is unavailable"),
             _ => Cow::Borrowed(base),
         };
     }
@@ -2073,6 +2078,24 @@ mod tests {
             ),
             Cow::Borrowed("Read-only preview: editing clipboard actions are unavailable")
         );
+    }
+
+    #[test]
+    fn read_only_command_descriptions_reflect_blocked_actions() {
+        for (id, expected) in [
+            (CMD_FORMAT_DOCUMENT, "Read-only preview: formatting is unavailable"),
+            (CMD_RUN_FILE, "Read-only preview: Run is unavailable"),
+            (CMD_RUN_TESTS, "Read-only preview: tests are unavailable"),
+            (CMD_RUN_TEST_AT_CURSOR, "Read-only preview: tests are unavailable"),
+            (CMD_DEBUG_START_CONTINUE, "Read-only preview: debugging is unavailable"),
+            (CMD_RUN_IN_BROWSER, "Read-only preview: browser run is unavailable"),
+        ] {
+            assert_eq!(
+                command_contextual_desc(id, "base", true, true, false, 0, false, false),
+                Cow::Borrowed(expected),
+                "command {id} should explain read-only preview state"
+            );
+        }
     }
 
     #[test]

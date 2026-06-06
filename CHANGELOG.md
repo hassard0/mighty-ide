@@ -26,6 +26,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Cut now tell users whether they will use the selection, current line, or
   nothing, while read-only previews show Copy as available and Cut/Paste as
   unavailable.
+- **Command Palette launch commands explain read-only previews**: Format, Run,
+  Run Tests, Run Test at Cursor, Debug Start, and Run in Browser now show
+  read-only preview limitations directly in the palette instead of waiting for
+  execution-time feedback.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.
