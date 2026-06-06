@@ -49,6 +49,12 @@ macOS and Linux package scripts may be syntax-checked and host-gate-checked from
 Windows, but those checks are script readiness only. They do not create clean
 Mach-O or ELF binaries.
 
+This is the final stop-pass contract for a Windows-hosted handoff: after the
+README, changelog, and release docs are committed, rebuild only the Windows
+archive here, record its generated evidence, leave unavailable native macOS and
+Linux runners as `unbuilt`, and stop. Continuing implementation work after that
+point creates a new source state and requires a new package pass.
+
 If no macOS runner and no Linux distribution or matching Linux CI runner are
 available during the pass, the only local publishable clean-binary outcome is
 Windows x64. Do not keep stale macOS or Linux archives from earlier runs in

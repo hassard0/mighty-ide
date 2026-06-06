@@ -14,6 +14,12 @@ can have their scripts and docs reviewed from here, but their binaries are not
 clean until native macOS and Linux hosts or matching CI runners run their own
 package scripts and smoke tests.
 
+This handoff is the stopping point for the current pass. The only local binary
+that can be made clean from this host is the Windows PE archive. macOS and
+Linux must be reported as `unbuilt` unless native runners completed during this
+same pass; script checks from Windows are readiness evidence, not binary
+evidence.
+
 ## Publish Decisions
 
 | Platform | Decision from this Windows pass | Required native binary evidence |

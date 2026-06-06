@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final stop pass is documentation-and-artifact only**: README and release
+  docs now spell out the current pass boundary: commit the release docs,
+  rebuild and launch the Windows PE package from that commit, record ZIP
+  size/hash evidence, keep macOS and Linux `unbuilt` without native runners,
+  and stop without additional feature work.
 - **Release handoff documents clean native binaries**: README, build notes, and
   release docs now make the final artifact contract explicit: Windows PE
   binaries are publishable only after the Windows package script and packaged

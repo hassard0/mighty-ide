@@ -88,6 +88,11 @@ succeeds, in the external upload note or release handoff. Do not edit the source
 tree after that package run unless the package is rebuilt from the new clean
 commit.
 
+For this stop pass, the source-controlled evidence remains a reusable template.
+The final generated values belong beside the uploaded artifact and in the final
+handoff response because inserting them here would change the source commit and
+invalidate the just-recorded archive hash.
+
 The source-controlled copy of this file deliberately stays a reusable template.
 For the actual release upload, copy the generated values from
 `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`, `Get-Item`, and `Get-FileHash`

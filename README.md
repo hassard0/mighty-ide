@@ -17,6 +17,12 @@ repository. A clean release package must be built on the same operating system
 that will run it because Mighty IDE ships a native executable plus a native
 `mighty-ui-sys` shim.
 
+Current stop-pass rule: finish documentation, commit it, rebuild the Windows
+package from that exact commit, record the Windows ZIP size and SHA-256, verify
+the packaged Windows executable launches, record macOS and Linux as `unbuilt`
+unless native runners completed the same pass, and stop. No further feature
+work belongs in the same pass after artifact evidence is recorded.
+
 | Platform | Package command | Archive | Clean-binary requirement |
 |----------|-----------------|---------|--------------------------|
 | Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`, no sidecars, no `.dylib` or `.so` payloads, packaged launch from `dist\mighty-ide-win64` |
