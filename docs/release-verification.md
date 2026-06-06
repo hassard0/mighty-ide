@@ -135,6 +135,10 @@ package runs complete and launch successfully on those platforms.
 
 If a native host or matching CI runner is unavailable, record that platform as
 `unbuilt`. Do not publish a placeholder archive.
+Do not reuse a package generated before the final documentation commit. The
+archive is clean for a pass only when its bundled manifest names the committed
+source hash that contains the README, build notes, changelog, and release docs
+being handed off.
 
 ## Stop-Pass Handoff
 

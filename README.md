@@ -49,6 +49,12 @@ This checkout's final stop pass uses the same rule for all platforms:
 - Linux x64: unbuilt until `./package-linux.sh` completes and launches the
   executable on native Linux or a matching CI runner.
 
+For the final handoff, the release docs are source-controlled and the binary
+evidence is artifact-scoped: the Windows ZIP carries `PACKAGE-MANIFEST.txt`
+with the source commit, payload hashes, payload sizes, and clean-binary checks;
+macOS and Linux publish only when their native tarballs carry equivalent
+Mach-O or ELF manifests from the same pass.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`

@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Release handoff documents clean native binaries**: README, build notes, and
+  release docs now make the final artifact contract explicit: Windows PE
+  binaries are publishable only after the Windows package script and packaged
+  launch pass, while macOS Mach-O and Linux ELF archives remain unbuilt until
+  matching native runners produce, scan, manifest, and launch them.
 - **Binary previews explain read-only mode on open**: file-opening routes now
   toast when a binary file is opened as a read-only preview, so the first edit
   denial is not the user's first signal that the buffer is protected.

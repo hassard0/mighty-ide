@@ -105,6 +105,10 @@ packaged Windows executable launched from
 The manifest must include the source commit, generated UTC timestamp, native
 payload hash and size rows, archive path, and clean-binary checks. A package
 that lacks any of those fields is incomplete even if the executable launches.
+The final handoff should publish only artifacts whose bundled manifest names
+the committed release-doc source hash for this pass. If a native package cannot
+be rebuilt after that documentation commit, record the platform as `unbuilt`
+instead of treating an older archive as clean evidence.
 The final package must be generated after the documentation commit that defines
 this handoff. If any source file changes after the package is generated, the
 artifact no longer matches the source handoff and must be rebuilt before it is
