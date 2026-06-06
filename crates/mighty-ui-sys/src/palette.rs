@@ -1361,6 +1361,14 @@ impl PaletteEngine {
                 if let Some(desc) = active_file_utility_stale_target_desc(id, &path) {
                     return Cow::Owned(desc);
                 }
+                if id == CMD_REVEAL_ACTIVE_FILE_IN_OS {
+                    if let Some(desc) = active_file_os_reveal_unavailable_desc(
+                        &path,
+                        crate::abi::platform_reveal_command(&path).is_some(),
+                    ) {
+                        return Cow::Owned(desc);
+                    }
+                }
             }
         }
         if matches!(id, CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE)
@@ -2597,12 +2605,26 @@ fn command_contextual_desc_with_workspace<'a>(
         CMD_DELETE_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before deleting"),
         CMD_DELETE_ACTIVE_FILE if active_has_path => Cow::Borrowed("Delete the active file after confirmation"),
         CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_REVEAL_ACTIVE_FILE | CMD_REVEAL_ACTIVE_FILE_IN_OS if !active_has_path => {
+            Cow::Borrowed("No active file to reveal: (scratch)")
+        }
         CMD_COPY_ACTIVE_FILE_PATH | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH | CMD_COPY_ACTIVE_FILE_NAME | CMD_COPY_ACTIVE_FILE_DIRECTORY
             if !active_has_path =>
         {
             Cow::Borrowed("Needs a file-backed tab")
         }
         _ => Cow::Borrowed(base),
+    }
+}
+
+fn active_file_os_reveal_unavailable_desc(
+    path: &std::path::Path,
+    available: bool,
+) -> Option<String> {
+    if available {
+        None
+    } else {
+        Some(crate::abi::file_manager_reveal_unavailable_message(path))
     }
 }
 
@@ -3261,6 +3283,23 @@ mod tests {
         assert_eq!(
             command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, false, 0, false, false),
             Cow::Borrowed("Save this untitled file before renaming it")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_REVEAL_ACTIVE_FILE, "base", false, false, false, 0, false, false),
+            Cow::Borrowed("No active file to reveal: (scratch)")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_REVEAL_ACTIVE_FILE_IN_OS,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("No active file to reveal: (scratch)")
         );
         assert_eq!(
             command_contextual_desc(CMD_SAVE, "base", true, true, true, 1, false, false),
@@ -5485,6 +5524,16 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn active_file_os_reveal_description_reports_unavailable_file_manager() {
+        let path = std::path::Path::new("src/main.mty");
+        assert_eq!(
+            active_file_os_reveal_unavailable_desc(path, false),
+            Some("Reveal in file manager is unavailable: main.mty".to_string())
+        );
+        assert_eq!(active_file_os_reveal_unavailable_desc(path, true), None);
     }
 
     #[test]

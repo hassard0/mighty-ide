@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews file-manager reveal blockers**: Reveal Active File
+  rows now report scratch buffers before dispatch, and Show Active File in File
+  Manager reports unavailable platform reveal support before launch.
 - **Command Palette previews Markdown preview blockers**: Markdown: Open Preview
   now reports non-Markdown active buffers before dispatch, matching the runtime
   preview guard even when a preview pane is already open.
