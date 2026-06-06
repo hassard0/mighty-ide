@@ -299,9 +299,8 @@ fn read_uint_at(obj: &[u8], mut i: usize) -> Option<(u32, usize)> {
     let start = i;
     let mut value = 0u32;
     while i < obj.len() && obj[i].is_ascii_digit() {
-        value = value
-            .saturating_mul(10)
-            .saturating_add((obj[i] - b'0') as u32);
+        value = value.checked_mul(10)?;
+        value = value.checked_add((obj[i] - b'0') as u32)?;
         i += 1;
     }
     if i == start {
@@ -2042,6 +2041,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_signature_help_rejects_overflow_numeric_fields() {
+        let json = r#"{"result":{"activeSignature":999999999999999999999999999999,"activeParameter":999999999999999999999999999999,"signatures":[{"label":"first(x)","parameters":[{"label":"x"}]},{"label":"second(y)","parameters":[{"label":"y"}]}]},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+
+        assert_eq!(sig.label, "first(x)");
+        assert_eq!(sig.active, 0);
+    }
+
+    #[test]
     fn parse_signature_help_uses_result_signatures_not_envelope_fields() {
         let json = r#"{"jsonrpc":"2.0","signatures":[{"label":"wrong(x)","parameters":[{"label":"x"}]}],"activeSignature":0,"result":{"activeSignature":0,"activeParameter":1,"signatures":[{"label":"right(a, b)","parameters":[{"label":"a"},{"label":"b"}]}]},"id":2}"#;
         let sig = parse_signature_help(json).expect("sig");
@@ -2203,6 +2211,16 @@ mod tests {
     #[test]
     fn parse_workspace_edit_rejects_fractional_range_positions() {
         let json = r#"{"result":{"changes":{"file:///bad.mty":[{"newText":"bad","range":{"start":{"line":1.5,"character":2},"end":{"line":1,"character":5}}}],"file:///good.mty":[{"newText":"good","range":{"start":{"line":2,"character":3},"end":{"line":2,"character":7}}}]}},"id":4}"#;
+        let we = parse_workspace_edit(json);
+
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///good.mty");
+        assert_eq!(we.files[0].1[0].new_text, "good");
+    }
+
+    #[test]
+    fn parse_workspace_edit_rejects_overflow_range_positions() {
+        let json = r#"{"result":{"changes":{"file:///bad.mty":[{"newText":"bad","range":{"start":{"line":999999999999999999999999999999,"character":2},"end":{"line":1,"character":5}}}],"file:///good.mty":[{"newText":"good","range":{"start":{"line":2,"character":3},"end":{"line":2,"character":7}}}]}},"id":4}"#;
         let we = parse_workspace_edit(json);
 
         assert_eq!(we.file_count(), 1);
