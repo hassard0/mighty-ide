@@ -37,7 +37,10 @@ This stop pass is source-final first, artifact-final second. The committed
 source tree contains the README, build notes, changelog, package scripts, and
 release docs. The generated release evidence for this pass is created only
 after that commit by the native package script, the packaged launch, and the
-final handoff values.
+final handoff values. From this Windows host, the final local clean-binary
+claim can cover only the Windows PE archive; macOS and Linux must stay
+`unbuilt` until their own native package scripts build, scan, manifest, and
+launch matching Mach-O or ELF packages from the same source commit.
 
 Final stop-pass rule: finish the source, README, and docs; commit them; rebuild
 the Windows package from that exact commit; record the Windows ZIP size and

@@ -24,6 +24,12 @@ Clean-binary evidence is per-platform. A Windows package proves only Windows PE
 payloads. A macOS package proves only Mach-O payloads. A Linux package proves
 only ELF payloads.
 
+For a Windows-hosted final pass, "ensure clean binaries for Windows, macOS, and
+Linux" means ensuring the decision for each platform is cleanly bounded:
+Windows can be rebuilt and verified locally; macOS and Linux are cleanly
+recorded as `unbuilt` until native runners provide their own package manifests,
+archive scans, and launch evidence from the same source commit.
+
 ## Platform Decisions
 
 Use only these decision values:

@@ -14,6 +14,14 @@ can have their scripts and docs reviewed from here, but their binaries are not
 clean until native macOS and Linux hosts or matching CI runners run their own
 package scripts and smoke tests.
 
+For this final pass, clean binaries means clean platform decisions. Windows x64
+can move to `publish` after the PowerShell package script rebuilds the ZIP from
+the final source commit, scans the staged package and ZIP, writes
+`PACKAGE-MANIFEST.txt`, and the packaged executable launches. macOS and Linux
+remain `unbuilt` unless their own native package runs complete during this same
+pass; do not substitute cross-built or copied artifacts for native Mach-O or
+ELF evidence.
+
 This handoff is the stopping point for the current pass. The only local binary
 that can be made clean from this host is the Windows PE archive. macOS and
 Linux must be reported as `unbuilt` unless native runners completed during this

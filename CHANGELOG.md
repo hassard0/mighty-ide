@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final stop-pass binary matrix is documented**: README and release docs now
+  state that this Windows-hosted pass can publish only the locally rebuilt PE
+  ZIP, while macOS and Linux remain `unbuilt` until native runners produce and
+  launch their Mach-O or ELF archives from the same source commit.
 - **Line-edit palette mirrors boundary preflights**: Command Palette now reports
   top/bottom move-line no-ops, empty-line delete no-ops, and missing next-line
   join no-ops before dispatch, matching the editor undo preflight rules.
