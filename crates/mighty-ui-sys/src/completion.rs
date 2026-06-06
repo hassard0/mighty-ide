@@ -45,6 +45,8 @@ pub struct Candidate {
     pub deprecated: bool,
     /// Provider commit characters that accept this item before inserting the char.
     pub commit_chars: Vec<char>,
+    /// Optional provider replacement width before the cursor, in editor chars.
+    pub replace_len: Option<usize>,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
     /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
@@ -71,11 +73,21 @@ pub struct SemanticCandidate {
     pub deprecated: bool,
     /// LSP `commitCharacters` for accepting this item while typing punctuation.
     pub commit_chars: Vec<char>,
+    /// Optional LSP `textEdit.range`, converted during request matching.
+    pub edit_range: Option<CompletionEditRange>,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
     /// Optional LSP `sortText`, used to rank semantic rows before buffer words.
     pub sort_text: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CompletionEditRange {
+    pub start_line: u32,
+    pub start_col_utf16: u32,
+    pub end_line: u32,
+    pub end_col_utf16: u32,
 }
 
 /// Whether a char is part of an identifier.
@@ -188,6 +200,72 @@ fn prefix_at_ascii(bytes: &[u8], cursor: usize) -> String {
     String::from_utf8_lossy(&bytes[start..end]).into_owned()
 }
 
+fn source_line_col_at(bytes: &[u8], cursor: usize) -> (u32, u32) {
+    let Ok(text) = std::str::from_utf8(bytes) else {
+        let mut line = 0u32;
+        let mut col = 0u32;
+        for &b in bytes.iter().take(cursor.min(bytes.len())) {
+            if b == b'\n' {
+                line = line.saturating_add(1);
+                col = 0;
+            } else {
+                col = col.saturating_add(1);
+            }
+        }
+        return (line, col);
+    };
+    let mut end = cursor.min(bytes.len());
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut line = 0u32;
+    let mut col = 0u32;
+    for ch in text[..end].chars() {
+        if ch == '\n' {
+            line = line.saturating_add(1);
+            col = 0;
+        } else {
+            col = col.saturating_add(1);
+        }
+    }
+    (line, col)
+}
+
+fn source_utf16_col_to_char(bytes: &[u8], line: u32, utf16_col: u32) -> Option<u32> {
+    let text = std::str::from_utf8(bytes).ok()?;
+    let line_text = text.lines().nth(line as usize).unwrap_or("");
+    let mut units = 0u32;
+    let mut chars = 0u32;
+    for ch in line_text.chars() {
+        if units >= utf16_col {
+            return Some(chars);
+        }
+        let next = units.saturating_add(ch.len_utf16() as u32);
+        if next > utf16_col {
+            return Some(chars);
+        }
+        units = next;
+        chars = chars.saturating_add(1);
+    }
+    Some(chars)
+}
+
+fn replacement_len_for_range(
+    bytes: &[u8],
+    cursor_pos: (u32, u32),
+    range: CompletionEditRange,
+) -> Option<usize> {
+    if range.start_line != range.end_line || range.end_line != cursor_pos.0 {
+        return None;
+    }
+    let start_col = source_utf16_col_to_char(bytes, range.start_line, range.start_col_utf16)?;
+    let end_col = source_utf16_col_to_char(bytes, range.end_line, range.end_col_utf16)?;
+    if end_col != cursor_pos.1 || start_col > end_col {
+        return None;
+    }
+    Some((end_col - start_col) as usize)
+}
+
 /// Filter `words` to those that start with `prefix` (case-sensitive) but are not
 /// exactly equal to it, sorted and deduped. An empty prefix returns nothing (we
 /// don't pop a dropdown of the whole buffer for a bare cursor).
@@ -243,6 +321,7 @@ impl CompletionEngine {
                 preselect: false,
                 deprecated: false,
                 commit_chars: Vec::new(),
+                edit_range: None,
                 filter_text: None,
                 sort_text: None,
             })
@@ -259,6 +338,7 @@ impl CompletionEngine {
         semantic: &[SemanticCandidate],
     ) -> usize {
         let prefix = prefix_at(bytes, cursor);
+        let cursor_pos = source_line_col_at(bytes, cursor);
         self.prefix_len = prefix.chars().count();
         self.candidates.clear();
         self.sel = 0;
@@ -292,6 +372,9 @@ impl CompletionEngine {
                     preselect: item.preselect,
                     deprecated: item.deprecated,
                     commit_chars: item.commit_chars.clone(),
+                    replace_len: item
+                        .edit_range
+                        .and_then(|range| replacement_len_for_range(bytes, cursor_pos, range)),
                     semantic: true,
                     snippet: false,
                 });
@@ -311,6 +394,7 @@ impl CompletionEngine {
                     preselect: false,
                     deprecated: false,
                     commit_chars: Vec::new(),
+                    replace_len: None,
                     semantic: false,
                     snippet: false,
                 });
@@ -344,6 +428,7 @@ impl CompletionEngine {
                     preselect: false,
                     deprecated: false,
                     commit_chars: Vec::new(),
+                    replace_len: None,
                     semantic: false,
                     snippet: true,
                 });
@@ -409,6 +494,17 @@ impl CompletionEngine {
     /// Number of chars before the cursor to delete when accepting.
     pub fn prefix_len(&self) -> usize {
         self.prefix_len
+    }
+
+    /// Number of chars before the cursor to delete for the selected candidate.
+    pub fn accepted_replace_len(&self) -> usize {
+        if !self.active {
+            return 0;
+        }
+        self.candidates
+            .get(self.sel)
+            .and_then(|c| c.replace_len)
+            .unwrap_or(self.prefix_len)
     }
 
     /// The selected candidate's text, or `""` when inactive / empty.
@@ -958,7 +1054,7 @@ pub mod lsp {
     //! dependency). Every step is short-timeout and failure-tolerant — any error
     //! returns an empty label list so the caller falls back to buffer words.
 
-    use super::SemanticCandidate;
+    use super::{CompletionEditRange, SemanticCandidate};
     use std::io::{Read, Write};
     use std::path::Path;
     use std::process::{Child, Command, Stdio};
@@ -1029,6 +1125,7 @@ pub mod lsp {
                         preselect: completion_item_preselect(item),
                         deprecated: completion_item_deprecated(item),
                         commit_chars: completion_item_commit_chars(item),
+                        edit_range: completion_item_text_edit_range(item),
                         filter_text: completion_item_filter_text(item),
                         sort_text: completion_item_sort_text(item),
                     });
@@ -1191,6 +1288,29 @@ pub mod lsp {
             return None;
         }
         top_level_string_value(text_edit, b"newText")
+    }
+
+    fn completion_item_text_edit_range(item: &[u8]) -> Option<CompletionEditRange> {
+        let text_edit_at = top_level_field_value_start(item, b"textEdit")?;
+        let text_edit = value_region(item, text_edit_at)?;
+        if text_edit.first() != Some(&b'{') {
+            return None;
+        }
+        let range_at = top_level_field_value_start(text_edit, b"range")?;
+        let range = value_region(text_edit, range_at)?;
+        if range.first() != Some(&b'{') {
+            return None;
+        }
+        let start_at = top_level_field_value_start(range, b"start")?;
+        let start = value_region(range, start_at)?;
+        let end_at = top_level_field_value_start(range, b"end")?;
+        let end = value_region(range, end_at)?;
+        Some(CompletionEditRange {
+            start_line: top_level_number_value(start, b"line")?.try_into().ok()?,
+            start_col_utf16: top_level_number_value(start, b"character")?.try_into().ok()?,
+            end_line: top_level_number_value(end, b"line")?.try_into().ok()?,
+            end_col_utf16: top_level_number_value(end, b"character")?.try_into().ok()?,
+        })
     }
 
     fn top_level_string_value(obj: &[u8], field: &[u8]) -> Option<String> {
@@ -1869,6 +1989,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            edit_range: None,
             filter_text: Some("np".to_string()),
             sort_text: None,
         }];
@@ -1878,6 +1999,97 @@ mod tests {
         assert_eq!(n, 1);
         assert_eq!(e.prefix_len(), 2);
         assert_eq!(e.accepted_text(), "numpy");
+    }
+
+    #[test]
+    fn request_semantic_uses_safe_lsp_text_edit_replace_len() {
+        let mut e = CompletionEngine::new();
+        let src = b"Console.Wr";
+        let semantic = vec![SemanticCandidate {
+            text: "Console.WriteLine".to_string(),
+            display_text: Some("WriteLine".to_string()),
+            detail_text: None,
+            documentation_text: None,
+            kind_label: None,
+            preselect: false,
+            deprecated: false,
+            commit_chars: Vec::new(),
+            edit_range: Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 0,
+                end_line: 0,
+                end_col_utf16: 10,
+            }),
+            filter_text: Some("Wr".to_string()),
+            sort_text: None,
+        }];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 1);
+        assert_eq!(e.prefix_len(), 2);
+        assert_eq!(e.accepted_replace_len(), 10);
+        assert_eq!(e.accepted_text(), "Console.WriteLine");
+    }
+
+    #[test]
+    fn request_semantic_converts_lsp_text_edit_utf16_columns() {
+        let mut e = CompletionEngine::new();
+        let src = "😀.Wr";
+        let semantic = vec![SemanticCandidate {
+            text: "😀.WriteLine".to_string(),
+            display_text: Some("WriteLine".to_string()),
+            detail_text: None,
+            documentation_text: None,
+            kind_label: None,
+            preselect: false,
+            deprecated: false,
+            commit_chars: Vec::new(),
+            edit_range: Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 0,
+                end_line: 0,
+                end_col_utf16: 5,
+            }),
+            filter_text: Some("Wr".to_string()),
+            sort_text: None,
+        }];
+
+        let n = e.request_semantic(src.as_bytes(), src.len(), &semantic);
+
+        assert_eq!(n, 1);
+        assert_eq!(e.prefix_len(), 2);
+        assert_eq!(e.accepted_replace_len(), 4);
+    }
+
+    #[test]
+    fn request_semantic_ignores_lsp_text_edit_range_not_ending_at_cursor() {
+        let mut e = CompletionEngine::new();
+        let src = b"Console.Wr";
+        let semantic = vec![SemanticCandidate {
+            text: "Console.WriteLine".to_string(),
+            display_text: Some("WriteLine".to_string()),
+            detail_text: None,
+            documentation_text: None,
+            kind_label: None,
+            preselect: false,
+            deprecated: false,
+            commit_chars: Vec::new(),
+            edit_range: Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 0,
+                end_line: 0,
+                end_col_utf16: 9,
+            }),
+            filter_text: Some("Wr".to_string()),
+            sort_text: None,
+        }];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 1);
+        assert_eq!(e.prefix_len(), 2);
+        assert_eq!(e.accepted_replace_len(), 2);
     }
 
     #[test]
@@ -1893,6 +2105,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            edit_range: None,
             filter_text: Some("println".to_string()),
             sort_text: None,
         }];
@@ -1918,6 +2131,7 @@ mod tests {
                 preselect: false,
                 deprecated: false,
                 commit_chars: Vec::new(),
+                edit_range: None,
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -1930,6 +2144,7 @@ mod tests {
                 preselect: false,
                 deprecated: false,
                 commit_chars: Vec::new(),
+                edit_range: None,
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1942,6 +2157,7 @@ mod tests {
                 preselect: false,
                 deprecated: false,
                 commit_chars: Vec::new(),
+                edit_range: None,
                 filter_text: None,
                 sort_text: None,
             },
@@ -1971,6 +2187,7 @@ mod tests {
                 preselect: false,
                 deprecated: false,
                 commit_chars: Vec::new(),
+                edit_range: None,
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1983,6 +2200,7 @@ mod tests {
                 preselect: true,
                 deprecated: false,
                 commit_chars: Vec::new(),
+                edit_range: None,
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -2008,6 +2226,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: vec!['.', '('],
+            edit_range: None,
             filter_text: None,
             sort_text: None,
         }];
@@ -2032,6 +2251,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: vec!['('],
+            replace_len: None,
             semantic: false,
             snippet: true,
         }];
@@ -2053,6 +2273,7 @@ mod tests {
             preselect: true,
             deprecated: false,
             commit_chars: Vec::new(),
+            edit_range: None,
             filter_text: None,
             sort_text: None,
         }];
@@ -2077,6 +2298,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: true,
             snippet: false,
         };
@@ -2096,6 +2318,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: true,
             snippet: false,
         };
@@ -2115,6 +2338,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: true,
             snippet: false,
         };
@@ -2136,6 +2360,7 @@ mod tests {
             preselect: false,
             deprecated: true,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: true,
             snippet: false,
         };
@@ -2158,6 +2383,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: true,
             snippet: false,
         };
@@ -2180,6 +2406,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            edit_range: None,
             filter_text: Some("let".to_string()),
             sort_text: None,
         }];
@@ -2294,6 +2521,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: true,
             snippet: false,
         };
@@ -2416,6 +2644,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: false,
             snippet: false,
         }];
@@ -2428,6 +2657,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: false,
             snippet: false,
         }];
@@ -2463,6 +2693,7 @@ mod tests {
             preselect: false,
             deprecated: false,
             commit_chars: Vec::new(),
+            replace_len: None,
             semantic: true,
             snippet: false,
         }];
@@ -2700,7 +2931,18 @@ mod tests {
     #[test]
     fn lsp_scrape_prefers_text_edit_new_text() {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"Console.WriteLine","insertText":"ignored","textEdit":{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":2}},"newText":"Console.WriteLine($1)"}}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
         let labels = super::lsp::scrape_labels(json);
+
+        assert_eq!(
+            candidates[0].edit_range,
+            Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 0,
+                end_line: 0,
+                end_col_utf16: 2,
+            })
+        );
         assert_eq!(labels, vec!["Console.WriteLine($1)".to_string()]);
     }
 

@@ -172,6 +172,7 @@ fn lsp_semantic_candidates_with_notice(
                     preselect: false,
                     deprecated: false,
                     commit_chars: Vec::new(),
+                    edit_range: None,
                     filter_text: None,
                     sort_text: None,
                 })
@@ -15026,7 +15027,7 @@ pub extern "C" fn mui_ed_complete_accept(handle: i64) -> i32 {
         return 0;
     }
     let before = ctx.tabs.active_model().as_text();
-    let prefix = ctx.complete.prefix_len();
+    let prefix = ctx.complete.accepted_replace_len();
     let m = ctx.tabs.active_model_mut();
     for _ in 0..prefix {
         m.backspace();
