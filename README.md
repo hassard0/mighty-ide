@@ -180,6 +180,8 @@ source commit and report only the archive produced by that run.
 - Web Playground fallback build output is capped at 4 MiB per stdout/stderr
   stream, so failing `mty build --target wasm32-web` commands keep useful output
   without allowing unbounded capture
+- Native Windows file/folder/save/project dialog helpers cap PowerShell
+  stdout/stderr at 64 KiB per stream before accepting a selected path
 - Command Palette Agents lifecycle rows mirror Mighty Agents no-op states,
   including empty run output and closed panel
 - Command Palette Terminal lifecycle rows mirror integrated terminal no-op

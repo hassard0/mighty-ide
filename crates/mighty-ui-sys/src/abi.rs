@@ -26,8 +26,14 @@
 //! The Rust GPU tests still exercise the struct ABI in `lib.rs`; this module is
 //! a thin scalar veneer over the same `MuiContext`.
 
+use std::io::Read;
 use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::process::{Command, ExitStatus, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex, OnceLock,
+};
+use std::time::Duration;
 
 use crate::diagnostics::{self, Severity};
 use crate::ffi::*;
@@ -64,6 +70,7 @@ const RECENT_FILES_PERSISTENCE_WARNING: &str =
     "Recent files not saved; Open Recent may reset after restart";
 const RECENT_FOLDERS_PERSISTENCE_WARNING: &str =
     "Recent folders not saved; Open Recent may reset after restart";
+pub(crate) const MAX_DIALOG_OUTPUT_BYTES: usize = 64 * 1024;
 
 fn persist_recent_files(ctx: &mut MuiContext) {
     if !crate::config::save_recent_files(&ctx.quickopen.recent_blob()) {
@@ -14966,25 +14973,151 @@ fn run_file_dialog_script(
     suggested_name: Option<&str>,
     owner_hwnd: Option<isize>,
 ) -> FileDialogPick {
-    let mut cmd = std::process::Command::new("powershell");
+    let mut cmd = Command::new("powershell");
     cmd.args(["-NoProfile", "-STA", "-Command", script])
         .env("MUI_DIALOG_DIR", initial_dir)
-        .stdin(std::process::Stdio::null());
+        .stdin(Stdio::null());
     if let Some(name) = suggested_name {
         cmd.env("MUI_DIALOG_FILE", name);
     }
     if let Some(hwnd) = owner_hwnd {
         cmd.env("MUI_DIALOG_OWNER", hwnd.to_string());
     }
-    let out = cmd.output();
+    let out = run_dialog_command_stdout_capped(cmd);
     restore_dialog_owner_focus(owner_hwnd);
-    let Ok(out) = out else {
+    let Some(stdout) = out else {
         return FileDialogPick::Unavailable;
     };
-    if !out.status.success() {
-        return FileDialogPick::Unavailable;
+    dialog_pick_from_raw_path(String::from_utf8_lossy(&stdout).into_owned())
+}
+
+pub(crate) fn run_dialog_command_stdout_capped(mut cmd: Command) -> Option<Vec<u8>> {
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    match run_dialog_command_capped(cmd) {
+        Ok(Some((status, stdout, _))) if status.success() => Some(stdout),
+        _ => None,
     }
-    dialog_pick_from_raw_path(String::from_utf8_lossy(&out.stdout).into_owned())
+}
+
+fn run_dialog_command_capped(
+    mut cmd: Command,
+) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, String> {
+    let mut child = cmd.spawn().map_err(|e| format!("failed to start: {e}"))?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "dialog stdout pipe unavailable".to_string()
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "dialog stderr pipe unavailable".to_string()
+    })?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = std::thread::spawn(move || {
+        read_dialog_stream_capped(stdout, MAX_DIALOG_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        read_dialog_stream_capped(stderr, MAX_DIALOG_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    let status = loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Ok(None);
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(e.to_string());
+            }
+        }
+    };
+
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if exceeded.load(Ordering::Relaxed) {
+        Ok(None)
+    } else {
+        Ok(Some((status, stdout, stderr)))
+    }
+}
+
+fn read_dialog_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_dialog_output_with_cap(&mut out, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    out
+}
+
+fn append_dialog_output_with_cap(out: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if out.len().saturating_add(chunk.len()) > cap {
+        out.clear();
+        return false;
+    }
+    out.extend_from_slice(chunk);
+    true
+}
+
+#[cfg(test)]
+mod dialog_output_tests {
+    use super::*;
+
+    #[test]
+    fn dialog_output_cap_accepts_exact_limit() {
+        let mut out = Vec::from(b"path");
+
+        assert!(append_dialog_output_with_cap(&mut out, b"!", 5));
+        assert_eq!(out, b"path!");
+    }
+
+    #[test]
+    fn dialog_output_cap_discards_oversized_stream() {
+        let mut out = Vec::from(b"path:");
+
+        assert!(!append_dialog_output_with_cap(&mut out, b"overflow", 8));
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn dialog_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_dialog_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
+    }
 }
 
 #[cfg(target_os = "windows")]

@@ -514,15 +514,12 @@ try {
     if let Some(hwnd) = owner_hwnd {
         cmd.env("MUI_DIALOG_OWNER", hwnd.to_string());
     }
-    let out = cmd.output();
+    let out = crate::abi::run_dialog_command_stdout_capped(cmd);
     crate::abi::restore_dialog_owner_focus(owner_hwnd);
-    let Ok(out) = out else {
+    let Some(stdout) = out else {
         return FolderDialogPick::Unavailable;
     };
-    if !out.status.success() {
-        return FolderDialogPick::Unavailable;
-    }
-    let path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    let path = String::from_utf8_lossy(&stdout).trim().to_string();
     if path.is_empty() {
         FolderDialogPick::Cancelled
     } else {
