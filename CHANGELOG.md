@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1149).
+(lessons L1-L1150).
 
 ## v0.3.0
 
@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Generic LSP signature help advertises supported metadata**: the
+  registry-backed client now declares markdown/plaintext signature
+  documentation and parameter label offset support, while intentionally leaving
+  trigger-context support unclaimed.
 - **Generic LSP code actions advertise supported metadata**: the
   registry-backed client now declares code-action literal kinds, preferred
   action support, and disabled-action support, while intentionally leaving
