@@ -189,12 +189,36 @@ mod env_numeric_token_tests {
     }
 
     #[test]
+    fn unsigned_decimal_u16_tokens_reject_overflow() {
+        assert_eq!(parse_unsigned_decimal_u16_token("65535"), Some(u16::MAX));
+        assert_eq!(parse_unsigned_decimal_u16_token("65536"), None);
+    }
+
+    #[test]
+    fn unsigned_decimal_usize_tokens_reject_overflow() {
+        assert_eq!(
+            parse_unsigned_decimal_usize_token(&usize::MAX.to_string()),
+            Some(usize::MAX)
+        );
+        let overflowing = format!("{}0", usize::MAX);
+        assert_eq!(parse_unsigned_decimal_usize_token(&overflowing), None);
+    }
+
+    #[test]
     fn signed_env_tokens_reject_plus_prefixes_and_partial_numbers() {
         assert_eq!(parse_signed_decimal_i32_token("240"), Some(240));
         assert_eq!(parse_signed_decimal_i32_token("-1"), Some(-1));
         assert_eq!(parse_signed_decimal_i32_token("+240"), None);
         assert_eq!(parse_signed_decimal_i32_token("240frames"), None);
         assert_eq!(parse_signed_decimal_i32_token("2e2"), None);
+    }
+
+    #[test]
+    fn signed_decimal_i32_tokens_reject_overflow() {
+        assert_eq!(parse_signed_decimal_i32_token("2147483647"), Some(i32::MAX));
+        assert_eq!(parse_signed_decimal_i32_token("-2147483648"), Some(i32::MIN));
+        assert_eq!(parse_signed_decimal_i32_token("2147483648"), None);
+        assert_eq!(parse_signed_decimal_i32_token("-2147483649"), None);
     }
 
     #[test]
@@ -206,6 +230,16 @@ mod env_numeric_token_tests {
         assert_eq!(parse_decimal_f32_token("13px"), None);
         assert_eq!(parse_decimal_f32_token("1e2"), None);
         assert_eq!(parse_decimal_f32_token("."), None);
+    }
+
+    #[test]
+    fn decimal_float_tokens_reject_non_finite_overflow() {
+        assert_eq!(
+            parse_decimal_f32_token("340282346638528859811704183484516925440"),
+            Some(f32::MAX)
+        );
+        assert_eq!(parse_decimal_f32_token("3402823466385288598117041834845169254400"), None);
+        assert_eq!(parse_decimal_f32_token("-3402823466385288598117041834845169254400"), None);
     }
 }
 
