@@ -520,8 +520,8 @@ fn parse_location(line: &str) -> Option<(String, u32, u32)> {
     if parts.len() < 3 {
         return None;
     }
-    let col: u32 = parts[parts.len() - 1].trim().parse().ok()?;
-    let line_no: u32 = parts[parts.len() - 2].trim().parse().ok()?;
+    let col = crate::parse_unsigned_decimal_u32_token(parts[parts.len() - 1].trim())?;
+    let line_no = crate::parse_unsigned_decimal_u32_token(parts[parts.len() - 2].trim())?;
     if line_no == 0 || col == 0 {
         return None;
     }
@@ -602,6 +602,36 @@ mod tests {
         let l = r.line(0).unwrap();
         assert!(!l.clickable);
         assert_eq!(l.file, "");
+    }
+
+    #[test]
+    fn plus_prefixed_locations_are_not_clickable() {
+        let mut r = RunPanel::new();
+        r.feed("   [C:/proj/src/main.mty:+7:14]\n");
+        r.feed("   [C:/proj/src/main.mty:7:+14]\n");
+
+        assert_eq!(r.line_count(), 2);
+        for line in &r.lines {
+            assert!(!line.clickable);
+            assert_eq!(line.file, "");
+            assert_eq!(line.line, -1);
+            assert_eq!(line.col, -1);
+        }
+    }
+
+    #[test]
+    fn overflowing_locations_are_not_clickable() {
+        let mut r = RunPanel::new();
+        r.feed("   [C:/proj/src/main.mty:4294967296:14]\n");
+        r.feed("   [C:/proj/src/main.mty:7:4294967296]\n");
+
+        assert_eq!(r.line_count(), 2);
+        for line in &r.lines {
+            assert!(!line.clickable);
+            assert_eq!(line.file, "");
+            assert_eq!(line.line, -1);
+            assert_eq!(line.col, -1);
+        }
     }
 
     #[test]
