@@ -1865,7 +1865,7 @@ pub mod lsp {
 
         let uri = file_uri(path);
         let method = req.method().to_string();
-        let initialize = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#.to_string();
+        let initialize = initialize_msg();
         let initialized = r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#.to_string();
         let did_open = format!(
             r#"{{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{{"textDocument":{{"uri":"{}","languageId":"mighty","version":1,"text":"{}"}}}}}}"#,
@@ -1948,6 +1948,10 @@ pub mod lsp {
         let text = String::from_utf8_lossy(&raw).into_owned();
         crate::nav::lsp::isolate_response_id(&text, 2)
     }
+
+    pub(super) fn initialize_msg() -> String {
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"rename":{"prepareSupport":true}}}}}"#.to_string()
+    }
 }
 
 // ===========================================================================
@@ -1968,6 +1972,14 @@ mod tests {
         assert_eq!(sig.label, "fn add(a: I32, b: I32) -> I32");
         assert_eq!(sig.params, vec!["p0".to_string(), "p1".to_string()]);
         assert_eq!(sig.active, 1);
+    }
+
+    #[test]
+    fn lsp_initialize_advertises_prepare_rename_support_only() {
+        let msg = lsp::initialize_msg();
+
+        assert!(msg.contains(r#""rename":{"prepareSupport":true}"#));
+        assert!(!msg.contains(r#""honorsChangeAnnotations""#));
     }
 
     #[test]

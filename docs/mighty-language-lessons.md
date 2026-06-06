@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (LSP signature-help capability metadata - L1150; LSP code-action capability metadata - L1149; LSP preferred code actions - L1148; LSP client capability parity - L1147; LSP completion capability handshake - L1146; LSP completion item defaults - L1145; LSP completion text edit ranges - L1144; LSP completion commit characters - L1143; LSP completion label details - L1142; LSP completion deprecated markers - L1141; LSP completion preselect - L1140; LSP completion documentation metadata - L1139; LSP completion kind metadata - L1138; LSP completion sort text - L1137; LSP completion provider detail - L1136; LSP completion display labels - L1135; LSP completion filter text - L1134; LSP completion insert text and snippets - L1133; snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (LSP rename prepare capability metadata - L1151; LSP signature-help capability metadata - L1150; LSP code-action capability metadata - L1149; LSP preferred code actions - L1148; LSP client capability parity - L1147; LSP completion capability handshake - L1146; LSP completion item defaults - L1145; LSP completion text edit ranges - L1144; LSP completion commit characters - L1143; LSP completion label details - L1142; LSP completion deprecated markers - L1141; LSP completion preselect - L1140; LSP completion documentation metadata - L1139; LSP completion kind metadata - L1138; LSP completion sort text - L1137; LSP completion provider detail - L1136; LSP completion display labels - L1135; LSP completion filter text - L1134; LSP completion insert text and snippets - L1133; snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14712,3 +14712,18 @@ richer signature shapes are worth returning.
   trigger-context support because the request path still sends only a position.
 - **Language note:** no compiler gap surfaced. This is protocol configuration
   staying aligned with the Rust-owned parser/request boundary.
+
+## L1151 - LSP Rename Capabilities Should Expose Prepare Support
+
+The IDE already sends `textDocument/prepareRename`, handles explicit rejection,
+and uses accepted ranges to seed the inline rename field. Both the generic LSP
+client and the Mighty deep-language client still initialized with rename
+capabilities that did not say prepare-rename was supported.
+
+- **IDE note:** both initialize payloads now declare
+  `textDocument.rename.prepareSupport`. They deliberately do not claim
+  `honorsChangeAnnotations` because workspace-edit annotation handling is not
+  part of the current scalar edit path.
+- **Language note:** no compiler gap surfaced. This is another client
+  capability declaration staying aligned with existing Rust-owned protocol
+  behavior.

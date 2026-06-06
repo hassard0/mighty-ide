@@ -172,7 +172,7 @@ fn initialize_msg(root: &Path) -> String {
     let root_uri = file_uri(root);
     let pid = std::process::id();
     format!(
-        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"workspace":{{"applyEdit":true}},"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":true,"commitCharactersSupport":true,"deprecatedSupport":true,"preselectSupport":true,"tagSupport":{{"valueSet":[1]}},"insertReplaceSupport":true,"labelDetailsSupport":true,"documentationFormat":["markdown","plaintext"]}},"completionItemKind":{{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]}},"completionList":{{"itemDefaults":["commitCharacters","editRange"]}}}},"hover":{{"contentFormat":["markdown","plaintext"]}},"definition":{{"linkSupport":true}},"signatureHelp":{{"signatureInformation":{{"documentationFormat":["markdown","plaintext"],"parameterInformation":{{"labelOffsetSupport":true}}}}}},"rename":{{}},"codeAction":{{"codeActionLiteralSupport":{{"codeActionKind":{{"valueSet":["quickfix","refactor","refactor.rewrite","source","source.fixAll","source.organizeImports"]}}}},"isPreferredSupport":true,"disabledSupport":true}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"workspace":{{"applyEdit":true}},"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":true,"commitCharactersSupport":true,"deprecatedSupport":true,"preselectSupport":true,"tagSupport":{{"valueSet":[1]}},"insertReplaceSupport":true,"labelDetailsSupport":true,"documentationFormat":["markdown","plaintext"]}},"completionItemKind":{{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]}},"completionList":{{"itemDefaults":["commitCharacters","editRange"]}}}},"hover":{{"contentFormat":["markdown","plaintext"]}},"definition":{{"linkSupport":true}},"signatureHelp":{{"signatureInformation":{{"documentationFormat":["markdown","plaintext"],"parameterInformation":{{"labelOffsetSupport":true}}}}}},"rename":{{"prepareSupport":true}},"codeAction":{{"codeActionLiteralSupport":{{"codeActionKind":{{"valueSet":["quickfix","refactor","refactor.rewrite","source","source.fixAll","source.organizeImports"]}}}},"isPreferredSupport":true,"disabledSupport":true}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
         json_escape(&root_uri)
     )
 }
@@ -1479,10 +1479,12 @@ mod tests {
         assert!(msg.contains(r#""hover":{"contentFormat":["markdown","plaintext"]}"#));
         assert!(msg.contains(r#""definition":{"linkSupport":true}"#));
         assert!(msg.contains(r#""signatureHelp":{"signatureInformation":{"documentationFormat":["markdown","plaintext"],"parameterInformation":{"labelOffsetSupport":true}}}"#));
+        assert!(msg.contains(r#""rename":{"prepareSupport":true}"#));
         assert!(msg.contains(r#""codeActionLiteralSupport":{"codeActionKind":{"valueSet":["quickfix","refactor","refactor.rewrite","source","source.fixAll","source.organizeImports"]}}"#));
         assert!(msg.contains(r#""isPreferredSupport":true"#));
         assert!(msg.contains(r#""disabledSupport":true"#));
         assert!(!msg.contains(r#""contextSupport""#));
+        assert!(!msg.contains(r#""honorsChangeAnnotations""#));
         assert!(!msg.contains(r#""resolveSupport""#));
     }
 
