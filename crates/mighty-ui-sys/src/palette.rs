@@ -1332,6 +1332,20 @@ impl PaletteEngine {
                 ctx.sidebar_visible && ctx.active_panel == crate::PANEL_EXPLORER,
             );
         }
+        if matches!(
+            id,
+            CMD_KEYBOARD_SHORTCUTS_CLOSE
+                | CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED
+                | CMD_KEYBOARD_SHORTCUTS_RESET_ALL
+        ) {
+            return keyboard_shortcuts_contextual_desc(
+                id,
+                base,
+                ctx.shortcuts.is_active(),
+                ctx.shortcuts.reset_selected_would_clear_override(),
+                ctx.shortcuts.overrides().is_empty(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1738,6 +1752,27 @@ fn explorer_contextual_desc(base: &str, active: bool) -> Cow<'_, str> {
         Cow::Borrowed(base)
     } else {
         Cow::Borrowed("Explorer panel is already closed")
+    }
+}
+
+fn keyboard_shortcuts_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    selected_has_override: bool,
+    overrides_empty: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_KEYBOARD_SHORTCUTS_CLOSE if !active => {
+            Cow::Borrowed("Keyboard Shortcuts is already closed")
+        }
+        CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED if !selected_has_override => {
+            Cow::Borrowed("Keyboard Shortcuts selection already uses default")
+        }
+        CMD_KEYBOARD_SHORTCUTS_RESET_ALL if overrides_empty => {
+            Cow::Borrowed("Keyboard Shortcuts already use defaults")
+        }
+        _ => Cow::Borrowed(base),
     }
 }
 
@@ -2864,6 +2899,70 @@ mod tests {
             Cow::Borrowed("Explorer panel is already closed")
         );
         assert_eq!(explorer_contextual_desc("base", true), Cow::Borrowed("base"));
+    }
+
+    #[test]
+    fn keyboard_shortcuts_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            keyboard_shortcuts_contextual_desc(
+                CMD_KEYBOARD_SHORTCUTS_CLOSE,
+                "base",
+                false,
+                false,
+                true
+            ),
+            Cow::Borrowed("Keyboard Shortcuts is already closed")
+        );
+        assert_eq!(
+            keyboard_shortcuts_contextual_desc(
+                CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED,
+                "base",
+                true,
+                false,
+                false
+            ),
+            Cow::Borrowed("Keyboard Shortcuts selection already uses default")
+        );
+        assert_eq!(
+            keyboard_shortcuts_contextual_desc(
+                CMD_KEYBOARD_SHORTCUTS_RESET_ALL,
+                "base",
+                true,
+                true,
+                true
+            ),
+            Cow::Borrowed("Keyboard Shortcuts already use defaults")
+        );
+        assert_eq!(
+            keyboard_shortcuts_contextual_desc(
+                CMD_KEYBOARD_SHORTCUTS_CLOSE,
+                "base",
+                true,
+                false,
+                true
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            keyboard_shortcuts_contextual_desc(
+                CMD_KEYBOARD_SHORTCUTS_RESET_SELECTED,
+                "base",
+                true,
+                true,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            keyboard_shortcuts_contextual_desc(
+                CMD_KEYBOARD_SHORTCUTS_RESET_ALL,
+                "base",
+                true,
+                true,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
     }
 
     #[test]

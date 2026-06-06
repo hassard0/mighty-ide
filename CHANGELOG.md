@@ -95,6 +95,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   states**: Source Control Clear Commit Message, Source Control Close Panel, and
   Explorer Close Panel now mirror runtime feedback for empty message drafts and
   closed panels.
+- **Command Palette Keyboard Shortcuts lifecycle rows explain no-op states**:
+  Close Keyboard Shortcuts, Reset Selected, and Reset All now mirror runtime
+  feedback for closed overlays, selected shortcuts already using defaults, and
+  empty override sets.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.

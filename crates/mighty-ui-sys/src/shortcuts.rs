@@ -588,6 +588,15 @@ impl ShortcutsEngine {
         self.rows.get(self.sel).map(|r| r.remappable).unwrap_or(false)
     }
 
+    pub fn reset_selected_would_clear_override(&self) -> bool {
+        let id = if self.active {
+            self.selected_id()
+        } else {
+            self.all_rows().first().map(|row| row.cmd_id).unwrap_or(-1)
+        };
+        id >= 0 && self.overrides.get(id as u32).is_some()
+    }
+
     /// The row name + keys for the selection (for the ABI string reads).
     pub fn row_name(&self, idx: usize) -> &str {
         self.rows.get(idx).map(|r| r.name.as_str()).unwrap_or("")
@@ -1216,6 +1225,39 @@ mod tests {
         ov.reset_all();
         assert!(ov.is_empty());
         assert_eq!(ov.resolve('j' as i32, MOD_ALT), None);
+    }
+
+    #[test]
+    fn reset_selected_prediction_matches_open_and_closed_selection() {
+        let mut e = ShortcutsEngine::new();
+        e.overrides = Overrides::new();
+        assert!(
+            !e.reset_selected_would_clear_override(),
+            "closed overlay with no overrides should predict a no-op reset"
+        );
+
+        let first_id = e.all_rows().first().map(|row| row.cmd_id as u32).unwrap();
+        e.overrides
+            .set(first_id, Chord::new('k' as i32, MOD_ALT));
+        assert!(
+            e.reset_selected_would_clear_override(),
+            "closed overlay reset command opens on the first row"
+        );
+
+        e.open();
+        let idx = e
+            .rows
+            .iter()
+            .position(|r| r.cmd_id == CMD_AGENTS as i32)
+            .unwrap();
+        e.sel = idx;
+        assert!(
+            !e.reset_selected_would_clear_override(),
+            "active overlay should use the actual selected row"
+        );
+        e.overrides
+            .set(CMD_AGENTS, Chord::new('j' as i32, MOD_ALT));
+        assert!(e.reset_selected_would_clear_override());
     }
 
     #[test]
