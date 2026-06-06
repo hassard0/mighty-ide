@@ -15191,6 +15191,45 @@ fn mutating_language_requests_report_unavailable_language_server() {
 }
 
 #[test]
+fn diagnostics_refresh_reports_unavailable_language_server() {
+    let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let old_config_dir = std::env::var_os("MUI_CONFIG_DIR");
+    let root = std::env::temp_dir().join(format!(
+        "mui_diag_lsp_unavailable_{}",
+        std::process::id()
+    ));
+    let config_dir = root.join("config");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&config_dir).unwrap();
+    std::fs::write(
+        config_dir.join("lsp.toml"),
+        "python = \"definitely-not-a-real-python-lsp-for-mighty-ide-tests\"\n",
+    )
+    .unwrap();
+    std::env::set_var("MUI_CONFIG_DIR", &config_dir);
+
+    let mut ctx = ctx_or_skip!();
+    let path = root.join("broken.py");
+    std::fs::write(&path, "def call():\n    return 1\n").unwrap();
+    let idx = ctx.tabs.open_path(path);
+    ctx.tabs.switch(idx);
+    crate::sync_active_path(&mut ctx);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+    let expected = "Python language server unavailable; configure python in lsp.toml";
+
+    assert_eq!(crate::mui_diag_refresh(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, expected);
+
+    match old_config_dir {
+        Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+        None => std::env::remove_var("MUI_CONFIG_DIR"),
+    }
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn sync_active_path_clears_stale_active_diagnostics() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(

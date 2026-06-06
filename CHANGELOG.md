@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Diagnostics refresh surfaces missing LSP servers**: explicit Problems
+  refresh for LSP-backed languages now reports unavailable configured/default
+  language servers with the same actionable `lsp.toml` feedback as navigation,
+  completion, rename, and code-action commands.
 - **Command Palette refresh rows describe runtime impact**: Explorer, Problems,
   Outline, Source Control, and Mighty Agents refresh commands now preview panel
   reveal behavior, scratch-buffer diagnostics clearing, topology rescans, and
@@ -21,10 +25,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   build notes, and release docs used for the handoff before a package can be
   treated as publishable.
 - **Language actions surface missing LSP servers**: Hover, Go to Definition,
-  Signature Help, Rename Symbol, Code Actions, and explicit completion requests
-  now share actionable `lsp.toml` feedback when a configured/default language
-  server is unavailable, instead of reporting generic empty results or opening
-  optimistic fallback edits.
+  Signature Help, Rename Symbol, Code Actions, diagnostics refresh, and explicit
+  completion requests now share actionable `lsp.toml` feedback when a
+  configured/default language server is unavailable, instead of reporting
+  generic empty results, silent clean Problems states, or opening optimistic
+  fallback edits.
 - **Command Palette previews missing LSP servers**: language-server command rows
   now show the same missing `lsp.toml` server reason before dispatch for Hover,
   Go to Definition, Peek Definition, Signature Help, Rename Symbol, and Code
@@ -56,11 +61,11 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   status docs now keep generated ZIP hashes out of source control, requiring
   the post-commit package manifest, final ZIP size/hash, and packaged launch
   result to carry the authoritative Windows artifact evidence.
-- **Final stop pass is documentation-and-artifact only**: README and release
-  docs now spell out the current pass boundary: commit the release docs,
-  rebuild and launch the Windows PE package from that commit, record ZIP
-  size/hash evidence, keep macOS and Linux `unbuilt` without native runners,
-  and stop without additional feature work.
+- **Final stop pass is source-and-artifact strict**: README and release docs now
+  spell out the current pass boundary: commit the final source, tests, README,
+  changelog, and release docs, rebuild and launch the Windows PE package from
+  that commit, record ZIP size/hash evidence, keep macOS and Linux `unbuilt`
+  without native runners, and stop.
 - **Release handoff documents clean native binaries**: README, build notes, and
   release docs now make the final artifact contract explicit: Windows PE
   binaries are publishable only after the Windows package script and packaged

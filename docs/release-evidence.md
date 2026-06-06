@@ -125,7 +125,7 @@ Native payloads: PE mighty-ide.exe; PE mighty_ui_sys.dll
 Sidecar scan: package directory and ZIP passed
 Foreign-payload scan: package directory and ZIP passed
 PACKAGE-MANIFEST.txt: generated in dist\mighty-ide-win64 with source commit
-Manifest/source commit match: manifest source commit matches final docs commit
+Manifest/source commit match: manifest source commit matches final source commit
 Packaged launch: launched from dist\mighty-ide-win64
 Release decision: publish
 

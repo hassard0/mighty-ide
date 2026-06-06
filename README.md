@@ -17,11 +17,12 @@ repository. A clean release package must be built on the same operating system
 that will run it because Mighty IDE ships a native executable plus a native
 `mighty-ui-sys` shim.
 
-Current stop-pass rule: finish documentation, commit it, rebuild the Windows
-package from that exact commit, record the Windows ZIP size and SHA-256, verify
-the packaged Windows executable launches, record macOS and Linux as `unbuilt`
-unless native runners completed the same pass, and stop. No further feature
-work belongs in the same pass after artifact evidence is recorded.
+Current stop-pass rule: finish the source, README, and docs; commit them; rebuild
+the Windows package from that exact commit; record the Windows ZIP size and
+SHA-256; verify the packaged Windows executable launches; record macOS and
+Linux as `unbuilt` unless native runners completed the same pass; and stop. No
+further feature work belongs in the same pass after artifact evidence is
+recorded.
 
 For this final pass, the README and release docs are the source-controlled
 contract. Generated Windows archive hash, ZIP size, and native payload hashes
@@ -106,10 +107,11 @@ and the final handoff response after packaging.
 - Command Palette language and AI edit rows report read-only previews up front:
   Find remains available while Replace, autocomplete acceptance, Rename Symbol,
   code-action edits, and inline AI edits are unavailable
-- Hover, Go to Definition, Signature Help, Rename Symbol, Code Actions, and
-  explicit completion requests report missing configured language servers with
-  actionable `lsp.toml` feedback instead of collapsing the state into generic
-  empty-result messages or optimistic fallback edits
+- Hover, Go to Definition, Signature Help, Rename Symbol, Code Actions,
+  diagnostics refresh, and explicit completion requests report missing
+  configured language servers with actionable `lsp.toml` feedback instead of
+  collapsing the state into generic empty-result messages, silent clean Problems
+  states, or optimistic fallback edits
 - Command Palette language-server rows show missing configured server feedback
   before dispatch for Hover, Go to Definition, Peek Definition, Signature Help,
   Rename Symbol, and Code Actions
@@ -311,8 +313,8 @@ and the final handoff response after packaging.
 - Staged and active load failures report `Load failed: <file>: <reason>`, with
   directory targets named as `not a file` instead of leaking platform read
   errors
-- Diagnostics refresh failures report the missing checker command instead of
-  looking like a clean file with no diagnostics
+- Diagnostics refresh failures report the missing checker command or configured
+  language server instead of looking like a clean file with no diagnostics
 - Generic diagnostics report stale non-active source files, including directory
   targets as `not a file`, instead of treating failed disk reads as empty clean
   buffers
@@ -623,7 +625,7 @@ Final release wording should be precise:
 
 Stop-pass checklist:
 
-1. Commit README, changelog, and release documentation first.
+1. Commit source, tests, README, changelog, and release documentation first.
 2. Rebuild the Windows package from that clean commit with `.\package-win.ps1`.
 3. Check macOS/Linux package scripts for syntax and wrong-host refusal from this
    checkout if native runners are unavailable, then record both platforms as
@@ -633,7 +635,7 @@ Stop-pass checklist:
 5. Launch `dist\mighty-ide-win64\mighty-ide.exe` with
    `dist\mighty-ide-win64` as the working directory.
 6. Confirm `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt` names the same source
-   commit as the final documentation commit being handed off.
+   commit as the final source commit being handed off.
 7. Record the ZIP size and SHA-256 in the final handoff, then stop. macOS and
    Linux remain `unbuilt` until their own native runners produce and smoke-test
    Mach-O and ELF archives.

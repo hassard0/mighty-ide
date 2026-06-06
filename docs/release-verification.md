@@ -6,10 +6,10 @@ runner, the finished archive passed the archive-level clean-binary scan, and
 the packaged app launched from inside the assembled package directory or app
 bundle.
 
-Build publishable archives only after the release documentation commit is in
-place. `PACKAGE-MANIFEST.txt` must name that commit. If README, changelog,
-build notes, package scripts, or release docs change after a package run, discard
-the old archive result and rebuild before upload.
+Build publishable archives only after the final commit containing source and
+release docs is in place. `PACKAGE-MANIFEST.txt` must name that commit. If
+source, README, changelog, build notes, package scripts, or release docs change
+after a package run, discard the old archive result and rebuild before upload.
 
 Do not derive one platform from another platform's package. Windows requires PE
 payloads, macOS requires Mach-O payloads, and Linux requires ELF payloads.
@@ -139,7 +139,7 @@ package runs complete and launch successfully on those platforms.
 
 If a native host or matching CI runner is unavailable, record that platform as
 `unbuilt`. Do not publish a placeholder archive.
-Do not reuse a package generated before the final documentation commit. The
+Do not reuse a package generated before the final source commit. The
 archive is clean for a pass only when its bundled manifest names the committed
 source hash that contains the README, build notes, changelog, and release docs
 being handed off.

@@ -103,16 +103,17 @@ the archive scan passes, and the executable launches on Linux.
 
 ## Stop Condition
 
-After the README, changelog, and release docs are committed, rebuild the
-Windows package from that clean commit, confirm `PACKAGE-MANIFEST.txt` records
-that source commit, record the Windows archive hash and size, confirm the
-packaged Windows executable launched from
+After the final source, tests, README, changelog, and release docs are
+committed, rebuild the Windows package from that clean commit, confirm
+`PACKAGE-MANIFEST.txt` records that source commit, record the Windows archive
+hash and size, confirm the packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
 
 This final pass has no follow-on feature scope. The release boundary is the
-committed documentation plus the ignored platform artifacts generated from that
-commit. If another source edit is needed after packaging, the package evidence
-is stale until the affected platform package is rebuilt from the new commit.
+committed source and documentation plus the ignored platform artifacts generated
+from that commit. If another source edit is needed after packaging, the package
+evidence is stale until the affected platform package is rebuilt from the new
+commit.
 
 The publish matrix for a Windows-hosted pass is intentionally narrow:
 
@@ -132,13 +133,12 @@ The manifest must include the source commit, generated UTC timestamp, native
 payload hash and size rows, archive path, and clean-binary checks. A package
 that lacks any of those fields is incomplete even if the executable launches.
 The final handoff should publish only artifacts whose bundled manifest names
-the committed release-doc source hash for this pass. If a native package cannot
-be rebuilt after that documentation commit, record the platform as `unbuilt`
-instead of treating an older archive as clean evidence.
-The final package must be generated after the documentation commit that defines
-this handoff. If any source file changes after the package is generated, the
-artifact no longer matches the source handoff and must be rebuilt before it is
-published.
+the committed source hash for this pass. If a native package cannot be rebuilt
+after that final source commit, record the platform as `unbuilt` instead of
+treating an older archive as clean evidence.
+The final package must be generated after the source commit that defines this
+handoff. If any source file changes after the package is generated, the artifact
+no longer matches the source handoff and must be rebuilt before it is published.
 Use `docs\release-evidence.md` as the concise upload record.
 Use `docs\binary-release-status.md` as the bundled clean-binary status summary.
 Record macOS and Linux as `unbuilt` unless their native package runs completed
@@ -147,10 +147,10 @@ scripts, mention them as script-readiness checks rather than clean-binary
 evidence.
 
 This stop condition is intentionally stronger than a clean source tree. The
-Windows ZIP must be regenerated after the final documentation commit so the
-packaged docs, manifest, and native PE payloads all correspond to the same
-source hash. macOS and Linux require the same source-to-package correspondence
-on their own native runners before either platform can be called clean.
+Windows ZIP must be regenerated after the final source commit so the packaged
+docs, manifest, and native PE payloads all correspond to the same source hash.
+macOS and Linux require the same source-to-package correspondence on their own
+native runners before either platform can be called clean.
 
 The final response for a Windows-hosted pass should report the committed source
 hash, the Windows ZIP size and SHA-256, the package-script checks that passed,

@@ -50,10 +50,11 @@ Windows, but those checks are script readiness only. They do not create clean
 Mach-O or ELF binaries.
 
 This is the final stop-pass contract for a Windows-hosted handoff: after the
-README, changelog, and release docs are committed, rebuild only the Windows
-archive here, record its generated evidence, leave unavailable native macOS and
-Linux runners as `unbuilt`, and stop. Continuing implementation work after that
-point creates a new source state and requires a new package pass.
+final source, tests, README, changelog, and release docs are committed, rebuild
+only the Windows archive here, record its generated evidence, leave unavailable
+native macOS and Linux runners as `unbuilt`, and stop. Continuing implementation
+work after that point creates a new source state and requires a new package
+pass.
 
 If no macOS runner and no Linux distribution or matching Linux CI runner are
 available during the pass, the only local publishable clean-binary outcome is
@@ -62,9 +63,9 @@ Windows x64. Do not keep stale macOS or Linux archives from earlier runs in
 
 ## Final Stop Rule
 
-After the final documentation commit, rebuild the Windows package from that
-clean commit, record the ZIP size and SHA-256, launch the packaged Windows app
-from `dist\mighty-ide-win64`, record macOS and Linux as `unbuilt` unless native
+After the final source commit, rebuild the Windows package from that clean
+commit, record the ZIP size and SHA-256, launch the packaged Windows app from
+`dist\mighty-ide-win64`, record macOS and Linux as `unbuilt` unless native
 runners completed during the same pass, and stop.
 
 For this Windows-hosted pass, "clean binaries for Windows, macOS, and Linux"

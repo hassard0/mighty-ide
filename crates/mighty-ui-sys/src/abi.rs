@@ -90,7 +90,7 @@ pub(crate) fn highlight_for(line: &str, lang: Language) -> Vec<crate::syntax::Sp
 // ---------------------------------------------------------------------------
 // LSP routing: Mighty keeps its dedicated `mty lsp` clients; every other
 // language routes through the generic `lspclient` against a registry-resolved
-// server (only when the binary is installed; otherwise silently no LSP).
+// server, with explicit language commands surfacing unavailable-tooling reasons.
 // ---------------------------------------------------------------------------
 
 /// The workspace root for an LSP `initialize` (the file's parent dir, else cwd).
@@ -3543,8 +3543,8 @@ pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
         return 0;
     };
     // Mighty keeps using `mty check`; other languages surface their language
-    // server's publishDiagnostics (only when a server is installed). Missing
-    // tooling yields an empty set; explicit Mighty refresh also reports why.
+    // server's publishDiagnostics. Explicit refreshes report missing configured
+    // tooling instead of making the Problems list look clean.
     if ctx.language == Language::Mighty {
         match diagnostics::run_check_result(&path) {
             Ok(diags) => {
@@ -3567,6 +3567,9 @@ pub extern "C" fn mui_diag_refresh(handle: i64) -> i32 {
                 ctx.push_toast(crate::toast::Kind::Error, reason);
             }
         }
+    } else if let Some(reason) = crate::lspregistry::unavailable_reason(ctx.language) {
+        ctx.diags.clear();
+        ctx.push_toast(crate::toast::Kind::Warn, reason);
     } else {
         ctx.diags.clear();
     }
