@@ -14,8 +14,16 @@
 //! sha and back-fill each line from the cache.
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, ExitStatus, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
+
+pub(crate) const MAX_BLAME_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 
 /// One blamed line: the commit short-sha, author, and a short date (YYYY-MM-DD).
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -54,7 +62,9 @@ pub fn parse_porcelain(out: &str) -> Vec<BlameLine> {
             // The literal source line: this terminates the current entry. Emit a
             // BlameLine for it, looking up (and caching) the commit metadata.
             let _ = content;
-            let commit = commits.entry(cur_sha.clone()).or_insert_with(|| cur.clone());
+            let commit = commits
+                .entry(cur_sha.clone())
+                .or_insert_with(|| cur.clone());
             // If this commit's metadata was just seen (header lines present),
             // refresh the cached entry with it.
             if !cur.author.is_empty() {
@@ -194,15 +204,105 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
 /// Run `git -C <root> blame --porcelain -- <relpath>` and return the raw blob.
 /// Best-effort: "" on error / not tracked.
 fn run_blame(root: &Path, relpath: &str) -> String {
-    let out = Command::new("git")
-        .arg("-C")
+    let mut cmd = Command::new("git");
+    cmd.arg("-C")
         .arg(root)
-        .args(["blame", "--porcelain", "--", relpath])
-        .output();
+        .args(["blame", "--porcelain", "--", relpath]);
+    let out = run_blame_command_capped(cmd);
     match out {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
+        Ok(Some((status, stdout, _))) if status.success() => {
+            String::from_utf8_lossy(&stdout).into_owned()
+        }
         _ => String::new(),
     }
+}
+
+fn run_blame_command_capped(
+    mut cmd: Command,
+) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, String> {
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::piped());
+    cmd.stderr(Stdio::piped());
+    let mut child = cmd.spawn().map_err(|e| format!("failed to start: {e}"))?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "git blame stdout pipe unavailable".to_string()
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "git blame stderr pipe unavailable".to_string()
+    })?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = std::thread::spawn(move || {
+        read_blame_stream_capped(stdout, MAX_BLAME_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        read_blame_stream_capped(stderr, MAX_BLAME_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    let status = loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Ok(None);
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(e.to_string());
+            }
+        }
+    };
+
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if exceeded.load(Ordering::Relaxed) {
+        Ok(None)
+    } else {
+        Ok(Some((status, stdout, stderr)))
+    }
+}
+
+fn read_blame_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut out = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_blame_output_with_cap(&mut out, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    out
+}
+
+fn append_blame_output_with_cap(out: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if out.len().saturating_add(chunk.len()) > cap {
+        out.clear();
+        return false;
+    }
+    out.extend_from_slice(chunk);
+    true
 }
 
 /// The blame-gutter state: a toggle + a per-file cache of parsed blame lines.
@@ -330,7 +430,10 @@ filename src/main.rs
         assert_eq!(lines[0].author, "Ada Lovelace");
         assert_eq!(lines[0].date, "2006-01-02"); // 1136239445 = 2006-01-02 UTC
         assert_eq!(lines[1].sha, "11111111");
-        assert_eq!(lines[1].author, "Ada Lovelace", "repeat commit back-fills author");
+        assert_eq!(
+            lines[1].author, "Ada Lovelace",
+            "repeat commit back-fills author"
+        );
         assert_eq!(lines[1].date, "2006-01-02");
         // Line 3 is the second commit.
         assert_eq!(lines[2].sha, "22222222");
@@ -418,6 +521,35 @@ filename src/main.rs
         assert_eq!(parse_tz_seconds("+2360"), None);
         assert_eq!(parse_tz_seconds("+2400"), None);
         assert_eq!(parse_tz_seconds("+0000x"), None);
+    }
+
+    #[test]
+    fn blame_output_cap_accepts_exact_limit() {
+        let mut out = Vec::from(b"git");
+
+        assert!(append_blame_output_with_cap(&mut out, b"!", 4));
+        assert_eq!(out, b"git!");
+    }
+
+    #[test]
+    fn blame_output_cap_discards_oversized_stream() {
+        let mut out = Vec::from(b"blame:");
+
+        assert!(!append_blame_output_with_cap(&mut out, b"overflow", 8));
+        assert!(out.is_empty());
+    }
+
+    #[test]
+    fn blame_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_blame_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
     }
 
     #[test]

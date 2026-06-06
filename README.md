@@ -585,7 +585,9 @@ source commit and report only the archive produced by that run.
 - **Per-hunk stage / unstage** (reconstructed unified patches)
 - Failed per-hunk stage or unstage attempts refresh the inline diff, closing it
   when the stale hunk no longer exists
-- **Blame gutter (Alt+B)** — porcelain-parsed, per-file cached, with strict timestamp and timezone token boundaries
+- **Blame gutter (Alt+B)** — porcelain-parsed, per-file cached, with strict
+  timestamp/timezone token boundaries and 8 MiB per-stream output caps before
+  parsing external `git blame` output
 - Source Control row opens reject directory targets from stale git status
   entries instead of opening an empty tab, then refresh the status list so
   repeated clicks do not keep targeting a non-file row
