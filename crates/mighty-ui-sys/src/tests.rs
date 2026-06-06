@@ -3807,6 +3807,36 @@ fn agents_run_rejects_stale_active_targets_before_spawn() {
 }
 
 #[test]
+fn agents_inspect_reports_missing_configured_mty() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_agents_inspect_missing_mty_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing_mty = root.join("missing-mty.exe");
+    let old_mty = std::env::var_os("MIGHTY_MTY");
+    let old_sock = std::env::var_os("MTY_RUNTIME_CONTROL_SOCK");
+    let _mty_env = EnvRestoreGuard("MIGHTY_MTY", old_mty);
+    let _sock_env = EnvRestoreGuard("MTY_RUNTIME_CONTROL_SOCK", old_sock);
+    std::env::set_var("MIGHTY_MTY", &missing_mty);
+    std::env::set_var("MTY_RUNTIME_CONTROL_SOCK", root.join("live.sock"));
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::agentsabi::mui_agents_inspect(handle), -1);
+    assert_eq!(crate::agentsabi::mui_agents_live_count(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Live inspect unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn agents_clear_run_output_reports_feedback_and_preserves_topology() {
     let mut ctx = ctx_or_skip!();
     ctx.sidebar_visible = false;

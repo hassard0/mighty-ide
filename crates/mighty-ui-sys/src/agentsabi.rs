@@ -509,6 +509,11 @@ impl AgentTopology {
             return -1;
         }
         let mty = mty_path();
+        if let Some(note) = configured_mty_missing_inspect_note(&mty) {
+            self.inspect_note = note;
+            self.snapshot = None;
+            return -1;
+        }
         let out = inspect_command(&mty, sock.as_deref()).output();
         match out {
             Ok(o) => {
@@ -599,6 +604,26 @@ fn default_inspect_note() -> String {
 /// Resolve the `mty` compiler path through the shared Mighty compiler resolver.
 fn mty_path() -> String {
     crate::mty::path()
+}
+
+fn configured_mty_missing_inspect_note(mty: &str) -> Option<String> {
+    let raw = std::env::var("MIGHTY_MTY").ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || trimmed != mty.trim() {
+        return None;
+    }
+    let path = std::path::Path::new(trimmed);
+    if path.is_file() {
+        return None;
+    }
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(trimmed);
+    Some(format!(
+        "Live inspect unavailable: MIGHTY_MTY points to missing {name}"
+    ))
 }
 
 // ===========================================================================
@@ -1294,6 +1319,12 @@ pub extern "C" fn mui_agents_inspect(handle: i64) -> i32 {
     let mut topo = std::mem::take(&mut ctx.agents);
     let n = topo.inspect();
     ctx.agents = topo;
+    if n < 0 {
+        let note = ctx.agents.inspect_note().to_string();
+        if !note.is_empty() {
+            ctx.push_toast(crate::toast::Kind::Warn, note);
+        }
+    }
     crate::abi::trace(&format!("agents_inspect result={n}"));
     n
 }
@@ -1605,6 +1636,36 @@ mod tests {
             .map(|a| a.to_string_lossy().to_string())
             .collect();
         assert_eq!(args, vec!["inspect", "--json"]);
+    }
+
+    #[test]
+    fn configured_mty_missing_inspect_note_names_override() {
+        let missing = if cfg!(windows) {
+            r"C:\missing\missing-mty.exe"
+        } else {
+            "/missing/missing-mty"
+        };
+        assert_eq!(
+            configured_mty_missing_inspect_note(missing),
+            None,
+            "without MIGHTY_MTY override, missing paths remain spawn errors"
+        );
+
+        let old = std::env::var_os("MIGHTY_MTY");
+        std::env::set_var("MIGHTY_MTY", missing);
+        assert_eq!(
+            configured_mty_missing_inspect_note(missing).as_deref(),
+            Some(if cfg!(windows) {
+                "Live inspect unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+            } else {
+                "Live inspect unavailable: MIGHTY_MTY points to missing missing-mty"
+            })
+        );
+        if let Some(v) = old {
+            std::env::set_var("MIGHTY_MTY", v);
+        } else {
+            std::env::remove_var("MIGHTY_MTY");
+        }
     }
 
     #[test]

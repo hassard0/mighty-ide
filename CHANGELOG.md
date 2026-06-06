@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Agents Inspect names missing compiler overrides**: the live-inspect header
+  now rejects a stale `MIGHTY_MTY` override before spawning and surfaces the
+  same actionable reason in both the panel note and a warning toast.
 - **Agents run rejects stale active targets**: Mighty Agents now refuses to
   run deleted or directory-backed active files before spawning, refreshes stale
   workspace views, and reports the exact target in the warning toast.
