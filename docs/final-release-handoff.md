@@ -43,6 +43,15 @@ Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
   -WorkingDirectory "dist\mighty-ide-win64"
 ```
 
+If `mty` is not on PATH, pass the compiler explicitly:
+
+```powershell
+.\package-win.ps1 -Mty C:\path\to\mty.exe
+```
+
+The selected compiler must report v0.47.0 or newer. A missing or stale compiler
+is a toolchain failure before packaging, not a clean-binary result.
+
 Final artifact fields to record after the package run:
 
 ```text

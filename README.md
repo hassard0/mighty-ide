@@ -37,6 +37,15 @@ commit.
 | macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and Mach-O `.dylib`, no sidecars, no `.exe`, `.dll`, or `.so` payloads, packaged app launch |
 | Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and ELF `.so`, no sidecars, no `.exe`, `.dll`, or `.dylib` payloads, packaged launch |
 
+Before packaging, make the Mighty compiler explicit. The packagers require
+`mty --version` to report v0.47.0 or newer and fail before build work starts if
+the selected compiler is missing or stale. On Windows, set `MIGHTY_MTY` or pass
+`-Mty` to the PowerShell packager, then build from the clean committed tree:
+
+```powershell
+.\package-win.ps1 -Mty C:\path\to\mty.exe
+```
+
 The package scripts remove the previous same-version archive before building,
 write `PACKAGE-MANIFEST.txt` with source commit and native payload hashes, scan
 the finished archive for build byproducts and foreign native files, and bundle

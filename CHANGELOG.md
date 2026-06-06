@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final package docs name the compiler preflight**: README and final handoff
+  docs now show how to pass an explicit `mty.exe` to `package-win.ps1` and
+  clarify that v0.47.0 or newer is required before a clean Windows binary pass
+  can start.
 - **Command Palette names dirty close-tab blockers**: Close Tab now names the
   dirty tab that will open the unsaved-work confirmation before dispatch,
   matching the runtime close guard.
