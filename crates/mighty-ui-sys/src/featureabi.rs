@@ -69,7 +69,9 @@ fn run_output_location_label(text: &str) -> Option<String> {
     let inner = &text[open + 1..close];
     let (path_part, col_part) = inner.rsplit_once(':')?;
     let (path, line_part) = path_part.rsplit_once(':')?;
-    if line_part.parse::<u32>().ok()? == 0 || col_part.parse::<u32>().ok()? == 0 {
+    if parse_positive_decimal_u32(line_part).is_none()
+        || parse_positive_decimal_u32(col_part).is_none()
+    {
         return None;
     }
     let name = std::path::Path::new(path)
@@ -78,6 +80,13 @@ fn run_output_location_label(text: &str) -> Option<String> {
         .filter(|s| !s.is_empty())
         .unwrap_or(path);
     Some(format!("{name}:{line_part}:{col_part}"))
+}
+
+fn parse_positive_decimal_u32(text: &str) -> Option<u32> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<u32>().ok().filter(|value| *value > 0)
 }
 
 fn run_command_display() -> String {
@@ -1698,4 +1707,49 @@ pub extern "C" fn mui_pref_word_wrap(_handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_pref_minimap(_handle: i64) -> i32 {
     i32::from(crate::settings::minimap())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_output_location_label_accepts_positive_decimal_coordinates() {
+        assert_eq!(
+            run_output_location_label("error [C:/work/main.mty:12:3]"),
+            Some("main.mty:12:3".to_string())
+        );
+    }
+
+    #[test]
+    fn run_output_location_label_rejects_signed_or_fractional_coordinates() {
+        assert_eq!(
+            run_output_location_label("error [C:/work/main.mty:+12:3]"),
+            None
+        );
+        assert_eq!(
+            run_output_location_label("error [C:/work/main.mty:12:+3]"),
+            None
+        );
+        assert_eq!(
+            run_output_location_label("error [C:/work/main.mty:12.5:3]"),
+            None
+        );
+    }
+
+    #[test]
+    fn run_output_location_label_rejects_zero_or_overflow_coordinates() {
+        assert_eq!(
+            run_output_location_label("error [C:/work/main.mty:0:3]"),
+            None
+        );
+        assert_eq!(
+            run_output_location_label("error [C:/work/main.mty:12:0]"),
+            None
+        );
+        assert_eq!(
+            run_output_location_label("error [C:/work/main.mty:999999999999999999999999999999:3]"),
+            None
+        );
+    }
 }
