@@ -29,6 +29,9 @@ use crate::theme;
 pub const PEEK_MAX_LINES: usize = 12;
 /// How many lines ABOVE the definition line to include for context.
 pub const PEEK_CONTEXT_BEFORE: usize = 1;
+/// Cross-file peek previews run on the navigation path and only need a compact
+/// source window, so avoid reading large generated artifacts into memory.
+pub(crate) const MAX_PEEK_FILE_BYTES: u64 = 4 * 1024 * 1024;
 
 /// Extract a preview window from `source` around the 0-based `def_line`.
 ///
@@ -57,6 +60,12 @@ pub fn extract_window(source: &str, def_line: u32) -> (u32, Vec<String>) {
 /// Read a file from disk and extract the preview window (cross-file peek). Best
 /// effort: returns an empty window if the file can't be read.
 pub fn extract_window_from_file(path: &Path, def_line: u32) -> (u32, Vec<String>) {
+    if std::fs::metadata(path)
+        .map(|meta| !meta.is_file() || meta.len() > MAX_PEEK_FILE_BYTES)
+        .unwrap_or(true)
+    {
+        return (0, Vec::new());
+    }
     match std::fs::read(path) {
         Ok(bytes) => {
             let text = String::from_utf8_lossy(&bytes);
@@ -497,6 +506,20 @@ mod tests {
         assert_eq!(first, 0);
         assert_eq!(lines[0], "fn helper() {");
         assert_eq!(lines[1], "  42");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn window_from_oversized_file_is_empty_without_reading() {
+        let dir = std::env::temp_dir().join("mui_peek_oversized");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("large.mty");
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(MAX_PEEK_FILE_BYTES + 1).unwrap();
+
+        let (_first, lines) = extract_window_from_file(&path, 0);
+
+        assert!(lines.is_empty());
         let _ = std::fs::remove_file(&path);
     }
 

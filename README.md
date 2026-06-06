@@ -274,7 +274,8 @@ source commit and report only the archive produced by that run.
 - Go-to-line (Ctrl+G), go-to-definition (F12, cross-file), jump-back (Ctrl+−)
 - Jump Back empty-history feedback coalesces with other navigation toasts
   instead of stacking stale code-navigation messages
-- **Peek definition (Alt+F12)** — inline framed definition preview
+- **Peek definition (Alt+F12)** — inline framed definition preview; cross-file
+  previews above 4 MiB are skipped before reading
 - **Sticky scroll** — pinned enclosing scopes
 - **Outline, Problems, and an interactive breadcrumb** code-nav bar; Problems
   rows, breadcrumb file jumps, and Peek Definition navigation reject directory
