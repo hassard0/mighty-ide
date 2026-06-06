@@ -16,6 +16,9 @@ driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
   now preserves `CompletionItem.preselect` and uses the selected surviving row as
   the initial selection after provider ranking, while snippet completions still
   take precedence when injected.
+- **Generic LSP completion surfaces deprecated items**: semantic completion now
+  preserves `CompletionItem.deprecated` and LSP `tags: [1]`, showing deprecated
+  rows and selected-row footers before users accept old APIs.
 - **Generic LSP completion keeps provider documentation**: semantic completion
   now preserves string and MarkupContent `CompletionItem.documentation`, using it
   as the selected-row footer context when no shorter provider `detail` is

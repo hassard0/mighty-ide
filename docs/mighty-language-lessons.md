@@ -14554,3 +14554,19 @@ or Tab acceptance toward the most likely completion.
 - **Language note:** no compiler gap surfaced. This is scalar state management
   in the shim: Mighty still asks for the accepted insert string and does not need
   to inspect the candidate list.
+
+## L1141 - LSP Completion Deprecated Markers Need Visible State
+
+Generic completion preserved labels, edits, filter keys, sort keys, kinds,
+details, docs, and preselection, but still dropped deprecation metadata. Real
+language servers mark old APIs with `CompletionItem.deprecated` or
+`tags: [1]`; if the dropdown hides that marker, users can accept stale APIs
+without the IDE showing the same warning other editors expose.
+
+- **IDE note:** semantic candidates now preserve both deprecation encodings.
+  Deprecated rows show a compact `deprecated` status when no provider detail is
+  available, and the selected-row footer keeps the warning before provider docs
+  or source hints.
+- **Language note:** no compiler gap surfaced. This is another rich-protocol
+  ownership case: Rust should retain compatibility metadata until rendering
+  decides how to expose it, while Mighty keeps the scalar accept path simple.

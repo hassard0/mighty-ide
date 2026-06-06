@@ -14,7 +14,7 @@
 //!   thoroughly unit-tested ([`buffer_words`], [`filter_by_prefix`]).
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
-//!   parse `CompletionItem` insert/display/kind/detail/docs/sort text, and
+//!   parse `CompletionItem` insert/display/kind/detail/docs/sort/deprecated text, and
 //!   merge them ahead of the buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
@@ -41,6 +41,8 @@ pub struct Candidate {
     pub kind_label: Option<&'static str>,
     /// `true` when the provider asked this item to be initially selected.
     pub preselect: bool,
+    /// `true` when the provider marked this item as deprecated.
+    pub deprecated: bool,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
     /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
@@ -63,6 +65,8 @@ pub struct SemanticCandidate {
     pub kind_label: Option<&'static str>,
     /// LSP `preselect` preference for the initial selected row.
     pub preselect: bool,
+    /// LSP `deprecated` or `tags: [1]` marker.
+    pub deprecated: bool,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
@@ -233,6 +237,7 @@ impl CompletionEngine {
                 documentation_text: None,
                 kind_label: None,
                 preselect: false,
+                deprecated: false,
                 filter_text: None,
                 sort_text: None,
             })
@@ -280,6 +285,7 @@ impl CompletionEngine {
                     documentation_text: item.documentation_text.clone(),
                     kind_label: item.kind_label,
                     preselect: item.preselect,
+                    deprecated: item.deprecated,
                     semantic: true,
                     snippet: false,
                 });
@@ -297,6 +303,7 @@ impl CompletionEngine {
                     documentation_text: None,
                     kind_label: None,
                     preselect: false,
+                    deprecated: false,
                     semantic: false,
                     snippet: false,
                 });
@@ -328,6 +335,7 @@ impl CompletionEngine {
                     documentation_text: None,
                     kind_label: Some("snippet"),
                     preselect: false,
+                    deprecated: false,
                     semantic: false,
                     snippet: true,
                 });
@@ -577,7 +585,7 @@ impl CompletionEngine {
             // Type badge: a small rounded colored square with a letter, classified
             // by a light heuristic (mockup badge colors).
             let (badge_bg, badge_fg, letter, kind, _sig) = classify_candidate(cand);
-            let detail = cand.detail_text();
+            let detail = completion_row_detail(cand);
             let bx = box_x + 10.0;
             let by = row_y + (row_h - 18.0) * 0.5;
             ctx.dl_round(bx, by, 18.0, 18.0, 4.0, badge_bg);
@@ -645,7 +653,7 @@ impl CompletionEngine {
             let hy = hint_y + (hint_h - (chrome - 1.0)) * 0.5 - 0.5;
             let mut hx = box_x + 12.0;
             let tail = completion_footer_tail(sel);
-            let tail_w = ctx.text.measure_ui_sized(tail, chrome - 1.0).0;
+            let tail_w = ctx.text.measure_ui_sized(&tail, chrome - 1.0).0;
             let name_budget = (box_x + box_w - 12.0 - tail_w - hx).max(0.0);
             let shown_name =
                 fit_completion_text(&mut ctx.text, sel.display_text(), name_budget, chrome - 1.0);
@@ -659,7 +667,7 @@ impl CompletionEngine {
             );
             hx += ctx.text.measure_ui_sized(&shown_name, chrome - 1.0).0;
             let tail_budget = (box_x + box_w - 12.0 - hx).max(0.0);
-            let shown_tail = fit_completion_text(&mut ctx.text, tail, tail_budget, chrome - 1.0);
+            let shown_tail = fit_completion_text(&mut ctx.text, &tail, tail_budget, chrome - 1.0);
             if !shown_tail.is_empty() {
                 ctx.text
                     .queue_sized(hx, hy, &shown_tail, theme::DIM(), chrome - 1.0, clip);
@@ -733,7 +741,7 @@ fn completion_popup_width(
     let mut desired = row_min;
     for cand in candidates.iter().skip(top).take(shown) {
         let (_badge_bg, _badge_fg, _letter, kind, _sig) = classify_candidate(cand);
-        let detail = cand.detail_text();
+        let detail = completion_row_detail(cand);
         let name_w = text.measure_ui_sized(cand.display_text(), chrome).0;
         let sig_gap = if completion_row_detail_visible(detail) {
             2.0
@@ -752,7 +760,7 @@ fn completion_popup_width(
         let tail = completion_footer_tail(sel);
         let footer_w = 12.0
             + text.measure_ui_sized(sel.display_text(), chrome - 1.0).0
-            + text.measure_ui_sized(tail, chrome - 1.0).0
+            + text.measure_ui_sized(&tail, chrome - 1.0).0
             + right_pad;
         desired = desired.max(footer_w.min(420.0));
     }
@@ -888,15 +896,36 @@ fn completion_row_detail_visible(detail: &str) -> bool {
     !detail.trim().is_empty()
 }
 
-fn completion_footer_tail(cand: &Candidate) -> &str {
+fn completion_row_detail(cand: &Candidate) -> &str {
     if completion_row_detail_visible(cand.detail_text()) {
         cand.detail_text()
-    } else if completion_row_detail_visible(cand.documentation_text()) {
-        cand.documentation_text()
-    } else if cand.semantic {
-        "  \u{00B7} semantic symbol"
+    } else if cand.deprecated {
+        "deprecated"
     } else {
-        "  \u{00B7} local symbol"
+        ""
+    }
+}
+
+fn completion_footer_tail(cand: &Candidate) -> String {
+    if cand.deprecated {
+        let after = if completion_row_detail_visible(cand.detail_text()) {
+            cand.detail_text()
+        } else if completion_row_detail_visible(cand.documentation_text()) {
+            cand.documentation_text()
+        } else if cand.semantic {
+            "semantic symbol"
+        } else {
+            "local symbol"
+        };
+        format!("  \u{00B7} deprecated  \u{00B7} {after}")
+    } else if completion_row_detail_visible(cand.detail_text()) {
+        cand.detail_text().to_string()
+    } else if completion_row_detail_visible(cand.documentation_text()) {
+        cand.documentation_text().to_string()
+    } else if cand.semantic {
+        "  \u{00B7} semantic symbol".to_string()
+    } else {
+        "  \u{00B7} local symbol".to_string()
     }
 }
 
@@ -980,6 +1009,7 @@ pub mod lsp {
                         documentation_text: completion_item_documentation_text(item),
                         kind_label: completion_item_kind_label(item),
                         preselect: completion_item_preselect(item),
+                        deprecated: completion_item_deprecated(item),
                         filter_text: completion_item_filter_text(item),
                         sort_text: completion_item_sort_text(item),
                     });
@@ -1019,6 +1049,11 @@ pub mod lsp {
 
     fn completion_item_preselect(item: &[u8]) -> bool {
         top_level_bool_value(item, b"preselect").unwrap_or(false)
+    }
+
+    fn completion_item_deprecated(item: &[u8]) -> bool {
+        top_level_bool_value(item, b"deprecated").unwrap_or(false)
+            || top_level_array_contains_number(item, b"tags", 1)
     }
 
     fn completion_item_display_text(item: &[u8], insert_text: &str) -> Option<String> {
@@ -1108,6 +1143,43 @@ pub mod lsp {
             "false" => Some(false),
             _ => None,
         }
+    }
+
+    fn top_level_array_contains_number(obj: &[u8], field: &[u8], needle: i64) -> bool {
+        let Some(at) = top_level_field_value_start(obj, field) else {
+            return false;
+        };
+        let Some(region) = value_region(obj, at) else {
+            return false;
+        };
+        if region.first() != Some(&b'[') {
+            return false;
+        }
+        let mut i = 1usize;
+        while i < region.len().saturating_sub(1) {
+            while i < region.len() && matches!(region[i], b' ' | b',' | b'\t' | b'\r' | b'\n') {
+                i += 1;
+            }
+            let start = i;
+            if i < region.len() && region[i] == b'-' {
+                i += 1;
+            }
+            while i < region.len() && region[i].is_ascii_digit() {
+                i += 1;
+            }
+            if start < i {
+                if std::str::from_utf8(&region[start..i])
+                    .ok()
+                    .and_then(|n| n.parse::<i64>().ok())
+                    == Some(needle)
+                {
+                    return true;
+                }
+            } else {
+                i += 1;
+            }
+        }
+        false
     }
 
     fn flatten_lsp_snippet_insert_text(text: &str) -> String {
@@ -1725,6 +1797,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             filter_text: Some("np".to_string()),
             sort_text: None,
         }];
@@ -1747,6 +1820,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             filter_text: Some("println".to_string()),
             sort_text: None,
         }];
@@ -1770,6 +1844,7 @@ mod tests {
                 documentation_text: None,
                 kind_label: None,
                 preselect: false,
+                deprecated: false,
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -1780,6 +1855,7 @@ mod tests {
                 documentation_text: None,
                 kind_label: None,
                 preselect: false,
+                deprecated: false,
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1790,6 +1866,7 @@ mod tests {
                 documentation_text: None,
                 kind_label: None,
                 preselect: false,
+                deprecated: false,
                 filter_text: None,
                 sort_text: None,
             },
@@ -1817,6 +1894,7 @@ mod tests {
                 documentation_text: None,
                 kind_label: None,
                 preselect: false,
+                deprecated: false,
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1827,6 +1905,7 @@ mod tests {
                 documentation_text: None,
                 kind_label: None,
                 preselect: true,
+                deprecated: false,
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -1850,6 +1929,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: true,
+            deprecated: false,
             filter_text: None,
             sort_text: None,
         }];
@@ -1872,6 +1952,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             semantic: true,
             snippet: false,
         };
@@ -1889,6 +1970,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             semantic: true,
             snippet: false,
         };
@@ -1906,6 +1988,7 @@ mod tests {
             documentation_text: Some("Collects an iterator into a collection.".to_string()),
             kind_label: Some("method"),
             preselect: false,
+            deprecated: false,
             semantic: true,
             snippet: false,
         };
@@ -1913,6 +1996,27 @@ mod tests {
         assert_eq!(
             completion_footer_tail(&cand),
             "Collects an iterator into a collection."
+        );
+    }
+
+    #[test]
+    fn semantic_completion_deprecated_rows_get_visible_status() {
+        let cand = Candidate {
+            text: "oldApi".to_string(),
+            display_text: None,
+            detail_text: None,
+            documentation_text: Some("Use newApi instead.".to_string()),
+            kind_label: Some("function"),
+            preselect: false,
+            deprecated: true,
+            semantic: true,
+            snippet: false,
+        };
+
+        assert_eq!(completion_row_detail(&cand), "deprecated");
+        assert_eq!(
+            completion_footer_tail(&cand),
+            "  \u{00B7} deprecated  \u{00B7} Use newApi instead."
         );
     }
 
@@ -1925,6 +2029,7 @@ mod tests {
             documentation_text: None,
             kind_label: Some("variable"),
             preselect: false,
+            deprecated: false,
             semantic: true,
             snippet: false,
         };
@@ -1945,6 +2050,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             filter_text: Some("let".to_string()),
             sort_text: None,
         }];
@@ -2057,6 +2163,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             semantic: true,
             snippet: false,
         };
@@ -2177,6 +2284,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             semantic: false,
             snippet: false,
         }];
@@ -2187,6 +2295,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             semantic: false,
             snippet: false,
         }];
@@ -2220,6 +2329,7 @@ mod tests {
             documentation_text: None,
             kind_label: None,
             preselect: false,
+            deprecated: false,
             semantic: true,
             snippet: false,
         }];
@@ -2408,6 +2518,17 @@ mod tests {
         assert!(!candidates[0].preselect);
         assert!(candidates[1].preselect);
         assert!(!candidates[2].preselect);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_deprecated_markers() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"oldFlag","deprecated":true},{"label":"oldTag","tags":[1]},{"label":"fresh","tags":[2]}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 3);
+        assert!(candidates[0].deprecated);
+        assert!(candidates[1].deprecated);
+        assert!(!candidates[2].deprecated);
     }
 
     #[test]
