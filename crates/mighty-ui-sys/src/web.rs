@@ -628,7 +628,7 @@ pub fn extract_url(line: &str) -> Option<String> {
     // Take up to the first whitespace; strip trailing sentence punctuation.
     let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
     let url = rest[..end].trim_end_matches(['.', ',', ')', ']', '"', '\'']);
-    if url.len() > "http://".len() {
+    if is_local_dev_server_url(url) {
         Some(url.to_string())
     } else {
         None
@@ -637,11 +637,47 @@ pub fn extract_url(line: &str) -> Option<String> {
 
 /// Pull a `:<port>` out of a scraped URL (for tests / status). `None` if absent.
 pub fn port_of(url: &str) -> Option<u16> {
-    // Strip scheme, then the host, then read digits after the last ':' before any '/'.
-    let after_scheme = url.split("://").nth(1)?;
-    let authority = after_scheme.split('/').next()?;
-    let port = authority.rsplit(':').next()?;
-    port.parse::<u16>().ok()
+    let (_, port) = parse_local_dev_url_authority(url)?;
+    Some(port)
+}
+
+fn is_local_dev_server_url(url: &str) -> bool {
+    parse_local_dev_url_authority(url).is_some()
+}
+
+fn parse_local_dev_url_authority(url: &str) -> Option<(&str, u16)> {
+    let after_scheme = url
+        .strip_prefix("http://")
+        .or_else(|| url.strip_prefix("https://"))?;
+    let authority = after_scheme.split('/').next()?.split('?').next()?.split('#').next()?;
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let close = rest.find(']')?;
+        let host = &rest[..close];
+        let port = rest[close + 1..].strip_prefix(':')?;
+        (host, port)
+    } else {
+        let (host, port) = authority.rsplit_once(':')?;
+        if host.contains(':') {
+            return None;
+        }
+        (host, port)
+    };
+    if !is_loopback_host(host) {
+        return None;
+    }
+    let port = parse_positive_port(port)?;
+    Some((host, port))
+}
+
+fn is_loopback_host(host: &str) -> bool {
+    host.eq_ignore_ascii_case("localhost") || host == "::1" || host.starts_with("127.")
+}
+
+fn parse_positive_port(raw: &str) -> Option<u16> {
+    if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    raw.parse::<u16>().ok().filter(|port| *port > 0)
 }
 
 /// `true` if a line looks like a build error (an `[MTxxxx]` header, `Error:`,
@@ -766,16 +802,42 @@ mod tests {
     }
 
     #[test]
+    fn extract_url_accepts_localhost_and_ipv6_loopback() {
+        assert_eq!(
+            extract_url("open http://localhost:9000/index.html").as_deref(),
+            Some("http://localhost:9000/index.html")
+        );
+        assert_eq!(
+            extract_url("open http://[::1]:8123/").as_deref(),
+            Some("http://[::1]:8123/")
+        );
+    }
+
+    #[test]
     fn extract_url_none_when_absent() {
         assert!(extract_url("compiling webspin (--target wasm32-web)").is_none());
         assert!(extract_url("plain text no url").is_none());
     }
 
     #[test]
+    fn extract_url_rejects_non_local_or_malformed_server_urls() {
+        assert!(extract_url("docs: https://example.com:443/help").is_none());
+        assert!(extract_url("open http://127.0.0.1/").is_none());
+        assert!(extract_url("open http://127.0.0.1:0/").is_none());
+        assert!(extract_url("open http://127.0.0.1:-8000/").is_none());
+        assert!(extract_url("open http://127.0.0.1:8e3/").is_none());
+        assert!(extract_url("open http://[::1]/").is_none());
+        assert!(extract_url("open http://::1:8123/").is_none());
+    }
+
+    #[test]
     fn port_of_parses() {
         assert_eq!(port_of("http://127.0.0.1:8000"), Some(8000));
         assert_eq!(port_of("http://localhost:9000/"), Some(9000));
+        assert_eq!(port_of("http://[::1]:7000/"), Some(7000));
         assert_eq!(port_of("http://example.com/"), None);
+        assert_eq!(port_of("http://example.com:9000/"), None);
+        assert_eq!(port_of("http://127.0.0.1:0/"), None);
     }
 
     #[test]
