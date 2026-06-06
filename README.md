@@ -122,7 +122,8 @@ source state and requires a new package run.
   including unavailable pause, step, restart, and clear-breakpoint actions,
   idle stops, empty sessions, and closed panel
 - Command Palette Source Control and Explorer lifecycle rows mirror no-op
-  states, including empty commit-message drafts and closed panels
+  states, including clean stage/unstage sets, missing staged changes or commit
+  messages, empty commit-message drafts, and closed panels
 - Command Palette Keyboard Shortcuts lifecycle rows mirror no-op states,
   including closed overlays, selected shortcuts already using defaults, and
   empty override sets

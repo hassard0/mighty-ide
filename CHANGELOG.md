@@ -84,6 +84,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Step Into, Step Out, Restart, and Clear Breakpoints now mirror Run and Debug
   runtime feedback for non-running or non-paused debug sessions, missing restart
   targets, and empty breakpoint inventories.
+- **Command Palette Source Control commands explain no-op states**: Stage All,
+  Unstage All, and Commit Staged now mirror SCM runtime feedback for non-git
+  workspaces, clean stage sets, missing staged changes, and empty commit
+  messages.
 - **Command Palette Agents lifecycle rows explain no-op states**: Clear Run
   Output and Close Panel now mirror Mighty Agents runtime feedback for empty
   run transcripts and closed panels.

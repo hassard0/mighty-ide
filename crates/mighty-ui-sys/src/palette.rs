@@ -1331,11 +1331,21 @@ impl PaletteEngine {
                 ctx.dbg.session_is_empty(),
             );
         }
-        if matches!(id, CMD_GIT_CLEAR_COMMIT_MESSAGE | CMD_GIT_CLOSE_SOURCE_CONTROL) {
+        if matches!(
+            id,
+            CMD_GIT_STAGE_ALL
+                | CMD_GIT_UNSTAGE_ALL
+                | CMD_GIT_COMMIT_STAGED
+                | CMD_GIT_CLEAR_COMMIT_MESSAGE
+                | CMD_GIT_CLOSE_SOURCE_CONTROL
+        ) {
             return source_control_contextual_desc(
                 id,
                 base,
                 ctx.active_panel == crate::PANEL_SCM,
+                ctx.scm.root.is_some(),
+                ctx.scm.status.staged_count(),
+                ctx.scm.status.unstaged_count(),
                 ctx.scm.message.is_empty(),
             );
         }
@@ -1857,9 +1867,21 @@ fn source_control_contextual_desc<'a>(
     id: u32,
     base: &'a str,
     active: bool,
+    has_repo: bool,
+    staged_count: usize,
+    unstaged_count: usize,
     message_empty: bool,
 ) -> Cow<'a, str> {
     match id {
+        CMD_GIT_STAGE_ALL | CMD_GIT_UNSTAGE_ALL | CMD_GIT_COMMIT_STAGED if !has_repo => {
+            Cow::Borrowed("Not a git repository")
+        }
+        CMD_GIT_STAGE_ALL if unstaged_count == 0 => Cow::Borrowed("Nothing to stage"),
+        CMD_GIT_UNSTAGE_ALL if staged_count == 0 => Cow::Borrowed("Nothing to unstage"),
+        CMD_GIT_COMMIT_STAGED if staged_count == 0 => {
+            Cow::Borrowed("No staged changes to commit")
+        }
+        CMD_GIT_COMMIT_STAGED if message_empty => Cow::Borrowed("Enter a commit message"),
         CMD_GIT_CLEAR_COMMIT_MESSAGE if message_empty => {
             Cow::Borrowed("Source Control message already empty")
         }
@@ -3279,19 +3301,147 @@ mod tests {
     #[test]
     fn source_control_command_descriptions_reflect_runtime_state() {
         assert_eq!(
-            source_control_contextual_desc(CMD_GIT_CLEAR_COMMIT_MESSAGE, "base", true, true),
+            source_control_contextual_desc(
+                CMD_GIT_STAGE_ALL,
+                "base",
+                true,
+                false,
+                0,
+                0,
+                true
+            ),
+            Cow::Borrowed("Not a git repository")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_STAGE_ALL,
+                "base",
+                true,
+                true,
+                0,
+                0,
+                true
+            ),
+            Cow::Borrowed("Nothing to stage")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_UNSTAGE_ALL,
+                "base",
+                true,
+                true,
+                0,
+                1,
+                true
+            ),
+            Cow::Borrowed("Nothing to unstage")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_COMMIT_STAGED,
+                "base",
+                true,
+                true,
+                0,
+                1,
+                false
+            ),
+            Cow::Borrowed("No staged changes to commit")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_COMMIT_STAGED,
+                "base",
+                true,
+                true,
+                1,
+                0,
+                true
+            ),
+            Cow::Borrowed("Enter a commit message")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_CLEAR_COMMIT_MESSAGE,
+                "base",
+                true,
+                true,
+                0,
+                0,
+                true
+            ),
             Cow::Borrowed("Source Control message already empty")
         );
         assert_eq!(
-            source_control_contextual_desc(CMD_GIT_CLOSE_SOURCE_CONTROL, "base", false, false),
+            source_control_contextual_desc(
+                CMD_GIT_CLOSE_SOURCE_CONTROL,
+                "base",
+                false,
+                true,
+                1,
+                1,
+                false
+            ),
             Cow::Borrowed("Source Control panel is already closed")
         );
         assert_eq!(
-            source_control_contextual_desc(CMD_GIT_CLEAR_COMMIT_MESSAGE, "base", false, false),
+            source_control_contextual_desc(
+                CMD_GIT_STAGE_ALL,
+                "base",
+                true,
+                true,
+                0,
+                1,
+                true
+            ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            source_control_contextual_desc(CMD_GIT_CLOSE_SOURCE_CONTROL, "base", true, true),
+            source_control_contextual_desc(
+                CMD_GIT_UNSTAGE_ALL,
+                "base",
+                true,
+                true,
+                1,
+                0,
+                true
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_COMMIT_STAGED,
+                "base",
+                true,
+                true,
+                1,
+                0,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_CLEAR_COMMIT_MESSAGE,
+                "base",
+                false,
+                true,
+                0,
+                0,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_CLOSE_SOURCE_CONTROL,
+                "base",
+                true,
+                true,
+                0,
+                0,
+                true
+            ),
             Cow::Borrowed("base")
         );
     }
