@@ -11840,6 +11840,13 @@ fn skipped_dirty_workspace_edit_message(path: &std::path::Path) -> String {
     )
 }
 
+fn fix_all_dirty_duplicate_message(path: &std::path::Path) -> String {
+    format!(
+        "Fix all skipped {}: duplicate unsaved edits",
+        basename(path)
+    )
+}
+
 fn skipped_not_file_workspace_edit_message(path: &std::path::Path) -> String {
     format!(
         "Skipped non-file during workspace edit: {}",
@@ -12444,7 +12451,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
         if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
             ctx.push_toast(
                 crate::toast::Kind::Warn,
-                skipped_dirty_workspace_edit_message(&path),
+                fix_all_dirty_duplicate_message(&path),
             );
             println!(
                 "codeaction: fix-all skipped dirty duplicate path={}",

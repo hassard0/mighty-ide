@@ -14380,7 +14380,7 @@ fn codeaction_fix_all_skips_dirty_duplicate_tab() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(
         toast.message,
-        "Skipped dirty file during workspace edit: main.mty"
+        "Fix all skipped main.mty: duplicate unsaved edits"
     );
 
     if let Some(v) = old_mty {

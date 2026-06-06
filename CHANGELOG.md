@@ -12,6 +12,8 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Fix All names duplicate-edit blockers**: Fix all (mty) now names the file
+  whose duplicate unsaved edits prevent applying the fixer.
 - **Save All names single duplicate-edit blockers**: when duplicate dirty tabs
   all point at one file, Save All and the Command Palette now name that file
   instead of only reporting a skipped count.
