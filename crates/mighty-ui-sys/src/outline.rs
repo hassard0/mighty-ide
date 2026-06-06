@@ -312,11 +312,14 @@ fn decl_name(kind: SymKind, rest: &str) -> Option<String> {
 /// caller can fall back to the scanner.
 pub fn parse_document_symbols(json: &str) -> Option<Vec<Symbol>> {
     let bytes = json.as_bytes();
-    if top_level_object_field(bytes, "error")
-        .and_then(|error| top_level_i32_field(error, "code"))
-        == Some(-32601)
-    {
-        return None; // method not found
+    if let Some(error) = top_level_object_field(bytes, "error") {
+        if top_level_field_value_start(error, "code").is_some() {
+            return if top_level_i32_field(error, "code") == Some(-32601) {
+                None // method not found
+            } else {
+                Some(Vec::new())
+            };
+        }
     }
     let i = top_level_field_value_start(bytes, "result")?;
     if i >= bytes.len() || bytes.get(i..i + 4) == Some(b"null") {
@@ -341,6 +344,13 @@ pub fn parse_document_symbols(json: &str) -> Option<Vec<Symbol>> {
     } else {
         Some(syms)
     }
+}
+
+fn response_owns_error_code(json: &str) -> bool {
+    let bytes = json.as_bytes();
+    top_level_object_field(bytes, "error")
+        .and_then(|error| top_level_field_value_start(error, "code"))
+        .is_some()
 }
 
 /// Parse a `[ {symbol}, ... ]` array slice into `out` at the given `depth`,
@@ -433,7 +443,15 @@ fn top_level_uint_field(obj: &[u8], field: &str) -> Option<u32> {
         v = v.saturating_mul(10).saturating_add((obj[i] - b'0') as u32);
         i += 1;
     }
-    (i > start).then_some(v)
+    if i == start {
+        None
+    } else if i < obj.len()
+        && !matches!(obj[i], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        None
+    } else {
+        Some(v)
+    }
 }
 
 fn top_level_i32_field(obj: &[u8], field: &str) -> Option<i32> {
@@ -451,7 +469,15 @@ fn top_level_i32_field(obj: &[u8], field: &str) -> Option<i32> {
         v = v.saturating_mul(10).saturating_add((obj[i] - b'0') as i32);
         i += 1;
     }
-    (i > start).then_some(if negative { v.saturating_neg() } else { v })
+    if i == start {
+        None
+    } else if i < obj.len()
+        && !matches!(obj[i], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        None
+    } else {
+        Some(if negative { v.saturating_neg() } else { v })
+    }
 }
 
 fn top_level_object_field<'a>(obj: &'a [u8], field: &str) -> Option<&'a [u8]> {
@@ -639,15 +665,29 @@ fn parse_one_symbol(obj: &[u8], depth: u32, out: &mut Vec<Symbol>) {
     };
     let kind_n = top_level_uint_field(obj, "kind").unwrap_or(14);
     // selectionRange (DocumentSymbol) preferred, else range, else location.range.
-    let line = top_level_object_field(obj, "selectionRange")
-        .and_then(range_start_line)
-        .or_else(|| top_level_object_field(obj, "range").and_then(range_start_line))
-        .or_else(|| {
-            top_level_object_field(obj, "location")
-                .and_then(|location| top_level_object_field(location, "range"))
-                .and_then(range_start_line)
-        })
-        .unwrap_or(0);
+    // If a server owns a range object but sends malformed numeric coordinates,
+    // skip that symbol instead of falling through to a less-specific fallback.
+    let line = if let Some(selection) = top_level_object_field(obj, "selectionRange") {
+        let Some(line) = range_start_line(selection) else {
+            return;
+        };
+        line
+    } else if let Some(range) = top_level_object_field(obj, "range") {
+        let Some(line) = range_start_line(range) else {
+            return;
+        };
+        line
+    } else if let Some(location) = top_level_object_field(obj, "location") {
+        let Some(range) = top_level_object_field(location, "range") else {
+            return;
+        };
+        let Some(line) = range_start_line(range) else {
+            return;
+        };
+        line
+    } else {
+        0
+    };
     out.push(Symbol {
         name,
         kind: SymKind::from_lsp(kind_n),
@@ -689,6 +729,11 @@ impl OutlineState {
                     self.syms = syms;
                     self.used_lsp = true;
                     return self.syms.len();
+                }
+                if response_owns_error_code(lsp_json) {
+                    self.syms.clear();
+                    self.used_lsp = true;
+                    return 0;
                 }
             }
         }
@@ -990,6 +1035,16 @@ fn b() {}\n";
     }
 
     #[test]
+    fn refresh_rejects_fractional_method_not_found_prefix() {
+        let err = r#"{"jsonrpc":"2.0","error":{"code":-32601.5,"message":"Method not found-ish"},"id":2}"#;
+        let mut st = OutlineState::new();
+        let n = st.refresh("fn main() {}\n", err);
+
+        assert_eq!(n, 0);
+        assert!(st.used_lsp(), "malformed error code should not trigger scanner fallback");
+    }
+
+    #[test]
     fn symbol_name_fits_measured_sidebar_budget() {
         let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
             return;
@@ -1070,6 +1125,27 @@ fn b() {}\n";
         assert_eq!(syms[0].name, "Right");
         assert_eq!(syms[0].kind, SymKind::Struct);
         assert_eq!(syms[0].line, 4);
+    }
+
+    #[test]
+    fn parse_document_symbols_rejects_fractional_line_prefixes() {
+        let json = r#"{"result":[{"name":"Bad","kind":12,"range":{"start":{"line":1.5,"character":0},"end":{"line":1,"character":1}},"selectionRange":{"start":{"line":2.5,"character":0},"end":{"line":2,"character":1}}},{"name":"Good","kind":12,"range":{"start":{"line":6,"character":0},"end":{"line":6,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "Good");
+        assert_eq!(syms[0].line, 6);
+    }
+
+    #[test]
+    fn parse_document_symbols_rejects_fractional_kind_prefixes() {
+        let json = r#"{"result":[{"name":"MaybeStruct","kind":23.5,"range":{"start":{"line":2,"character":0},"end":{"line":2,"character":1}}}],"id":2}"#;
+        let syms = parse_document_symbols(json).expect("symbols");
+
+        assert_eq!(syms.len(), 1);
+        assert_eq!(syms[0].name, "MaybeStruct");
+        assert_eq!(syms[0].kind, SymKind::Const);
+        assert_eq!(syms[0].line, 2);
     }
 
     #[test]

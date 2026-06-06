@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1161).
+(lessons L1-L1162).
 
 ## v0.3.0
 
@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Outline document-symbol numbers reject numeric prefixes**: LSP
+  document-symbol error codes, SymbolKind values, and range start lines now
+  require complete integer tokens, so malformed outline payloads cannot trigger
+  scanner fallback, jump to truncated lines, or classify symbols from numeric
+  prefixes.
 - **Completion deprecated tags reject numeric prefixes**: semantic autocomplete
   now treats LSP `tags` entries as deprecated markers only when the array item
   is a complete integer token, so malformed values such as `1.5` or `1e0`
