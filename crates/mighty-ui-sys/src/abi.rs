@@ -166,6 +166,7 @@ fn lsp_semantic_candidates_with_notice(
                 .map(|text| crate::completion::SemanticCandidate {
                     text,
                     display_text: None,
+                    detail_text: None,
                     filter_text: None,
                 })
                 .collect(),

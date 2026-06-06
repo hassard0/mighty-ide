@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (LSP completion display labels - L1135; LSP completion filter text - L1134; LSP completion insert text and snippets - L1133; snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (LSP completion provider detail - L1136; LSP completion display labels - L1135; LSP completion filter text - L1134; LSP completion insert text and snippets - L1133; snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14479,3 +14479,16 @@ the inserted body in the row makes semantic completion harder to scan.
 - **Language note:** no compiler gap surfaced. This reinforces the same
   protocol-boundary rule as L1133/L1134: keep rich server metadata in Rust and
   collapse it only at the scalar operation that actually needs one string.
+
+## L1136 - LSP Completion Detail Should Come From The Provider
+
+The autocomplete footer still showed a mock signature for every semantic
+candidate after labels and insert text were separated. That made server results
+look precise even when the server had not supplied a signature or type detail.
+
+- **IDE note:** semantic candidates now preserve `CompletionItem.detail`.
+  Dropdown rows and the selected footer use that provider detail when present;
+  otherwise semantic rows fall back to a neutral `semantic symbol` footer.
+- **Language note:** no compiler gap surfaced. Rich protocol fields should stay
+  in shim-owned state until rendering decides which parts are available and
+  worth showing.

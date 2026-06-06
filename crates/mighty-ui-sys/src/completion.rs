@@ -32,6 +32,8 @@ pub struct Candidate {
     pub text: String,
     /// Optional row label shown in the dropdown when it differs from `text`.
     pub display_text: Option<String>,
+    /// Optional provider detail shown beside the row and in the footer.
+    pub detail_text: Option<String>,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
     /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
@@ -46,6 +48,8 @@ pub struct SemanticCandidate {
     pub text: String,
     /// Optional display label from LSP `label`.
     pub display_text: Option<String>,
+    /// Optional LSP `detail` text.
+    pub detail_text: Option<String>,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
@@ -210,6 +214,7 @@ impl CompletionEngine {
             .map(|text| SemanticCandidate {
                 text: text.clone(),
                 display_text: None,
+                detail_text: None,
                 filter_text: None,
             })
             .collect();
@@ -243,6 +248,7 @@ impl CompletionEngine {
                 self.candidates.push(Candidate {
                     text: item.text.clone(),
                     display_text: item.display_text.clone(),
+                    detail_text: item.detail_text.clone(),
                     semantic: true,
                     snippet: false,
                 });
@@ -256,6 +262,7 @@ impl CompletionEngine {
                 self.candidates.push(Candidate {
                     text: w,
                     display_text: None,
+                    detail_text: None,
                     semantic: false,
                     snippet: false,
                 });
@@ -280,6 +287,7 @@ impl CompletionEngine {
                 front.push(Candidate {
                     text: p.clone(),
                     display_text: None,
+                    detail_text: None,
                     semantic: false,
                     snippet: true,
                 });
@@ -527,7 +535,8 @@ impl CompletionEngine {
             }
             // Type badge: a small rounded colored square with a letter, classified
             // by a light heuristic (mockup badge colors).
-            let (badge_bg, badge_fg, letter, kind, sig) = classify_candidate(cand);
+            let (badge_bg, badge_fg, letter, kind, _sig) = classify_candidate(cand);
+            let detail = cand.detail_text();
             let bx = box_x + 10.0;
             let by = row_y + (row_h - 18.0) * 0.5;
             ctx.dl_round(bx, by, 18.0, 18.0, 4.0, badge_bg);
@@ -545,13 +554,13 @@ impl CompletionEngine {
             let name_x = box_x + 38.0;
             let kind_size = chrome - 1.5;
             let kind_x = completion_kind_x(&mut ctx.text, box_x, box_w, kind, kind_size);
-            let sig_gap = if completion_row_signature_visible(sig) {
+            let sig_gap = if completion_row_detail_visible(detail) {
                 2.0
             } else {
                 0.0
             };
             let sig_w = if sig_gap > 0.0 {
-                ctx.text.measure_ui_sized(sig, chrome - 1.0).0
+                ctx.text.measure_ui_sized(detail, chrome - 1.0).0
             } else {
                 0.0
             };
@@ -563,11 +572,12 @@ impl CompletionEngine {
             // Signature hint immediately after the name, when the provider has
             // real row-level detail. Avoid placeholder fragments; the footer
             // carries full signature context for the selected row.
-            if completion_row_signature_visible(sig) {
+            if completion_row_detail_visible(detail) {
                 let name_w = ctx.text.measure_ui_sized(&shown_name, chrome).0;
                 let sig_x = name_x + name_w + sig_gap;
                 let sig_budget = (kind_x - 10.0 - sig_x).max(0.0);
-                let shown_sig = fit_completion_text(&mut ctx.text, sig, sig_budget, chrome - 1.0);
+                let shown_sig =
+                    fit_completion_text(&mut ctx.text, detail, sig_budget, chrome - 1.0);
                 if !shown_sig.is_empty() {
                     ctx.text
                         .queue_sized(sig_x, ty, &shown_sig, theme::DIM(), chrome - 1.0, clip);
@@ -578,8 +588,8 @@ impl CompletionEngine {
                 .queue_ui_sized(kind_x, ty, kind, theme::DIM(), kind_size, clip);
         }
 
-        // Signature-hint footer (mockup `.ac-hint`): the selected candidate's
-        // signature on a divided strip, the name in accent + a "· pure" tail.
+        // Detail footer (mockup `.ac-hint`): selected label in accent plus
+        // provider detail or a neutral source hint.
         let hint_y = box_y + box_h - hint_h;
         ctx.dl_rect(box_x + 1.0, hint_y, box_w - 2.0, 1.0, theme::BORDER());
         ctx.dl_round(
@@ -593,11 +603,7 @@ impl CompletionEngine {
         if let Some(sel) = self.candidates.get(self.sel) {
             let hy = hint_y + (hint_h - (chrome - 1.0)) * 0.5 - 0.5;
             let mut hx = box_x + 12.0;
-            let tail = if sel.semantic {
-                "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure"
-            } else {
-                "  \u{00B7} local symbol"
-            };
+            let tail = completion_footer_tail(sel);
             let tail_w = ctx.text.measure_ui_sized(tail, chrome - 1.0).0;
             let name_budget = (box_x + box_w - 12.0 - tail_w - hx).max(0.0);
             let shown_name =
@@ -624,6 +630,10 @@ impl CompletionEngine {
 impl Candidate {
     fn display_text(&self) -> &str {
         self.display_text.as_deref().unwrap_or(&self.text)
+    }
+
+    fn detail_text(&self) -> &str {
+        self.detail_text.as_deref().unwrap_or("")
     }
 }
 
@@ -670,15 +680,16 @@ fn completion_popup_width(
     let kind_size = chrome - 1.5;
     let mut desired = row_min;
     for cand in candidates.iter().skip(top).take(shown) {
-        let (_badge_bg, _badge_fg, _letter, kind, sig) = classify_candidate(cand);
+        let (_badge_bg, _badge_fg, _letter, kind, _sig) = classify_candidate(cand);
+        let detail = cand.detail_text();
         let name_w = text.measure_ui_sized(cand.display_text(), chrome).0;
-        let sig_gap = if completion_row_signature_visible(sig) {
+        let sig_gap = if completion_row_detail_visible(detail) {
             2.0
         } else {
             0.0
         };
         let sig_w = if sig_gap > 0.0 {
-            text.measure_ui_sized(sig, chrome - 1.0).0
+            text.measure_ui_sized(detail, chrome - 1.0).0
         } else {
             0.0
         };
@@ -686,11 +697,7 @@ fn completion_popup_width(
         desired = desired.max(name_x + name_w + sig_gap + sig_w + kind_gap + kind_w + right_pad);
     }
     if let Some(sel) = candidates.get(selected) {
-        let tail = if sel.semantic {
-            "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure"
-        } else {
-            "  \u{00B7} local symbol"
-        };
+        let tail = completion_footer_tail(sel);
         let footer_w = 12.0
             + text.measure_ui_sized(sel.display_text(), chrome - 1.0).0
             + text.measure_ui_sized(tail, chrome - 1.0).0
@@ -769,7 +776,7 @@ fn classify_candidate(
             theme::SYN_FUNCTION(),
             "\u{0192}",
             "function",
-            "(…)",
+            "",
         );
     }
     (
@@ -781,8 +788,18 @@ fn classify_candidate(
     )
 }
 
-fn completion_row_signature_visible(sig: &str) -> bool {
-    !sig.is_empty() && sig.is_ascii()
+fn completion_row_detail_visible(detail: &str) -> bool {
+    !detail.trim().is_empty()
+}
+
+fn completion_footer_tail(cand: &Candidate) -> &str {
+    if completion_row_detail_visible(cand.detail_text()) {
+        cand.detail_text()
+    } else if cand.semantic {
+        "  \u{00B7} semantic symbol"
+    } else {
+        "  \u{00B7} local symbol"
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -859,6 +876,7 @@ pub mod lsp {
                     out.push(SemanticCandidate {
                         text,
                         display_text,
+                        detail_text: completion_item_detail_text(item),
                         filter_text: completion_item_filter_text(item),
                     });
                 }
@@ -894,6 +912,10 @@ pub mod lsp {
     fn completion_item_display_text(item: &[u8], insert_text: &str) -> Option<String> {
         top_level_string_value(item, b"label")
             .filter(|label| !label.is_empty() && label != insert_text)
+    }
+
+    fn completion_item_detail_text(item: &[u8]) -> Option<String> {
+        top_level_string_value(item, b"detail").filter(|detail| !detail.trim().is_empty())
     }
 
     fn completion_text_edit_new_text(item: &[u8]) -> Option<String> {
@@ -1528,6 +1550,7 @@ mod tests {
         let semantic = vec![SemanticCandidate {
             text: "numpy".to_string(),
             display_text: None,
+            detail_text: None,
             filter_text: Some("np".to_string()),
         }];
 
@@ -1545,6 +1568,7 @@ mod tests {
         let semantic = vec![SemanticCandidate {
             text: "println($1)".to_string(),
             display_text: Some("println!".to_string()),
+            detail_text: None,
             filter_text: Some("println".to_string()),
         }];
 
@@ -1556,12 +1580,41 @@ mod tests {
     }
 
     #[test]
+    fn semantic_completion_footer_prefers_provider_detail() {
+        let cand = Candidate {
+            text: "println($1)".to_string(),
+            display_text: Some("println!".to_string()),
+            detail_text: Some("macro println!(...)".to_string()),
+            semantic: true,
+            snippet: false,
+        };
+
+        assert_eq!(completion_footer_tail(&cand), "macro println!(...)");
+        assert!(completion_row_detail_visible(cand.detail_text()));
+    }
+
+    #[test]
+    fn semantic_completion_without_detail_uses_plain_semantic_footer() {
+        let cand = Candidate {
+            text: "protocol".to_string(),
+            display_text: None,
+            detail_text: None,
+            semantic: true,
+            snippet: false,
+        };
+
+        assert_eq!(completion_footer_tail(&cand), "  \u{00B7} semantic symbol");
+        assert!(!completion_row_detail_visible(cand.detail_text()));
+    }
+
+    #[test]
     fn request_semantic_excludes_exact_text_even_when_filter_matches() {
         let mut e = CompletionEngine::new();
         let src = b"let";
         let semantic = vec![SemanticCandidate {
             text: "let".to_string(),
             display_text: None,
+            detail_text: None,
             filter_text: Some("let".to_string()),
         }];
 
@@ -1669,13 +1722,14 @@ mod tests {
         let cand = Candidate {
             text: "protocol".to_string(),
             display_text: None,
+            detail_text: None,
             semantic: true,
             snippet: false,
         };
         let (_, _, _letter, kind, sig) = classify_candidate(&cand);
         assert_eq!(kind, "function");
         assert!(!kind.contains("fn"));
-        assert!(!completion_row_signature_visible(sig));
+        assert_eq!(sig, "");
     }
 
     #[test]
@@ -1785,12 +1839,14 @@ mod tests {
         let narrow = vec![Candidate {
             text: "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii".to_string(),
             display_text: None,
+            detail_text: None,
             semantic: false,
             snippet: false,
         }];
         let wide = vec![Candidate {
             text: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW".to_string(),
             display_text: None,
+            detail_text: None,
             semantic: false,
             snippet: false,
         }];
@@ -1820,6 +1876,7 @@ mod tests {
             text: "very_wide_completion_candidate_name_that_should_not_escape_the_viewport"
                 .to_string(),
             display_text: None,
+            detail_text: None,
             semantic: true,
             snippet: false,
         }];
@@ -1930,6 +1987,20 @@ mod tests {
         assert_eq!(candidates[0].display_text.as_deref(), Some("println!"));
         assert_eq!(candidates[1].text, "plain");
         assert_eq!(candidates[1].display_text, None);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_detail_text() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"println!","insertText":"println($1)","detail":"macro println!(...)"}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].text, "println($1)");
+        assert_eq!(candidates[0].display_text.as_deref(), Some("println!"));
+        assert_eq!(
+            candidates[0].detail_text.as_deref(),
+            Some("macro println!(...)")
+        );
     }
 
     #[test]

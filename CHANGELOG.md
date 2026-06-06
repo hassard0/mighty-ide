@@ -4,14 +4,17 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1135).
+(lessons L1-L1136).
 
 ## v0.3.0
 
 A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
-driven by `src/main.mty`. ~2,038 shim tests; clean `clippy -D warnings`.
+driven by `src/main.mty`. ~2,041 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Generic LSP completion shows provider detail**: semantic completion rows now
+  preserve `CompletionItem.detail` and use it for row/footer detail text instead
+  of showing placeholder signatures for every server-provided candidate.
 - **Generic LSP completion separates display and insert text**: semantic
   completion rows now show the server's `label` when `insertText` or
   `textEdit.newText` differs, while accepting the row still inserts the edit
