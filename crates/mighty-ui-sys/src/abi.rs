@@ -12338,7 +12338,7 @@ pub extern "C" fn mui_codeaction_sel(handle: i64) -> i32 {
 
 /// `1` when applying the selected code action can attempt an edit/command.
 /// Pure preflight: no toasts; `mui_codeaction_apply` reports missing files,
-/// command failures, and no-edit outcomes.
+/// dirty duplicates, command failures, and no-edit outcomes.
 #[no_mangle]
 pub extern "C" fn mui_codeaction_can_apply(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
@@ -12350,8 +12350,18 @@ pub extern "C" fn mui_codeaction_can_apply(handle: i64) -> i32 {
     let Some(action) = ctx.codeaction.selected() else {
         return 0;
     };
-    let can_apply = action.fix_all_mty
-        || action.edit.as_ref().is_some_and(|we| !we.is_empty())
+    if action.fix_all_mty {
+        let Some(path) = ctx.file_path.as_ref() else {
+            return 0;
+        };
+        if save_target_is_existing_non_file(path)
+            || ctx.tabs.any_dirty_path_except(path, ctx.tabs.active())
+        {
+            return 0;
+        }
+        return 1;
+    }
+    let can_apply = action.edit.as_ref().is_some_and(|we| !we.is_empty())
         || action.command_edit.as_ref().is_some_and(|we| !we.is_empty())
         || action.command.is_some();
     i32::from(can_apply)

@@ -14240,6 +14240,8 @@ fn codeaction_fix_all_presave_failure_reports_filesystem_reason() {
     );
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    assert_eq!(crate::mui_codeaction_can_apply(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
     assert_eq!(crate::mui_codeaction_apply(h), 0);
     assert!(blocked.is_dir());
     assert_eq!(ctx.tabs.active_model().as_text(), "live_symbol\n");
@@ -14367,6 +14369,8 @@ fn codeaction_fix_all_skips_dirty_duplicate_tab() {
     );
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
+    assert_eq!(crate::mui_codeaction_can_apply(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
     assert_eq!(crate::mui_codeaction_apply(h), 0);
     assert_eq!(ctx.tabs.active_model().as_text(), "old_symbol\n");
     assert!(!ctx.tabs.is_dirty(active_idx));

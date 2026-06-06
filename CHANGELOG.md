@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Fix All preflight skips known no-op targets**: Fix all (mty) no longer
+  asks Mighty to record an undo point when a directory target or dirty
+  duplicate tab will block the fixer before it can run.
 - **Fix All names duplicate-edit blockers**: Fix all (mty) now names the file
   whose duplicate unsaved edits prevent applying the fixer.
 - **Save All names single duplicate-edit blockers**: when duplicate dirty tabs
