@@ -186,6 +186,29 @@ Do not edit source-controlled files after recording those generated values. If
 a source edit is required, commit it first and rebuild the affected native
 package before publishing.
 
+## Final Upload Note Template
+
+Use this shape for the external release upload note or final handoff response.
+The values come from the post-commit package run, not from this committed
+template:
+
+```text
+Source commit:
+Windows archive: dist\mighty-ide-v0.3.0-win64.zip
+Windows archive size:
+Windows SHA-256:
+Windows package checks: PE headers verified; package directory and ZIP sidecar
+  scans passed; foreign payload scans passed; PACKAGE-MANIFEST.txt generated
+Windows packaged launch: launched from dist\mighty-ide-win64
+macOS decision: unbuilt - native macOS runner unavailable for this pass
+Linux decision: unbuilt - native Linux runner unavailable for this pass
+```
+
+If macOS or Linux native runners complete during the same pass, replace the
+`unbuilt` line with the matching native archive, hash, manifest, scan, and
+packaged-launch evidence from that runner. Otherwise, leave those platforms
+unbuilt and do not publish placeholders.
+
 ## Generated Evidence Ownership
 
 The source-controlled evidence file is deliberately reusable. For this pass,

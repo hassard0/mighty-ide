@@ -145,6 +145,11 @@ committed, rebuild the Windows package from that clean commit, confirm
 hash and size, confirm the packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
 
+For this pass, "stop" means no further source, docs, README, package-script, or
+feature work after the package evidence is recorded. If any source-controlled
+file changes after the Windows ZIP is generated, discard the generated evidence
+and rebuild the package from the new commit before publishing.
+
 For this pass, the source-controlled handoff is complete only when the README,
 build notes, changelog, package scripts, and release docs are committed before
 packaging. The ignored package manifest, ZIP size, ZIP SHA-256, and launch

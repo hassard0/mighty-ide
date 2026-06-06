@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,012 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final release docs define the stop-pass binary handoff**: README, build
+  notes, and release evidence docs now state the exact Windows-hosted final
+  sequence, keeping generated ZIP hashes out of source control while recording
+  macOS and Linux as `unbuilt` until native runners produce and launch their
+  own archives.
 - **Line-edit no-ops get their own feedback lane**: Command Palette edit-state
   messages such as `Current line is already empty`, `Line is already at the
   top`, and `No next line to join` now replace each other without merging into

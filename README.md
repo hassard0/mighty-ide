@@ -33,6 +33,13 @@ repository. A clean release package must be built on the same operating system
 that will run it because Mighty IDE ships a native executable plus a native
 `mighty-ui-sys` shim.
 
+This README is the top-level release handoff for the current stop pass. The
+source-controlled artifacts are this file, `BUILDING.md`, `CHANGELOG.md`, the
+package scripts, and the release documents under `docs/`. The generated
+artifacts are the native package directory, `PACKAGE-MANIFEST.txt`, archive
+size, archive SHA-256, and packaged-launch result produced after the final
+source commit.
+
 This README, `BUILDING.md`, `CHANGELOG.md`, the package scripts, and the
 release files under `docs/` are the source-controlled release contract for this
 pass. They are committed before binary packaging so every generated
@@ -114,6 +121,17 @@ For this pass, the package outcome is intentionally platform-scoped:
 Do not reuse archives produced before the final source commit. A platform
 archive is release evidence only when its bundled `PACKAGE-MANIFEST.txt`
 records the same commit as the README and release docs being handed off.
+
+For this Windows-hosted pass, the expected final binary decisions are:
+
+- Windows x64: publish only after the local PowerShell package run rebuilds,
+  scans, manifests, hashes, and launches the PE package from the final commit.
+- macOS: `unbuilt - native macOS runner unavailable for this pass` unless a
+  macOS runner completes `./package-macos.sh` and launches the app bundle from
+  the same commit.
+- Linux x64: `unbuilt - native Linux runner unavailable for this pass` unless a
+  Linux runner completes `./package-linux.sh` and launches the executable from
+  the same commit.
 
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll

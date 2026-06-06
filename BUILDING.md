@@ -140,6 +140,22 @@ If a native macOS or Linux host is not available, leave that platform unbuilt
 for the release. Do not rename the Windows ZIP, reuse its DLL, or publish an
 empty placeholder for another OS.
 
+For a Windows-hosted stop pass, the final local command sequence is:
+
+```powershell
+git status --short
+.\package-win.ps1 -Mty C:\path\to\mty.exe
+Get-FileHash dist\mighty-ide-v0.3.0-win64.zip -Algorithm SHA256
+Get-Item dist\mighty-ide-v0.3.0-win64.zip | Select-Object FullName,Length
+Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
+  -WorkingDirectory "dist\mighty-ide-win64" -WindowStyle Hidden
+```
+
+After that command sequence, report the Windows ZIP path, size, SHA-256,
+package checks, packaged-launch result, and the explicit macOS/Linux `unbuilt`
+decisions. Do not edit source-controlled files after those generated values are
+recorded unless the Windows package is rebuilt from the new commit.
+
 ## Run
 
 ```sh
