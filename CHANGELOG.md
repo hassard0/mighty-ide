@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Revert palette distinguishes clean files**: Command Palette now reports
+  `No local edits; reload from disk` for clean file-backed tabs instead of
+  implying that Revert will discard edits when the runtime will only reload.
 - **Rename Cancel palette state matches runtime**: Command Palette now reports
   `No rename input open` before dispatch when Rename Symbol has no active
   inline prompt, matching the runtime cancel no-op toast.

@@ -2729,7 +2729,12 @@ fn command_contextual_desc_with_workspace<'a>(
         CMD_RELOAD_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before reloading"),
         CMD_RELOAD_ACTIVE_FILE if active_has_path => Cow::Borrowed("Reload the active file from disk"),
         CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("No file-backed tab to reload"),
-        CMD_REVERT_ACTIVE_FILE if active_has_path => Cow::Borrowed("Discard local edits and reload from disk"),
+        CMD_REVERT_ACTIVE_FILE if active_has_path && active_dirty => {
+            Cow::Borrowed("Discard local edits and reload from disk")
+        }
+        CMD_REVERT_ACTIVE_FILE if active_has_path => {
+            Cow::Borrowed("No local edits; reload from disk")
+        }
         CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("No file-backed tab to revert"),
         CMD_HOVER if !active_has_path => Cow::Borrowed("Save this untitled file before requesting hover"),
         CMD_GOTO_DEFINITION if !active_has_path => Cow::Borrowed("Save this untitled file before Go to Definition"),
@@ -3687,6 +3692,14 @@ mod tests {
         assert_eq!(
             command_contextual_desc(CMD_RELOAD_ACTIVE_FILE, "base", true, false, true, 1, false, false),
             Cow::Borrowed("Save or discard changes before reloading")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_REVERT_ACTIVE_FILE, "base", true, false, true, 1, false, false),
+            Cow::Borrowed("Discard local edits and reload from disk")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_REVERT_ACTIVE_FILE, "base", true, false, false, 0, false, false),
+            Cow::Borrowed("No local edits; reload from disk")
         );
         assert_eq!(
             command_contextual_desc(CMD_DELETE_ACTIVE_FILE, "base", true, false, true, 1, false, false),
