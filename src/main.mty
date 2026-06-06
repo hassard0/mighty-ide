@@ -387,6 +387,7 @@ extern c {
   fn mui_codeaction_move(handle: I64, delta: I32)
   fn mui_codeaction_click(handle: I64, row: I32, col: I32, total_lines: I32) -> I32
   fn mui_codeaction_cancel(handle: I64) -> I32
+  fn mui_codeaction_dismiss(handle: I64) -> I32
   fn mui_codeaction_apply(handle: I64) -> I32
   fn mui_codeaction_draw(handle: I64, row: I32, col: I32, total_lines: I32)
   // ---- command palette (Ctrl+Shift+P): shim-side registry + filtering ----
@@ -3339,7 +3340,7 @@ fn main() {
               typing = false
             }
           } else if k == key_escape() {
-            let _cac = mui_codeaction_cancel(h)
+            let _cad = mui_codeaction_dismiss(h)
             code_action_open = false
             run_focus = false
             web_focus = false
@@ -3352,7 +3353,7 @@ fn main() {
           }
         } else if tag == ev_char() {
           // Any printed char dismisses the menu (then re-handled next frame).
-          let _cac = mui_codeaction_cancel(h)
+          let _cad = mui_codeaction_dismiss(h)
           code_action_open = false
           run_focus = false
           web_focus = false
@@ -3381,7 +3382,7 @@ fn main() {
               typing = false
             }
           } else {
-            let _cac = mui_codeaction_cancel(h)
+            let _cad = mui_codeaction_dismiss(h)
             code_action_open = false
             run_focus = false
             web_focus = false
@@ -3593,7 +3594,7 @@ fn main() {
             ca_line = mui_ed_cursor_line(h)
             ca_col = mui_ed_cursor_col(h)
           } else {
-            let _cac = mui_codeaction_cancel(h)
+            let _cad = mui_codeaction_dismiss(h)
           }
           run_focus = false
           web_focus = false
@@ -5069,7 +5070,7 @@ fn main() {
                   ca_line = lb_l
                   ca_col = 0
                 } else {
-                  let _cac = mui_codeaction_cancel(h)
+                  let _cad = mui_codeaction_dismiss(h)
                 }
               }
               typing = false
@@ -5720,7 +5721,7 @@ fn main() {
               ca_line = mui_ed_cursor_line(h)
               ca_col = mui_ed_cursor_col(h)
             } else {
-              let _cac = mui_codeaction_cancel(h)
+              let _cad = mui_codeaction_dismiss(h)
             }
           }
           run_focus = false

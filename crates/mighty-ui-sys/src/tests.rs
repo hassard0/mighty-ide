@@ -12563,6 +12563,28 @@ fn rename_and_code_action_close_commands_clear_active_state() {
     assert_eq!(crate::abi::mui_codeaction_cancel(handle), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.message, "No code action menu open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::abi::mui_codeaction_dismiss(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    assert!(
+        ctx.codeaction.set(vec![crate::language::CodeAction {
+            title: "Organize Imports".to_string(),
+            edit: None,
+            command_edit: None,
+            command: Some(crate::language::CommandAction {
+                command: "server.organizeImports".to_string(),
+                arguments_json: None,
+            }),
+            fix_all_mty: false,
+        }]) > 0
+    );
+    assert_eq!(crate::abi::mui_codeaction_active(handle), 1);
+    assert_eq!(crate::abi::mui_codeaction_dismiss(handle), 1);
+    assert_eq!(crate::abi::mui_codeaction_active(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
     assert_eq!(crate::abi::mui_codeaction_click(handle, 0, 0, 1), -1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.message, "No code action menu open");
@@ -21705,7 +21727,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "ctrl_held(mods) && cp == 46 {              // Ctrl+. : code actions / quick-fix"
         )
             && main.contains(
-                "let _cac = mui_codeaction_cancel(h)\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n        } else if ctrl_held(mods) && cp == 32"
+                "let _cad = mui_codeaction_dismiss(h)\n          }\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n        } else if ctrl_held(mods) && cp == 32"
             ),
         "Ctrl+. code actions must release stale surface focus"
     );
@@ -22858,7 +22880,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             .count()
             >= 2
             && code_action_branch.contains(
-                "let _cac = mui_codeaction_cancel(h)\n          code_action_open = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
+                "let _cad = mui_codeaction_dismiss(h)\n          code_action_open = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false\n          typing = false"
             )
             && code_action_branch.contains(local_editor_cleanup_outer),
         "Code Actions successful apply, Escape, printed-char, and mouse exits must release stale focus while failed applies keep the menu open"

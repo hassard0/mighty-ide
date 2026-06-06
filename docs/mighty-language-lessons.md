@@ -14026,3 +14026,21 @@ trying to clear transient state.
 - **Language note:** no compiler gap surfaced. Event-loop cleanup calls should
   use quiet, idempotent ABIs; explicit command ABIs can own no-op text. Sharing
   them makes unrelated workflows pay for another command's feedback contract.
+
+## L1107 - Request Misses Should Not Call Explicit Close Commands
+
+Code-action requests clear their menu state before asking the language server.
+When no actions are found, the request path already emits the useful
+`No code actions available at <file>:<line>:<col>` message. The Mighty event
+loop still called the explicit close-command ABI afterward, which appended
+`No code action menu open` even though the user had asked to find actions, not
+to close a menu.
+
+- **IDE note:** code-action request miss paths now use
+  `mui_codeaction_dismiss`, a silent cleanup ABI. The explicit
+  `mui_codeaction_cancel` path remains reserved for Code Actions: Close Menu
+  and still reports closed-state feedback when invoked directly.
+- **Language note:** no compiler gap surfaced. If a request function owns both
+  state reset and empty-result reporting, callers should not run an explicit
+  close command after a miss; that changes the operation's feedback from
+  "nothing found" to "wrong surface state."

@@ -12476,6 +12476,20 @@ pub extern "C" fn mui_codeaction_cancel(handle: i64) -> i32 {
     }
 }
 
+/// Close the code-action menu for incidental cleanup without user-visible feedback.
+#[no_mangle]
+pub extern "C" fn mui_codeaction_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.codeaction.is_active() {
+        ctx.codeaction.cancel();
+        1
+    } else {
+        0
+    }
+}
+
 /// Apply the selected code action: apply its inline `WorkspaceEdit`, or run
 /// `mty fix --apply` on the active file (the "Fix all (mty)" action) + reload.
 /// Returns `1` if anything changed, `0` otherwise. Successful applies close the

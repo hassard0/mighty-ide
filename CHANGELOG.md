@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Code-action cleanup no longer stacks menu-closed noise**: Ctrl+. and
+  palette code-action request misses now keep the actionable
+  `No code actions available ...` feedback without following it with
+  `No code action menu open`, while the explicit Close Menu command still
+  reports closed-state feedback.
 - **Autocomplete cleanup no longer leaks close-command toasts**: incidental
   autocomplete dismissal before editing, navigation, copy/paste, undo/redo, or
   palette commands is now silent, while the explicit Autocomplete Close command
