@@ -115,6 +115,7 @@ extern c {
   fn mui_ed_select_word(handle: I64) -> I32
   fn mui_ed_select_line(handle: I64)
   fn mui_ed_select_all(handle: I64)
+  fn mui_ed_can_copy(handle: I64) -> I32
   fn mui_ed_copy(handle: I64) -> I32
   fn mui_ed_can_cut(handle: I64) -> I32
   fn mui_ed_cut(handle: I64) -> I32

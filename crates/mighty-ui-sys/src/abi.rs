@@ -16631,6 +16631,20 @@ pub extern "C" fn mui_ed_copy(handle: i64) -> i32 {
     }
 }
 
+/// `1` when Copy has a non-empty selection or current line to copy.
+/// Pure preflight: no clipboard access and no toasts; Copy keeps user feedback.
+#[no_mangle]
+pub extern "C" fn mui_ed_can_copy(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    let model = ctx.tabs.active_model();
+    if !model.selected_text().is_empty() {
+        return 1;
+    }
+    i32::from(!model.current_line_text_for_clipboard().is_empty())
+}
+
 /// Cut the active selection, or the current line when there is no selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_cut(handle: i64) -> i32 {

@@ -17172,6 +17172,41 @@ fn copy_and_cut_failures_report_clipboard_write_reason() {
 }
 
 #[test]
+fn copy_preflight_tracks_content_selection_and_read_only() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_ed_can_copy(0), 0);
+    assert_eq!(crate::mui_ed_can_copy(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"copy me");
+    assert_eq!(crate::mui_ed_can_copy(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"");
+    ctx.tabs.active_model_mut().set_selection((0, 0), (0, 0));
+    assert_eq!(crate::mui_ed_can_copy(h), 0);
+
+    *ctx.tabs.active_model_mut() = crate::editor::TextModel::from_bytes(b"alpha beta");
+    ctx.tabs.active_model_mut().set_selection((0, 6), (0, 10));
+    assert_eq!(crate::mui_ed_can_copy(h), 1);
+
+    let root = std::env::temp_dir().join("mui_copy_preflight_read_only");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    assert_eq!(crate::mui_ed_can_copy(h), 1);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn paste_preflight_tracks_clipboard_editability_and_read_only() {
     let _g = crate::settings::TEST_LOCK
         .lock()

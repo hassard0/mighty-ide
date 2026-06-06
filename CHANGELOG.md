@@ -18,6 +18,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Read-only previews remain inspectable**: cursor motion, scrolling,
   selection, select-all, and multi-caret motion now work in binary previews
   while mutating edit commands remain blocked with explicit feedback.
+- **Copy has a pure preflight**: editor copy can now report whether the active
+  selection or current line is copyable without touching the OS clipboard,
+  matching cut/paste command-state checks while keeping read-only previews
+  copyable.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.

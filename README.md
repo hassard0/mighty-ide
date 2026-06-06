@@ -35,6 +35,10 @@ OS; record unavailable native runners as `unbuilt`.
 - New File rejects existing directory targets with explicit `not a file`
   feedback instead of reporting them as ordinary existing files
 - Undo / redo (Ctrl+Z / Ctrl+Y), clipboard copy/cut/paste (Ctrl+C/X/V), select all (Ctrl+A), select current line (Ctrl+L), typing-run coalescing
+- Copy now has a pure editor preflight that reports whether the active
+  selection or current line is copyable without touching the OS clipboard,
+  matching cut/paste command-state checks and keeping read-only previews
+  copyable
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
   toasts instead of stacking generic `Copied` notifications
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
