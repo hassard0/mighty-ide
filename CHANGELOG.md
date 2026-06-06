@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Clear Breakpoints palette names panel reveal**: Command Palette now says
+  `Open Run and Debug; no breakpoints to clear` when Clear Breakpoints will
+  reveal the debug panel but has no breakpoint inventory to clear.
 - **Open Recent palette mirrors empty history**: Command Palette now reports
   `No recent files or folders` when every recorded recent file or workspace is
   missing before dispatch, matching the runtime empty-state feedback.

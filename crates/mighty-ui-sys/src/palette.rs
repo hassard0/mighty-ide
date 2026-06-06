@@ -2269,6 +2269,9 @@ fn debug_contextual_desc_with_program<'a>(
             }
             Cow::Borrowed(base)
         }
+        CMD_DEBUG_CLEAR_BREAKPOINTS if !active && breakpoint_count == 0 => {
+            Cow::Borrowed("Open Run and Debug; no breakpoints to clear")
+        }
         CMD_DEBUG_CLEAR_BREAKPOINTS if breakpoint_count == 0 => {
             Cow::Borrowed("No breakpoints to clear")
         }
@@ -4604,6 +4607,18 @@ mod tests {
                 true
             ),
             Cow::Borrowed("No breakpoints to clear")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_CLEAR_BREAKPOINTS,
+                "base",
+                false,
+                crate::dap::DebugState::Idle,
+                false,
+                0,
+                true
+            ),
+            Cow::Borrowed("Open Run and Debug; no breakpoints to clear")
         );
         assert_eq!(
             debug_contextual_desc(
