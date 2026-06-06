@@ -137,6 +137,13 @@ Linux can be maintained from this checkout by reviewing scripts and verifying
 host gates, but their binaries are clean only after native macOS or Linux
 package runs complete and launch successfully on those platforms.
 
+The final package for this pass must be built after the source-controlled
+README, build notes, changelog, package scripts, and release docs are committed.
+Generated archive values belong to the ignored package manifest, external
+release note, and final handoff response. Do not insert post-package hashes or
+sizes back into the committed template unless the affected platform package is
+rebuilt from the new commit.
+
 If a native host or matching CI runner is unavailable, record that platform as
 `unbuilt`. Do not publish a placeholder archive.
 Do not reuse a package generated before the final source commit. The

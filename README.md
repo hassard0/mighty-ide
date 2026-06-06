@@ -33,6 +33,12 @@ repository. A clean release package must be built on the same operating system
 that will run it because Mighty IDE ships a native executable plus a native
 `mighty-ui-sys` shim.
 
+This README, `BUILDING.md`, `CHANGELOG.md`, the package scripts, and the
+release files under `docs/` are the source-controlled release contract for this
+pass. They are committed before binary packaging so every generated
+`PACKAGE-MANIFEST.txt` can name the exact source commit that defined the user
+documentation, clean-binary rules, and platform decisions.
+
 This stop pass is source-final first, artifact-final second. The committed
 source tree contains the README, build notes, changelog, package scripts, and
 release docs. The generated release evidence for this pass is created only

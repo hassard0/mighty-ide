@@ -145,6 +145,12 @@ committed, rebuild the Windows package from that clean commit, confirm
 hash and size, confirm the packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
 
+For this pass, the source-controlled handoff is complete only when the README,
+build notes, changelog, package scripts, and release docs are committed before
+packaging. The ignored package manifest, ZIP size, ZIP SHA-256, and launch
+result are generated evidence for that commit and must not be committed back
+into the reusable docs after the package run.
+
 This pass is complete when those artifact-scoped fields are reported. Do not
 fold more IDE implementation, README edits, docs edits, or package-script
 changes into the same pass after the package run; any source change after that

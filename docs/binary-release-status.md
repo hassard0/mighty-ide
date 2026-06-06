@@ -105,6 +105,12 @@ for this handoff. The generated artifact record is intentionally outside git:
 `PACKAGE-MANIFEST.txt` in the package directory, the archive size, the archive
 SHA-256, and the packaged-launch result.
 
+For this pass, source documentation is finalized before binary packaging. That
+means the generated Windows manifest must name the commit that contains the
+final README, build notes, changelog, package scripts, and release docs. Do not
+commit generated archive hashes back into this file after packaging; doing so
+would create a newer source commit and make the just-built archive stale.
+
 For a Windows-hosted pass, call Windows x64 `publish` only after the PowerShell
 packager runs from the final clean commit and the packaged app launches from
 `dist\mighty-ide-win64`. Leave macOS and Linux as
