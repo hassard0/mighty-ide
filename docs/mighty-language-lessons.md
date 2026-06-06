@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14209,3 +14209,17 @@ exact strings.
   missing-compiler message shape.
 - **Language note:** no compiler gap surfaced. Operation-key tests should track
   workflow ownership, not just message prefixes.
+
+## L1119 - Stale Blame Target Failures Are Git Feedback
+
+Git blame can reject retained or stale row targets after the file disappears or
+turns into a directory. The runtime already emits precise messages such as
+`Blame target missing: ...` and `Blame failed: ...`, but the toast operation key
+only grouped `No blame ...`, `Blame on ...`, and hide-state feedback.
+
+- **IDE note:** stale blame target failures now share the Git operation key, and
+  the blame toast replacement test covers both missing-file and not-a-file
+  messages.
+- **Language note:** no compiler gap surfaced. When a feature has both active
+  command feedback and retained-target failure feedback, both message families
+  need the same replacement lane.

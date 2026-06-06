@@ -638,6 +638,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No file to blame"
         || m.starts_with("No file to blame:")
         || m.starts_with("No blame ")
+        || m.starts_with("Blame target missing:")
+        || m.starts_with("Blame failed:")
         || m.starts_with("Blame on ")
         || m == "Blame hidden"
         || m == "Blame is already hidden"
@@ -2738,6 +2740,23 @@ mod tests {
             q.toasts()[0].message,
             "No blame for main.mty (file not tracked?)"
         );
+
+        q.push_at(
+            Kind::Warn,
+            "Blame target missing: gone.mty",
+            t0 + Duration::from_millis(150),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Blame target missing: gone.mty");
+
+        q.push_at(
+            Kind::Error,
+            "Blame failed: blocked.mty: not a file",
+            t0 + Duration::from_millis(175),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Blame failed: blocked.mty: not a file");
+        assert_eq!(q.toasts()[0].kind, Kind::Error);
 
         q.push_at(
             Kind::Info,
