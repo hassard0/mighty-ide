@@ -1406,6 +1406,20 @@ impl PaletteEngine {
                 }
             }
         }
+        let dirty_count = ctx.tabs.dirty_count();
+        if id == CMD_SAVE_ALL {
+            let dirty_conflicts = (0..ctx.tabs.count())
+                .filter(|idx| ctx.tabs.is_dirty(*idx))
+                .filter(|idx| {
+                    ctx.tabs
+                        .path(*idx)
+                        .is_some_and(|path| ctx.tabs.any_dirty_path_except(&path, *idx))
+                })
+                .count();
+            if let Some(desc) = save_all_dirty_conflict_desc(dirty_conflicts, dirty_count) {
+                return desc;
+            }
+        }
         if matches!(id, CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE) {
             if let Some(path) = ctx.tabs.active_path() {
                 if let Some(desc) = reload_revert_stale_target_desc(id, &path) {
@@ -1669,7 +1683,7 @@ impl PaletteEngine {
             active_has_path,
             active_read_only,
             ctx.tabs.is_dirty(ctx.tabs.active()),
-            ctx.tabs.dirty_count(),
+            dirty_count,
             active_has_selection,
             active_can_copy,
             workspace_test_target,
@@ -2729,6 +2743,27 @@ fn reload_revert_stale_target_desc(id: u32, path: &std::path::Path) -> Option<St
         Ok(meta) if meta.is_file() => None,
         Ok(_) => Some(format!("{action} failed: {name}: not a file")),
         Err(e) => Some(format!("{action} failed: {name}: {e}")),
+    }
+}
+
+fn save_all_dirty_conflict_desc(
+    dirty_conflicts: usize,
+    dirty_count: usize,
+) -> Option<Cow<'static, str>> {
+    if dirty_conflicts == 0 {
+        None
+    } else if dirty_conflicts == dirty_count {
+        let noun = if dirty_conflicts == 1 { "file" } else { "files" };
+        Some(Cow::Owned(format!("{dirty_conflicts} {noun} skipped")))
+    } else {
+        let noun = if dirty_conflicts == 1 {
+            "dirty duplicate file"
+        } else {
+            "dirty duplicate files"
+        };
+        Some(Cow::Owned(format!(
+            "Save All will skip {dirty_conflicts} {noun}"
+        )))
     }
 }
 
@@ -5613,6 +5648,75 @@ mod tests {
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE, "Write the active file to disk"),
             Cow::Borrowed("Save skipped: duplicate edits")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn save_all_description_reports_all_dirty_duplicate_conflicts() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_save_all_dirty_duplicates_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("same.mty");
+        std::fs::write(&path, "saved\n").unwrap();
+
+        let first = ctx.tabs.open_path(path);
+        ctx.tabs.active_model_mut().set_text_preserving_cursor("first dirty\n");
+        ctx.tabs.set_dirty(first, true);
+        let duplicate = ctx.tabs.duplicate_active();
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("second dirty\n");
+        ctx.tabs.set_dirty(duplicate, true);
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
+            Cow::Borrowed("2 files skipped")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn save_all_description_warns_about_mixed_dirty_duplicate_conflicts() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_save_all_mixed_dirty_duplicates_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let same = root.join("same.mty");
+        let other = root.join("other.mty");
+        std::fs::write(&same, "saved\n").unwrap();
+        std::fs::write(&other, "other\n").unwrap();
+
+        let first = ctx.tabs.open_path(same);
+        ctx.tabs.active_model_mut().set_text_preserving_cursor("first dirty\n");
+        ctx.tabs.set_dirty(first, true);
+        let duplicate = ctx.tabs.duplicate_active();
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("second dirty\n");
+        ctx.tabs.set_dirty(duplicate, true);
+        let other_idx = ctx.tabs.open_path(other);
+        ctx.tabs.active_model_mut().set_text_preserving_cursor("other dirty\n");
+        ctx.tabs.set_dirty(other_idx, true);
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
+            Cow::Borrowed("Save All will skip 2 dirty duplicate files")
         );
 
         let _ = std::fs::remove_dir_all(&root);
