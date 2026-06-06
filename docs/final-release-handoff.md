@@ -108,6 +108,10 @@ Windows package from that clean commit, confirm `PACKAGE-MANIFEST.txt` records
 that source commit, record the Windows archive hash and size, confirm the
 packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
+The final source-controlled docs should remain reusable release rules and
+templates. Generated archive hashes and sizes belong to the post-commit package
+manifest, final handoff response, and external upload note; committing them into
+this file would change the source hash and require a new package run.
 The manifest must include the source commit, generated UTC timestamp, native
 payload hash and size rows, archive path, and clean-binary checks. A package
 that lacks any of those fields is incomplete even if the executable launches.

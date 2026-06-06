@@ -23,6 +23,13 @@ the packaged Windows executable launches, record macOS and Linux as `unbuilt`
 unless native runners completed the same pass, and stop. No further feature
 work belongs in the same pass after artifact evidence is recorded.
 
+For this final pass, the README and release docs are the source-controlled
+contract. Generated Windows archive hash, ZIP size, and native payload hashes
+belong to the package manifest and final handoff response after
+`.\package-win.ps1` runs from the committed tree. Do not edit source-controlled
+docs after that package run unless the Windows archive is rebuilt from the new
+commit.
+
 | Platform | Package command | Archive | Clean-binary requirement |
 |----------|-----------------|---------|--------------------------|
 | Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`, no sidecars, no `.dylib` or `.so` payloads, packaged launch from `dist\mighty-ide-win64` |

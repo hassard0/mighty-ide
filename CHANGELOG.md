@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final release docs avoid self-referential hashes**: README and release
+  status docs now keep generated ZIP hashes out of source control, requiring
+  the post-commit package manifest, final ZIP size/hash, and packaged launch
+  result to carry the authoritative Windows artifact evidence.
 - **Final stop pass is documentation-and-artifact only**: README and release
   docs now spell out the current pass boundary: commit the release docs,
   rebuild and launch the Windows PE package from that commit, record ZIP

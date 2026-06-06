@@ -70,6 +70,11 @@ runners completed during the same pass, and stop.
 If the source tree changes after a package is built, rebuild the package before
 publishing it.
 
+Keep committed release docs free of generated archive hashes. The authoritative
+generated values for a Windows-hosted pass are the post-commit
+`dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`, the final ZIP size, the final ZIP
+SHA-256, and the packaged launch result.
+
 ## Final Response Fields
 
 The final handoff message for a Windows-hosted pass should contain exactly the
