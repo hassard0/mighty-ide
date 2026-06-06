@@ -7814,7 +7814,10 @@ fn close_saved_tabs_preserves_dirty_buffers_and_reports_count() {
     assert_eq!(ctx.panes.tab_at(1), Some(0));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Closed 3 saved tabs");
+    assert_eq!(
+        toast.message,
+        "Closed 2 saved tabs and 1 empty scratch tab"
+    );
 
     assert_eq!(crate::mui_tab_reopen_closed(handle), 1);
     assert_eq!(ctx.tabs.active(), 1);
@@ -7862,7 +7865,10 @@ fn close_other_saved_tabs_keeps_active_and_dirty_buffers() {
     assert_eq!(ctx.panes.tab_at(1), Some(1), "right pane should keep dirty_b.mty");
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
-    assert_eq!(toast.message, "Closed 2 other saved tabs");
+    assert_eq!(
+        toast.message,
+        "Closed 1 other saved tab and 1 empty scratch tab"
+    );
 
     assert_eq!(crate::mui_tab_reopen_closed(handle), 2);
     assert_eq!(ctx.tabs.active(), 2);
@@ -7924,7 +7930,10 @@ fn close_saved_tabs_to_side_preserves_dirty_buffers() {
     assert_eq!(ctx.panes.tab_at(0), Some(0), "left pane should still show dirty_left.mty");
     assert_eq!(ctx.panes.tab_at(1), Some(2), "right pane should still show dirty_right.mty");
     let left_toast = ctx.toasts.toasts().last().unwrap();
-    assert_eq!(left_toast.message, "Closed 2 saved tabs to the left");
+    assert_eq!(
+        left_toast.message,
+        "Closed 1 saved tab and 1 empty scratch tab to the left"
+    );
 
     assert_eq!(crate::mui_tab_reopen_closed(handle), 3);
     assert_eq!(ctx.tabs.active(), 3);

@@ -4963,6 +4963,33 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
     active as i32
 }
 
+fn saved_tab_close_message(
+    removed: usize,
+    removed_empty_scratch: usize,
+    saved_singular: &str,
+    saved_plural: &str,
+    suffix: &str,
+) -> String {
+    let saved = removed.saturating_sub(removed_empty_scratch);
+    let mut parts = Vec::new();
+    if saved > 0 {
+        let noun = if saved == 1 { saved_singular } else { saved_plural };
+        parts.push(format!("{saved} {noun}"));
+    }
+    if removed_empty_scratch > 0 {
+        let noun = if removed_empty_scratch == 1 {
+            "empty scratch tab"
+        } else {
+            "empty scratch tabs"
+        };
+        parts.push(format!("{removed_empty_scratch} {noun}"));
+    }
+    if parts.is_empty() {
+        return format!("Closed 0 {saved_plural}{suffix}");
+    }
+    format!("Closed {}{suffix}", parts.join(" and "))
+}
+
 /// Close every clean tab while preserving dirty tabs. Returns the new active tab
 /// index, or -1 when nothing was closed.
 #[no_mangle]
@@ -4976,10 +5003,15 @@ pub extern "C" fn mui_tab_close_saved(handle: i64) -> i32 {
             let active = ctx.tabs.active();
             sync_active_path(ctx);
             ensure_tab_visible(ctx, active);
-            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
             ctx.push_toast(
                 crate::toast::Kind::Info,
-                format!("Closed {} saved {noun}", compaction.removed),
+                saved_tab_close_message(
+                    compaction.removed,
+                    compaction.removed_empty_scratch,
+                    "saved tab",
+                    "saved tabs",
+                    "",
+                ),
             );
             active as i32
         }
@@ -5004,10 +5036,15 @@ pub extern "C" fn mui_tab_close_other_saved(handle: i64) -> i32 {
             let active = ctx.tabs.active();
             sync_active_path(ctx);
             ensure_tab_visible(ctx, active);
-            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
             ctx.push_toast(
                 crate::toast::Kind::Info,
-                format!("Closed {} other saved {noun}", compaction.removed),
+                saved_tab_close_message(
+                    compaction.removed,
+                    compaction.removed_empty_scratch,
+                    "other saved tab",
+                    "other saved tabs",
+                    "",
+                )
             );
             active as i32
         }
@@ -5032,10 +5069,15 @@ pub extern "C" fn mui_tab_close_saved_to_right(handle: i64) -> i32 {
             let active = ctx.tabs.active();
             sync_active_path(ctx);
             ensure_tab_visible(ctx, active);
-            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
             ctx.push_toast(
                 crate::toast::Kind::Info,
-                format!("Closed {} saved {noun} to the right", compaction.removed),
+                saved_tab_close_message(
+                    compaction.removed,
+                    compaction.removed_empty_scratch,
+                    "saved tab",
+                    "saved tabs",
+                    " to the right",
+                ),
             );
             active as i32
         }
@@ -5060,10 +5102,15 @@ pub extern "C" fn mui_tab_close_saved_to_left(handle: i64) -> i32 {
             let active = ctx.tabs.active();
             sync_active_path(ctx);
             ensure_tab_visible(ctx, active);
-            let noun = if compaction.removed == 1 { "tab" } else { "tabs" };
             ctx.push_toast(
                 crate::toast::Kind::Info,
-                format!("Closed {} saved {noun} to the left", compaction.removed),
+                saved_tab_close_message(
+                    compaction.removed,
+                    compaction.removed_empty_scratch,
+                    "saved tab",
+                    "saved tabs",
+                    " to the left",
+                ),
             );
             active as i32
         }

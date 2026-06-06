@@ -158,6 +158,7 @@ pub struct TabStore {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TabCompaction {
     pub removed: usize,
+    pub removed_empty_scratch: usize,
     /// Old-index -> new-index for kept tabs; `None` for tabs that were closed.
     pub old_to_new: Vec<Option<usize>>,
 }
@@ -377,8 +378,16 @@ impl TabStore {
             .and_then(|v| *v)
             .unwrap_or_else(|| old_to_new.iter().flatten().copied().next().unwrap_or(0));
         self.ensure_scratch();
+        let removed_empty_scratch = removed_tabs
+            .iter()
+            .filter(|tab| Self::is_empty_scratch(tab))
+            .count();
         self.remember_closed_many(removed_tabs);
-        Some(TabCompaction { removed, old_to_new })
+        Some(TabCompaction {
+            removed,
+            removed_empty_scratch,
+            old_to_new,
+        })
     }
 
     /// True when any open tab for `path` has unsaved edits.
@@ -444,7 +453,11 @@ impl TabStore {
             self.tabs = kept.into_iter().map(|(_, tab)| tab).collect();
             self.active = new_active;
         }
-        Some(TabCompaction { removed, old_to_new })
+        Some(TabCompaction {
+            removed,
+            removed_empty_scratch: 0,
+            old_to_new,
+        })
     }
 
     /// Set the active tab's file path (Save As on an untitled buffer binds it to a
@@ -733,6 +746,10 @@ impl TabStore {
         tab.path.is_some() || tab.is_dirty() || !tab.model.to_bytes().is_empty() || !tab.bytes.is_empty()
     }
 
+    fn is_empty_scratch(tab: &Tab) -> bool {
+        tab.path.is_none() && !tab.is_dirty() && tab.model.to_bytes().is_empty() && tab.bytes.is_empty()
+    }
+
     /// Close every clean tab, preserving all dirty tabs. Returns compaction
     /// metadata when tabs were removed. If every tab is clean, leaves a single
     /// empty scratch tab.
@@ -761,8 +778,16 @@ impl TabStore {
         if kept.is_empty() {
             self.tabs.push(Tab::default());
             self.active = 0;
+            let removed_empty_scratch = removed_tabs
+                .iter()
+                .filter(|tab| Self::is_empty_scratch(tab))
+                .count();
             self.remember_closed_many(removed_tabs);
-            return Some(TabCompaction { removed, old_to_new });
+            return Some(TabCompaction {
+                removed,
+                removed_empty_scratch,
+                old_to_new,
+            });
         }
         let new_active = kept
             .iter()
@@ -771,8 +796,16 @@ impl TabStore {
             .unwrap_or_else(|| kept.len().saturating_sub(1));
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
+        let removed_empty_scratch = removed_tabs
+            .iter()
+            .filter(|tab| Self::is_empty_scratch(tab))
+            .count();
         self.remember_closed_many(removed_tabs);
-        Some(TabCompaction { removed, old_to_new })
+        Some(TabCompaction {
+            removed,
+            removed_empty_scratch,
+            old_to_new,
+        })
     }
 
     /// Close every clean tab except the active tab, preserving all dirty tabs.
@@ -809,8 +842,16 @@ impl TabStore {
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
         self.ensure_scratch();
+        let removed_empty_scratch = removed_tabs
+            .iter()
+            .filter(|tab| Self::is_empty_scratch(tab))
+            .count();
         self.remember_closed_many(removed_tabs);
-        Some(TabCompaction { removed, old_to_new })
+        Some(TabCompaction {
+            removed,
+            removed_empty_scratch,
+            old_to_new,
+        })
     }
 
     /// Close clean tabs to the right of the active tab, preserving dirty tabs.
@@ -839,8 +880,16 @@ impl TabStore {
         if removed == 0 {
             return None;
         }
+        let removed_empty_scratch = removed_tabs
+            .iter()
+            .filter(|tab| Self::is_empty_scratch(tab))
+            .count();
         self.remember_closed_many(removed_tabs);
-        Some(TabCompaction { removed, old_to_new })
+        Some(TabCompaction {
+            removed,
+            removed_empty_scratch,
+            old_to_new,
+        })
     }
 
     /// Close clean tabs to the left of the active tab, preserving dirty tabs.
@@ -875,8 +924,16 @@ impl TabStore {
             .unwrap_or(0);
         self.tabs = kept.drain(..).map(|(_, tab)| tab).collect();
         self.active = new_active;
+        let removed_empty_scratch = removed_tabs
+            .iter()
+            .filter(|tab| Self::is_empty_scratch(tab))
+            .count();
         self.remember_closed_many(removed_tabs);
-        Some(TabCompaction { removed, old_to_new })
+        Some(TabCompaction {
+            removed,
+            removed_empty_scratch,
+            old_to_new,
+        })
     }
 
     /// True when tab `idx` has unsaved edits.
@@ -1502,11 +1559,29 @@ mod tests {
         s.open_path(a);
         s.open_path(b);
 
-        assert_eq!(s.close_saved().unwrap().removed, 2);
+        let compaction = s.close_saved().unwrap();
+        assert_eq!(compaction.removed, 2);
+        assert_eq!(compaction.removed_empty_scratch, 0);
         assert_eq!(s.count(), 1);
         assert!(s.get(0).unwrap().path.is_none());
         assert_eq!(s.active(), 0);
         assert!(s.close_saved().is_none());
+    }
+
+    #[test]
+    fn close_saved_reports_empty_scratch_removal_separately() {
+        let mut s = TabStore::new();
+        s.ensure_scratch();
+        let file = write_tmp("tabs_close_saved_with_scratch.txt", b"file");
+        s.open_path(file);
+
+        let compaction = s.close_saved().unwrap();
+
+        assert_eq!(compaction.removed, 2);
+        assert_eq!(compaction.removed_empty_scratch, 1);
+        assert_eq!(s.count(), 1);
+        assert!(s.get(0).unwrap().path.is_none());
+        assert_eq!(s.closed_count(), 1, "empty scratch tabs are not reopenable");
     }
 
     #[test]
@@ -1520,7 +1595,9 @@ mod tests {
         s.set_dirty(dirty, true);
         s.open_path(clean_c);
 
-        assert_eq!(s.close_saved().unwrap().removed, 2);
+        let compaction = s.close_saved().unwrap();
+        assert_eq!(compaction.removed, 2);
+        assert_eq!(compaction.removed_empty_scratch, 0);
         assert_eq!(s.closed_count(), 2);
         let reopened = s.reopen_closed().unwrap();
         assert_eq!(s.active(), reopened);
