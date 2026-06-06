@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews dirty duplicate save blockers**: File: Save now
+  reports `Save skipped: duplicate edits` when another tab for the same file has
+  unsaved edits, matching the runtime save guard before dispatch.
 - **Final package docs name the compiler preflight**: README and final handoff
   docs now show how to pass an explicit `mty.exe` to `package-win.ps1` and
   clarify that v0.47.0 or newer is required before a clean Windows binary pass

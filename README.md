@@ -116,6 +116,8 @@ and the final handoff response after packaging.
   copyable
 - Command Palette copy/cut/paste rows reflect the active editor state, including
   empty copy targets and read-only previews
+- Command Palette Save reports dirty duplicate tabs before dispatch, matching
+  the runtime `Save skipped: duplicate edits` guard
 - Command Palette edit rows, including undo/redo, indentation, line movement,
   duplication, deletion, join-line, and comment toggles, report read-only
   previews as unavailable while navigation and selection remain usable
