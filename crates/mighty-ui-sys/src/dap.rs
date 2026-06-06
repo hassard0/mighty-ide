@@ -231,7 +231,8 @@ fn top_level_uint_field(bytes: &[u8], field: &[u8]) -> Option<i64> {
     let start = j;
     let mut v: i64 = 0;
     while j < bytes.len() && bytes[j].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((bytes[j] - b'0') as i64);
+        v = v.checked_mul(10)?;
+        v = v.checked_add((bytes[j] - b'0') as i64)?;
         j += 1;
     }
     if j == start {
@@ -1687,6 +1688,14 @@ mod tests {
     }
 
     #[test]
+    fn parse_envelope_rejects_overflow_request_seq() {
+        let raw = r#"{"seq":1,"type":"response","request_seq":999999999999999999999999999999,"success":true,"command":"initialize","body":{}}"#;
+        let env = parse_envelope(raw).unwrap();
+
+        assert_eq!(env.request_seq, None);
+    }
+
+    #[test]
     fn parse_stopped_event_body() {
         let raw = r#"{"seq":9,"type":"event","event":"stopped","body":{"reason":"breakpoint","threadId":1,"allThreadsStopped":true}}"#;
         let env = parse_envelope(raw).unwrap();
@@ -1752,6 +1761,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_stopped_rejects_overflow_thread_id() {
+        let raw = r#"{"type":"event","event":"stopped","body":{"reason":"breakpoint","threadId":999999999999999999999999999999}}"#;
+        let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(info.reason, "breakpoint");
+        assert_eq!(info.thread_id, None);
+    }
+
+    #[test]
     fn parse_stopped_requires_stopped_event() {
         let raw = r#"{"type":"event","event":"output","body":{"reason":"wrong","description":"wrong desc","threadId":99}}"#;
         let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
@@ -1791,6 +1809,14 @@ mod tests {
     #[test]
     fn parse_threads_rejects_fractional_id_prefixes() {
         let raw = r#"{"type":"response","command":"threads","success":true,"body":{"threads":[{"id":7.5,"name":"bad"},{"id":9,"name":"good"}]}}"#;
+        let threads = parse_threads(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(threads, vec![9]);
+    }
+
+    #[test]
+    fn parse_threads_skips_overflow_ids() {
+        let raw = r#"{"type":"response","command":"threads","success":true,"body":{"threads":[{"id":999999999999999999999999999999,"name":"bad"},{"id":9,"name":"good"}]}}"#;
         let threads = parse_threads(&parse_envelope(raw).unwrap().raw);
 
         assert_eq!(threads, vec![9]);
@@ -1883,6 +1909,17 @@ mod tests {
     #[test]
     fn parse_stack_trace_rejects_fractional_frame_numbers() {
         let raw = r#"{"type":"response","command":"stackTrace","success":true,"body":{"stackFrames":[{"id":1.5,"name":"bad id","line":7,"source":{"path":"C:/bad-id.mty"}},{"id":2,"name":"bad line","line":8.5,"source":{"path":"C:/bad-line.mty"}},{"id":3,"name":"good","line":9,"source":{"path":"C:/good.mty"}}]}}"#;
+        let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].id, 3);
+        assert_eq!(frames[0].line, 9);
+        assert_eq!(frames[0].file, "C:/good.mty");
+    }
+
+    #[test]
+    fn parse_stack_trace_skips_overflow_frame_numbers() {
+        let raw = r#"{"type":"response","command":"stackTrace","success":true,"body":{"stackFrames":[{"id":999999999999999999999999999999,"name":"bad id","line":7,"source":{"path":"C:/bad-id.mty"}},{"id":2,"name":"bad line","line":999999999999999999999999999999,"source":{"path":"C:/bad-line.mty"}},{"id":3,"name":"good","line":9,"source":{"path":"C:/good.mty"}}]}}"#;
         let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
 
         assert_eq!(frames.len(), 1);
@@ -2024,6 +2061,12 @@ mod tests {
     #[test]
     fn parse_exit_code_rejects_fractional_prefix() {
         let raw = r#"{"type":"event","event":"exited","body":{"exitCode":7.5}}"#;
+        assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 0);
+    }
+
+    #[test]
+    fn parse_exit_code_rejects_overflow() {
+        let raw = r#"{"type":"event","event":"exited","body":{"exitCode":999999999999999999999999999999}}"#;
         assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 0);
     }
 
