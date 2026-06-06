@@ -14107,3 +14107,18 @@ completed command rather than quiet focus cleanup.
 - **Language note:** no compiler gap surfaced. Dropdowns that are subordinate
   to typing should have an idempotent dismiss ABI so returning to editor input
   does not compete with command feedback.
+
+## L1112 - Pointer Close Paths Need Their Own Feedback Contract
+
+The Git branch switcher can close from Escape, an explicit Command Palette
+close row, the switcher's pointer close hit, or an outside click. Escape and
+the command row are deliberate close commands, but pointer dismissal is part of
+ordinary overlay focus management. Reusing the explicit cancel ABI made a
+click-away interaction produce `Branch switcher closed`.
+
+- **IDE note:** branch switcher pointer close and outside-click paths now call
+  `mui_branch_dismiss`, while `mui_branch_cancel` remains the explicit close
+  command with active and no-open feedback.
+- **Language note:** no compiler gap surfaced. Modal overlays should separate
+  pointer dismissal from command cancellation even when both end in the same
+  closed state.

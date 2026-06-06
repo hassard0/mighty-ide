@@ -10547,6 +10547,22 @@ fn branch_switcher_close_command_clears_active_picker() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "No branch picker open");
+    ctx.toasts.clear();
+
+    assert_eq!(crate::panels::mui_branch_dismiss(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    ctx.branch_picker.open(&crate::scm::BranchList {
+        entries: vec![crate::scm::BranchEntry {
+            name: "main".to_string(),
+            current: true,
+            remote: false,
+        }],
+    });
+    assert_eq!(crate::panels::mui_branch_active(h), 1);
+    assert_eq!(crate::panels::mui_branch_dismiss(h), 1);
+    assert_eq!(crate::panels::mui_branch_active(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
 }
 
 #[test]
@@ -23026,7 +23042,8 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     let nested_cancel_cleanup = "run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
     assert!(
         branch_branch.matches(nested_cleanup).count() >= 2
-            && branch_branch.matches(nested_cancel_cleanup).count() >= 3,
+            && branch_branch.matches(nested_cancel_cleanup).count() >= 3
+            && branch_branch.contains("let _bd = mui_branch_dismiss(h)"),
         "Branch picker local accept/cancel exits must release stale focus"
     );
     let breadcrumb_branch = &overlay_branch[crumb_start..];

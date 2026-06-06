@@ -1277,6 +1277,20 @@ pub extern "C" fn mui_branch_cancel(handle: i64) -> i32 {
     }
 }
 
+/// Close the branch switcher for incidental pointer dismissal without feedback.
+#[no_mangle]
+pub extern "C" fn mui_branch_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.branch_picker.is_active() {
+        ctx.branch_picker.cancel();
+        1
+    } else {
+        0
+    }
+}
+
 /// `1` if the last click landed on the status-bar branch segment (branch icon +
 /// name + ahead/behind, in the left cluster). Lets the IDE open the branch
 /// switcher by clicking the branch in the status bar.

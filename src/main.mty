@@ -724,6 +724,7 @@ extern c {
   fn mui_branch_is_creating(handle: I64) -> I32
   fn mui_branch_accept(handle: I64) -> I32
   fn mui_branch_cancel(handle: I64) -> I32
+  fn mui_branch_dismiss(handle: I64) -> I32
   fn mui_branch_draw(handle: I64)
   fn mui_status_branch_at_click(handle: I64) -> I32
   fn mui_scm_header_action_at_click(handle: I64) -> I32
@@ -1875,7 +1876,7 @@ fn main() {
           } else if tag == ev_mouse_down() {
             let bh = mui_branch_click(h)
             if bh == -2 {
-              let _bcancel = mui_branch_cancel(h)
+              let _bd = mui_branch_dismiss(h)
               branch_open = false
               run_focus = false
               web_focus = false
@@ -1901,7 +1902,7 @@ fn main() {
                 typing = false
               }
             } else {
-              let _bcancel = mui_branch_cancel(h)
+              let _bd = mui_branch_dismiss(h)
               branch_open = false
               run_focus = false
               web_focus = false

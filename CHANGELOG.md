@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Branch switcher pointer dismissal is quiet**: clicking outside the Git branch
+  switcher or using its pointer close path now closes it without a
+  `Branch switcher closed` toast; Escape and the explicit close command still
+  report close feedback.
 - **Breadcrumb menu incidental dismissal is quiet**: typing while the breadcrumb
   dropdown is open or clicking outside it now closes the menu without adding a
   `Breadcrumb menu closed` toast; Escape and the explicit close command still
