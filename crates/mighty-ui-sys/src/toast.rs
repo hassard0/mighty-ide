@@ -804,7 +804,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Could not open file manager"
     {
         Some(OperationKey::Reveal)
-    } else if (m.starts_with("Copied ") && m != "Copied from terminal")
+    } else if m == "Copied"
+        || (m.starts_with("Copied ") && m != "Copied from terminal")
         || m.starts_with("Copy target ")
         || m == "No active file path to copy"
         || m.starts_with("No active file path to copy:")
@@ -1649,6 +1650,10 @@ mod tests {
         q.push_at(Kind::Success, "Cut line", t0 + Duration::from_millis(100));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Cut line");
+
+        q.push_at(Kind::Success, "Copied", t0 + Duration::from_millis(110));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Copied");
 
         q.push_at(
             Kind::Warn,

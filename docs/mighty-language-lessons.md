@@ -13894,3 +13894,16 @@ led to the command, rather than appearing as a separate generic notification.
   Outline, Problems, and Explorer navigation feedback.
 - **Language note:** no compiler gap surfaced. History-empty guard messages
   should still inherit the surface that owns the history.
+
+## L1098 - Scalar Clipboard Toasts Need Operation Ownership
+
+The scalar Mighty toast table includes a short `Copied` message for paths where
+strings cannot cross the ABI. Even without a payload word such as `selection` or
+`path`, that toast is still clipboard feedback and should replace stale copy or
+cut results.
+
+- **IDE note:** exact `Copied` now coalesces with the Copy operation family
+  while `Copied from terminal` remains terminal feedback.
+- **Language note:** no compiler gap surfaced. Scalar fallback messages should
+  keep enough semantic ownership in the shim classifier to behave like their
+  richer string-producing counterparts.

@@ -305,6 +305,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Scalar `Copied` feedback is clipboard feedback**: the predefined Mighty-side
+  `Copied` toast now replaces stale copy/cut/paste toasts instead of stacking as
+  a generic notification.
 - **Screenshot capture reports blocked output parents**: offscreen
   `MUI_SCREENSHOT` PNG writing now reports parent-directory creation failures
   with the blocked path instead of ignoring the error and failing later at the
