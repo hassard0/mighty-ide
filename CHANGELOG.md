@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1120).
+(lessons L1-L1121).
 
 ## v0.3.0
 
@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,012 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Line-edit no-ops get their own feedback lane**: Command Palette edit-state
+  messages such as `Current line is already empty`, `Line is already at the
+  top`, and `No next line to join` now replace each other without merging into
+  clipboard or terminal feedback.
 - **Command Palette unavailable states coalesce with owning workflows**: broken
   compiler and stale-target preflight messages such as `Run unavailable: ...`,
   `Tests unavailable: ...`, and `Debug unavailable: ...` now replace stale

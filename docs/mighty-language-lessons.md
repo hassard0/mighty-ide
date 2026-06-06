@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14238,3 +14238,19 @@ unavailable: ...`, so prefix-only runtime grouping missed them.
 - **Language note:** no compiler gap surfaced. Palette preflight strings are
   first-class user feedback, so toast grouping tests should include them beside
   direct runtime command messages.
+
+## L1121 - Line-Edit No-Ops Are Editor Feedback, Not Clipboard Feedback
+
+The Command Palette can report line-edit preflight states before dispatch:
+`Current line is already empty`, `Line is already at the top`, `Line is already
+at the bottom`, and `No next line to join`. Those messages describe edit
+commands, but without a dedicated operation key they could stack beside each
+other or be awkwardly folded into clipboard feedback because copy/cut line
+commands live nearby.
+
+- **IDE note:** line-edit no-op messages now share a dedicated Edit operation
+  key, and tests prove they replace each other while staying separate from
+  clipboard and terminal feedback.
+- **Language note:** no compiler gap surfaced. Closely related editor commands
+  still need distinct UX ownership when their feedback is not semantically the
+  same operation.

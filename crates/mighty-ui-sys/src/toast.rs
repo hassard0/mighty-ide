@@ -563,6 +563,7 @@ enum OperationKey {
     Delete,
     Reveal,
     Copy,
+    Edit,
     Test,
     Run,
     WebRun,
@@ -841,6 +842,12 @@ fn operation_key(message: &str) -> Option<OperationKey> {
             && !m.starts_with("Could not copy terminal text"))
     {
         Some(OperationKey::Copy)
+    } else if m == "Current line is already empty"
+        || m == "Line is already at the top"
+        || m == "Line is already at the bottom"
+        || m == "No next line to join"
+    {
+        Some(OperationKey::Edit)
     } else if is_test_result_message(m)
         || m.starts_with("Tests unavailable:")
         || m == "Open a Mighty file or folder before running tests"
@@ -2902,6 +2909,58 @@ mod tests {
         q.push_at(Kind::Success, "Cut line", t0 + Duration::from_millis(200));
         assert_eq!(q.len(), 2);
         assert_eq!(q.toasts()[0].message, "Pasted to terminal");
+        assert_eq!(q.toasts()[1].message, "Cut line");
+    }
+
+    #[test]
+    fn newer_line_edit_feedback_replaces_stale_edit_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Current line is already empty", t0);
+        q.push_at(
+            Kind::Info,
+            "Line is already at the top",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Line is already at the top");
+
+        q.push_at(
+            Kind::Info,
+            "Line is already at the bottom",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Line is already at the bottom");
+
+        q.push_at(
+            Kind::Info,
+            "No next line to join",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No next line to join");
+    }
+
+    #[test]
+    fn line_edit_and_clipboard_feedback_keep_separate_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Success, "Copied selection", t0);
+        q.push_at(
+            Kind::Info,
+            "Line is already at the top",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].message, "Copied selection");
+        assert_eq!(q.toasts()[1].message, "Line is already at the top");
+
+        q.push_at(Kind::Success, "Cut line", t0 + Duration::from_millis(200));
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].message, "Line is already at the top");
         assert_eq!(q.toasts()[1].message, "Cut line");
     }
 
