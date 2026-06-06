@@ -13061,6 +13061,95 @@ fn editor_undo_redo_report_read_only_preview() {
 }
 
 #[test]
+fn editor_motion_and_selection_work_in_read_only_previews() {
+    use crate::{
+        mui_ed_collapse_carets, mui_ed_document_end, mui_ed_document_end_multi,
+        mui_ed_document_start, mui_ed_document_start_multi, mui_ed_home_smart,
+        mui_ed_home_smart_multi, mui_ed_move, mui_ed_move_ext, mui_ed_move_ext_multi,
+        mui_ed_move_to, mui_ed_move_word, mui_ed_move_word_multi, mui_ed_select_all,
+        mui_ed_select_line, mui_ed_select_word, mui_ed_set_scroll,
+    };
+
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_nav_read_only_preview");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    ctx.toasts.clear();
+
+    let active = ctx.tabs.active();
+    let before = ctx.tabs.active_model().as_text();
+    assert!(before.starts_with("Binary file preview"));
+    assert!(ctx.tabs.active_model().line_count() > 1);
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    mui_ed_document_end(h, 0);
+    assert!(ctx.tabs.active_model().cursor_line() > 0);
+    mui_ed_document_start(h, 0);
+    assert_eq!(
+        (
+            ctx.tabs.active_model().cursor_line(),
+            ctx.tabs.active_model().cursor_col()
+        ),
+        (0, 0)
+    );
+    mui_ed_move(h, crate::editor::DIR_RIGHT);
+    assert_eq!(ctx.tabs.active_model().cursor_col(), 1);
+    mui_ed_move_ext(h, crate::editor::DIR_RIGHT, 1);
+    assert!(ctx.tabs.active_model().has_selection());
+    mui_ed_move_word(h, 1, 0);
+    assert!(ctx.tabs.active_model().cursor_col() > 1);
+    mui_ed_home_smart(h, 0);
+    assert_eq!(ctx.tabs.active_model().cursor_col(), 0);
+    mui_ed_move_to(h, 0, 0);
+    assert_eq!(mui_ed_select_word(h), "Binary".chars().count() as i32);
+    assert_eq!(ctx.tabs.active_model().selected_text(), "Binary");
+    mui_ed_select_line(h);
+    assert_eq!(ctx.tabs.active_model().selection_range(), Some(((0, 0), (0, 19))));
+    mui_ed_select_all(h);
+    assert_eq!(
+        ctx.tabs.active_model().selection_range(),
+        Some((
+            (0, 0),
+            (
+                ctx.tabs.active_model().line_count() - 1,
+                ctx.tabs
+                    .active_model()
+                    .line_len(ctx.tabs.active_model().line_count() - 1)
+            )
+        ))
+    );
+    mui_ed_collapse_carets(h);
+    assert!(!ctx.tabs.active_model().has_selection());
+    mui_ed_set_scroll(h, 2);
+    assert_eq!(ctx.tabs.active_model().first_visible(), 2);
+
+    mui_ed_move_ext_multi(h, crate::editor::DIR_RIGHT, 0);
+    mui_ed_move_word_multi(h, 1, 0);
+    mui_ed_home_smart_multi(h, 0);
+    mui_ed_document_start_multi(h, 0);
+    mui_ed_document_end_multi(h, 1);
+    assert!(ctx.tabs.active_model().has_selection());
+    mui_ed_document_start_multi(h, 0);
+    assert_eq!(
+        (
+            ctx.tabs.active_model().cursor_line(),
+            ctx.tabs.active_model().cursor_col()
+        ),
+        (0, 0)
+    );
+
+    assert_eq!(ctx.tabs.active_model().as_text(), before);
+    assert!(!ctx.tabs.is_dirty(active));
+    assert!(ctx.toasts.toasts().is_empty());
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn editor_mutating_commands_report_read_only_preview() {
     use crate::{
         mui_ed_backspace, mui_ed_backspace_multi, mui_ed_delete, mui_ed_delete_current_line,

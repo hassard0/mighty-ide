@@ -12949,6 +12949,13 @@ unsafe fn model_mut<'a>(handle: i64) -> Option<&'a mut TextModel> {
     })
 }
 
+/// The active tab's model for cursor/selection-only commands.
+/// Read-only previews still need to be inspectable and copyable.
+#[inline]
+unsafe fn model_mut_for_navigation<'a>(handle: i64) -> Option<&'a mut TextModel> {
+    ctx(handle).map(|c| c.tabs.active_model_mut())
+}
+
 fn reject_read_only_edit(ctx: &mut MuiContext) -> i32 {
     ctx.push_toast(crate::toast::Kind::Warn, "Edit is unavailable in read-only previews");
     0
@@ -13147,7 +13154,7 @@ pub extern "C" fn mui_ed_newline(handle: i64) -> i32 {
 /// Move the cursor one step in `dir` (0=L 1=R 2=Up 3=Down 4=Home 5=End).
 #[no_mangle]
 pub extern "C" fn mui_ed_move(handle: i64, dir: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_cursor(dir);
     }
 }
@@ -13155,7 +13162,7 @@ pub extern "C" fn mui_ed_move(handle: i64, dir: i32) {
 /// Move the cursor to an explicit 0-based `(line, col)`, clamped.
 #[no_mangle]
 pub extern "C" fn mui_ed_move_to(handle: i64, line: i32, col: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_to(line, col);
     }
 }
@@ -13190,7 +13197,7 @@ pub extern "C" fn mui_ed_line_len(handle: i64, line: i32) -> i32 {
 /// Set the top visible line (scroll offset) of the active model, clamped.
 #[no_mangle]
 pub extern "C" fn mui_ed_set_scroll(handle: i64, first: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.set_first_visible(first.max(0) as usize);
     }
 }
@@ -16525,7 +16532,7 @@ pub extern "C" fn mui_ed_move_lines_down(handle: i64) -> i32 {
 /// `extend != 0` keeps/grows the selection (Shift held).
 #[no_mangle]
 pub extern "C" fn mui_ed_move_ext(handle: i64, dir: i32, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_cursor_ext(dir, extend != 0);
     }
 }
@@ -16533,7 +16540,7 @@ pub extern "C" fn mui_ed_move_ext(handle: i64, dir: i32, extend: i32) {
 /// Word-wise motion left/right; `extend != 0` grows the selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_move_word(handle: i64, right: i32, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         if right != 0 {
             m.move_word_right(extend != 0);
         } else {
@@ -16545,7 +16552,7 @@ pub extern "C" fn mui_ed_move_word(handle: i64, right: i32, extend: i32) {
 /// Smart Home (first-non-ws then col 0); `extend != 0` grows the selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_home_smart(handle: i64, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.home_smart(extend != 0);
     }
 }
@@ -16553,7 +16560,7 @@ pub extern "C" fn mui_ed_home_smart(handle: i64, extend: i32) {
 /// Move to document start; `extend != 0` grows the selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_document_start(handle: i64, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_document_start(extend != 0);
     }
 }
@@ -16561,7 +16568,7 @@ pub extern "C" fn mui_ed_document_start(handle: i64, extend: i32) {
 /// Move to document end; `extend != 0` grows the selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_document_end(handle: i64, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_document_end(extend != 0);
     }
 }
@@ -16569,7 +16576,7 @@ pub extern "C" fn mui_ed_document_end(handle: i64, extend: i32) {
 /// Select the word under the cursor. Returns its char length.
 #[no_mangle]
 pub extern "C" fn mui_ed_select_word(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         return m.select_word().chars().count() as i32;
     }
     0
@@ -16578,7 +16585,7 @@ pub extern "C" fn mui_ed_select_word(handle: i64) -> i32 {
 /// Select the current line in the active document. Pure motion; does not mark dirty.
 #[no_mangle]
 pub extern "C" fn mui_ed_select_line(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.select_line();
     }
 }
@@ -16586,7 +16593,7 @@ pub extern "C" fn mui_ed_select_line(handle: i64) {
 /// Select the entire active document. Pure motion; does not mark dirty.
 #[no_mangle]
 pub extern "C" fn mui_ed_select_all(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.select_all();
     }
 }
@@ -16850,7 +16857,7 @@ pub extern "C" fn mui_ed_add_caret_below(handle: i64) -> i32 {
 /// Esc: collapse to the primary caret only and clear its selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_collapse_carets(handle: i64) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.collapse_carets();
         trace(&format!("multi_cursor collapse count={}", m.caret_count()));
     }
@@ -16942,7 +16949,7 @@ pub extern "C" fn mui_ed_newline_indent_multi(handle: i64) -> i32 {
 /// Single-step motion at every caret; `extend != 0` grows each selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_move_ext_multi(handle: i64, dir: i32, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_ext_multi(dir, extend != 0);
     }
 }
@@ -16950,7 +16957,7 @@ pub extern "C" fn mui_ed_move_ext_multi(handle: i64, dir: i32, extend: i32) {
 /// Word motion at every caret; `right != 0` moves right, `extend != 0` grows.
 #[no_mangle]
 pub extern "C" fn mui_ed_move_word_multi(handle: i64, right: i32, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_word_multi(right != 0, extend != 0);
     }
 }
@@ -16958,7 +16965,7 @@ pub extern "C" fn mui_ed_move_word_multi(handle: i64, right: i32, extend: i32) {
 /// Smart-home at every caret; `extend != 0` grows each selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_home_smart_multi(handle: i64, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.home_smart_multi(extend != 0);
     }
 }
@@ -16966,7 +16973,7 @@ pub extern "C" fn mui_ed_home_smart_multi(handle: i64, extend: i32) {
 /// Move every caret to document start; `extend != 0` grows each selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_document_start_multi(handle: i64, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_document_start_multi(extend != 0);
     }
 }
@@ -16974,7 +16981,7 @@ pub extern "C" fn mui_ed_document_start_multi(handle: i64, extend: i32) {
 /// Move every caret to document end; `extend != 0` grows each selection.
 #[no_mangle]
 pub extern "C" fn mui_ed_document_end_multi(handle: i64, extend: i32) {
-    if let Some(m) = unsafe { model_mut(handle) } {
+    if let Some(m) = unsafe { model_mut_for_navigation(handle) } {
         m.move_document_end_multi(extend != 0);
     }
 }

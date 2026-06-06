@@ -26,6 +26,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   target-specific feedback, rejects binary/read-only previews, and rejects
   directory targets with explicit `not a file` feedback before spawning the
   formatter
+- Binary/read-only previews stay navigable and selectable, while mutating edit
+  commands report why the preview cannot be changed
 - Save, Save As, Save All, and auto-save reject directory targets with explicit
   `not a file` feedback, and staged save, tab-level saves, Save As, Save All,
   plus auto-save report non-directory parent paths before writing
