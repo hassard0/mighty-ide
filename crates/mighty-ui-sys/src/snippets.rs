@@ -30,6 +30,7 @@
 
 use crate::editor::TextModel;
 use crate::langdetect::Language;
+use regex::RegexBuilder;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -40,10 +41,19 @@ pub enum Segment {
     Text(String),
     /// A VS Code-style snippet variable such as `$TM_FILENAME` or
     /// `${TM_FILENAME_BASE:default}`.
-    Variable { name: String, default: Option<String>, braced: bool },
+    Variable {
+        name: String,
+        default: Option<String>,
+        braced: bool,
+    },
     /// A focused VS Code-style variable transform, such as
     /// `${TM_FILENAME_BASE/(.*)/${1:/pascalcase}/}`.
-    VariableTransform { name: String, modifier: String },
+    VariableTransform {
+        name: String,
+        pattern: String,
+        format: String,
+        options: String,
+    },
     /// A tab-stop: its number (`0` is the final cursor) and placeholder text
     /// (empty when the body used the bare `$N` form).
     Stop { num: u32, placeholder: String },
@@ -113,15 +123,26 @@ pub fn parse_body(body: &str) -> Vec<Segment> {
                     i += consumed;
                     continue;
                 }
-                if let Some((name, modifier, consumed)) = parse_braced_variable_transform(&chars[i..]) {
+                if let Some((name, pattern, format, options, consumed)) =
+                    parse_braced_variable_transform(&chars[i..])
+                {
                     flush(&mut segs, &mut text);
-                    segs.push(Segment::VariableTransform { name, modifier });
+                    segs.push(Segment::VariableTransform {
+                        name,
+                        pattern,
+                        format,
+                        options,
+                    });
                     i += consumed;
                     continue;
                 }
                 if let Some((name, default, consumed)) = parse_braced_variable(&chars[i..]) {
                     flush(&mut segs, &mut text);
-                    segs.push(Segment::Variable { name, default, braced: true });
+                    segs.push(Segment::Variable {
+                        name,
+                        default,
+                        braced: true,
+                    });
                     i += consumed;
                     continue;
                 }
@@ -131,11 +152,16 @@ pub fn parse_body(body: &str) -> Vec<Segment> {
                 let mut j = i + 1;
                 let mut n = 0u32;
                 while j < chars.len() && chars[j].is_ascii_digit() {
-                    n = n.saturating_mul(10).saturating_add(chars[j] as u32 - '0' as u32);
+                    n = n
+                        .saturating_mul(10)
+                        .saturating_add(chars[j] as u32 - '0' as u32);
                     j += 1;
                 }
                 flush(&mut segs, &mut text);
-                segs.push(Segment::Stop { num: n, placeholder: String::new() });
+                segs.push(Segment::Stop {
+                    num: n,
+                    placeholder: String::new(),
+                });
                 i = j;
                 continue;
             }
@@ -170,7 +196,9 @@ fn parse_braced(chars: &[char]) -> Option<(u32, String, usize)> {
     let mut n = 0u32;
     let start_digits = j;
     while j < chars.len() && chars[j].is_ascii_digit() {
-        n = n.saturating_mul(10).saturating_add(chars[j] as u32 - '0' as u32);
+        n = n
+            .saturating_mul(10)
+            .saturating_add(chars[j] as u32 - '0' as u32);
         j += 1;
     }
     if j == start_digits {
@@ -223,7 +251,9 @@ fn parse_braced_variable(chars: &[char]) -> Option<(String, Option<String>, usiz
     }
 }
 
-fn parse_braced_variable_transform(chars: &[char]) -> Option<(String, String, usize)> {
+fn parse_braced_variable_transform(
+    chars: &[char],
+) -> Option<(String, String, String, String, usize)> {
     debug_assert!(chars[0] == '$' && chars.get(1) == Some(&'{'));
     let mut j = 2;
     if j >= chars.len() || !is_variable_start(chars[j]) {
@@ -238,45 +268,52 @@ fn parse_braced_variable_transform(chars: &[char]) -> Option<(String, String, us
         return None;
     }
     j += 1;
-    while j < chars.len() {
-        if chars[j] == '\\' && j + 1 < chars.len() {
-            j += 2;
-        } else if chars[j] == '/' {
-            j += 1;
-            break;
-        } else {
-            j += 1;
-        }
-    }
-    if chars.get(j) != Some(&'$') || chars.get(j + 1) != Some(&'{') {
-        return None;
-    }
-    j += 2;
-    let digit_start = j;
-    while j < chars.len() && chars[j].is_ascii_digit() {
-        j += 1;
-    }
-    if j == digit_start || chars.get(j) != Some(&':') || chars.get(j + 1) != Some(&'/') {
-        return None;
-    }
-    j += 2;
-    let modifier_start = j;
-    while j < chars.len() && chars[j].is_ascii_alphabetic() {
-        j += 1;
-    }
-    if j == modifier_start || chars.get(j) != Some(&'}') || chars.get(j + 1) != Some(&'/') {
-        return None;
-    }
-    let modifier: String = chars[modifier_start..j].iter().collect();
-    j += 2;
+    let (pattern, consumed) = parse_transform_section(&chars[j..], false)?;
+    j += consumed;
+    let (format, consumed) = parse_transform_section(&chars[j..], true)?;
+    j += consumed;
+    let option_start = j;
     while j < chars.len() && chars[j] != '}' {
         j += 1;
     }
-    if chars.get(j) == Some(&'}') {
-        Some((name, modifier, j + 1))
-    } else {
-        None
+    if chars.get(j) != Some(&'}') {
+        return None;
     }
+    let options: String = chars[option_start..j].iter().collect();
+    Some((name, pattern, format, options, j + 1))
+}
+
+fn parse_transform_section(chars: &[char], allow_braced_format: bool) -> Option<(String, usize)> {
+    let mut out = String::new();
+    let mut j = 0;
+    let mut braced_depth = 0usize;
+    while j < chars.len() {
+        if chars[j] == '\\' && j + 1 < chars.len() {
+            out.push(chars[j]);
+            out.push(chars[j + 1]);
+            j += 2;
+            continue;
+        }
+        if allow_braced_format && chars[j] == '$' && chars.get(j + 1) == Some(&'{') {
+            braced_depth = braced_depth.saturating_add(1);
+            out.push(chars[j]);
+            out.push(chars[j + 1]);
+            j += 2;
+            continue;
+        }
+        if allow_braced_format && chars[j] == '}' && braced_depth > 0 {
+            braced_depth -= 1;
+            out.push(chars[j]);
+            j += 1;
+            continue;
+        }
+        if chars[j] == '/' && braced_depth == 0 {
+            return Some((out, j + 1));
+        }
+        out.push(chars[j]);
+        j += 1;
+    }
+    None
 }
 
 fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
@@ -289,7 +326,9 @@ fn parse_placeholder_text(chars: &[char]) -> Option<(String, usize)> {
                 if let Some((_, placeholder, consumed)) = parse_braced(&chars[j..]) {
                     text.push_str(&placeholder);
                     j += consumed;
-                } else if let Some((_, _, consumed)) = parse_braced_variable_transform(&chars[j..]) {
+                } else if let Some((_, _, _, _, consumed)) =
+                    parse_braced_variable_transform(&chars[j..])
+                {
                     text.extend(chars[j..j + consumed].iter());
                     j += consumed;
                 } else if let Some((_, _, consumed)) = parse_braced_variable(&chars[j..]) {
@@ -534,14 +573,23 @@ pub fn expand_with_context(
     for seg in &segs {
         match seg {
             Segment::Text(s) => emit(s, &mut text, &mut line, &mut col),
-            Segment::Variable { name, default, braced } => {
+            Segment::Variable {
+                name,
+                default,
+                braced,
+            } => {
                 let value = resolve_variable_with_default(name, default.as_deref(), context)
                     .unwrap_or_else(|| unresolved_variable_literal(name, *braced));
                 emit(&value, &mut text, &mut line, &mut col);
             }
-            Segment::VariableTransform { name, modifier } => {
+            Segment::VariableTransform {
+                name,
+                pattern,
+                format,
+                options,
+            } => {
                 let value = resolve_snippet_variable(name, context)
-                    .map(|value| apply_variable_modifier(&value, modifier))
+                    .map(|value| apply_variable_transform(&value, pattern, format, options))
                     .unwrap_or_else(|| unresolved_variable_literal(name, true));
                 emit(&value, &mut text, &mut line, &mut col);
             }
@@ -550,7 +598,11 @@ pub fn expand_with_context(
                 let placeholder = resolve_variables_in_text(placeholder, context);
                 emit(&placeholder, &mut text, &mut line, &mut col);
                 let end = (line, col);
-                stops.push(Stop { num: *num, start, end });
+                stops.push(Stop {
+                    num: *num,
+                    start,
+                    end,
+                });
             }
         }
     }
@@ -567,11 +619,13 @@ fn resolve_variables_in_text(text: &str, context: &SnippetContext) -> String {
     let mut i = 0;
     while i < chars.len() {
         if chars[i] == '$' && chars.get(i + 1) == Some(&'{') {
-            if let Some((name, modifier, consumed)) =
+            if let Some((name, pattern, format, options, consumed)) =
                 parse_braced_variable_transform(&chars[i..])
             {
                 if let Some(value) = resolve_snippet_variable(&name, context) {
-                    out.push_str(&apply_variable_modifier(&value, &modifier));
+                    out.push_str(&apply_variable_transform(
+                        &value, &pattern, &format, &options,
+                    ));
                 } else {
                     out.push_str(&unresolved_variable_literal(&name, true));
                 }
@@ -621,6 +675,97 @@ fn apply_variable_modifier(value: &str, modifier: &str) -> String {
     }
 }
 
+fn apply_variable_transform(value: &str, pattern: &str, format: &str, options: &str) -> String {
+    let mut builder = RegexBuilder::new(pattern);
+    builder.case_insensitive(options.contains('i'));
+    let Ok(regex) = builder.build() else {
+        return value.to_string();
+    };
+    let apply = |caps: &regex::Captures<'_>| expand_transform_format(format, caps);
+    if options.contains('g') {
+        regex.replace_all(value, apply).into_owned()
+    } else {
+        regex.replace(value, apply).into_owned()
+    }
+}
+
+fn expand_transform_format(format: &str, caps: &regex::Captures<'_>) -> String {
+    let chars: Vec<char> = format.chars().collect();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '\\' && i + 1 < chars.len() {
+            out.push(chars[i + 1]);
+            i += 2;
+            continue;
+        }
+        if chars[i] == '$' {
+            if chars.get(i + 1).is_some_and(|ch| ch.is_ascii_digit()) {
+                let mut j = i + 1;
+                let mut n = 0usize;
+                while j < chars.len() && chars[j].is_ascii_digit() {
+                    n = n
+                        .saturating_mul(10)
+                        .saturating_add(chars[j] as usize - '0' as usize);
+                    j += 1;
+                }
+                out.push_str(caps.get(n).map(|m| m.as_str()).unwrap_or(""));
+                i = j;
+                continue;
+            }
+            if chars.get(i + 1) == Some(&'{') {
+                if let Some((capture, modifier, consumed)) = parse_transform_capture(&chars[i..]) {
+                    let value = caps.get(capture).map(|m| m.as_str()).unwrap_or("");
+                    match modifier.as_deref() {
+                        Some(modifier) => out.push_str(&apply_variable_modifier(value, modifier)),
+                        None => out.push_str(value),
+                    }
+                    i += consumed;
+                    continue;
+                }
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+fn parse_transform_capture(chars: &[char]) -> Option<(usize, Option<String>, usize)> {
+    if chars.first() != Some(&'$') || chars.get(1) != Some(&'{') {
+        return None;
+    }
+    let mut j = 2;
+    let digit_start = j;
+    let mut capture = 0usize;
+    while j < chars.len() && chars[j].is_ascii_digit() {
+        capture = capture
+            .saturating_mul(10)
+            .saturating_add(chars[j] as usize - '0' as usize);
+        j += 1;
+    }
+    if j == digit_start {
+        return None;
+    }
+    let modifier = if chars.get(j) == Some(&':') && chars.get(j + 1) == Some(&'/') {
+        j += 2;
+        let modifier_start = j;
+        while j < chars.len() && chars[j].is_ascii_alphabetic() {
+            j += 1;
+        }
+        if j == modifier_start {
+            return None;
+        }
+        Some(chars[modifier_start..j].iter().collect())
+    } else {
+        None
+    };
+    if chars.get(j) != Some(&'}') {
+        return None;
+    }
+    Some((capture, modifier, j + 1))
+}
+
 fn capitalize(value: &str) -> String {
     let mut chars = value.chars();
     let Some(first) = chars.next() else {
@@ -657,9 +802,9 @@ fn resolve_variable_with_default(
     context: &SnippetContext,
 ) -> Option<String> {
     match resolve_snippet_variable(name, context) {
-        Some(value) if value.is_empty() => {
-            default.map(|value| resolve_variables_in_text(value, context)).or(Some(value))
-        }
+        Some(value) if value.is_empty() => default
+            .map(|value| resolve_variables_in_text(value, context))
+            .or(Some(value)),
         Some(value) => Some(value),
         None => default.map(|value| resolve_variables_in_text(value, context)),
     }
@@ -725,7 +870,12 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
             .workspace_root
             .as_deref()
             .and_then(|path| path.file_name().map(|s| s.to_string_lossy().into_owned()))
-            .or_else(|| context.workspace_root.as_ref().map(|_| "workspace".to_string())),
+            .or_else(|| {
+                context
+                    .workspace_root
+                    .as_ref()
+                    .map(|_| "workspace".to_string())
+            }),
         "RELATIVE_FILEPATH" => relative_filepath(context),
         _ => None,
     }
@@ -794,7 +944,11 @@ struct CommentTokens {
 
 fn comment_tokens(context: &SnippetContext) -> CommentTokens {
     let Some(language) = context.language else {
-        return CommentTokens { line: "", block_start: "", block_end: "" };
+        return CommentTokens {
+            line: "",
+            block_start: "",
+            block_end: "",
+        };
     };
     let cfg = crate::syntax::config_for(language);
     let (block_start, block_end) = cfg.block_comment.unwrap_or(("", ""));
@@ -837,7 +991,11 @@ fn month_name(month: u8, short: bool) -> &'static str {
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ];
     let idx = month.saturating_sub(1).min(11) as usize;
-    if short { SHORT[idx] } else { LONG[idx] }
+    if short {
+        SHORT[idx]
+    } else {
+        LONG[idx]
+    }
 }
 
 fn day_name(weekday: u8, short: bool) -> &'static str {
@@ -852,7 +1010,11 @@ fn day_name(weekday: u8, short: bool) -> &'static str {
     ];
     const SHORT: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     let idx = weekday.min(6) as usize;
-    if short { SHORT[idx] } else { LONG[idx] }
+    if short {
+        SHORT[idx]
+    } else {
+        LONG[idx]
+    }
 }
 
 fn unix_millis_now() -> i64 {
@@ -968,7 +1130,10 @@ impl SnippetSession {
         if !self.active {
             return None;
         }
-        self.nav.get(self.cur).and_then(|i| self.stops.get(*i)).copied()
+        self.nav
+            .get(self.cur)
+            .and_then(|i| self.stops.get(*i))
+            .copied()
     }
 
     /// Advance to the next stop. Returns the new current stop, or `None` (and ends
@@ -1112,7 +1277,9 @@ fn text_between(model: &TextModel, start: (usize, usize), end: (usize, usize)) -
     }
     let line = model.line(start.0);
     let chars: Vec<char> = line.chars().collect();
-    chars[start.1.min(chars.len())..end.1.min(chars.len())].iter().collect()
+    chars[start.1.min(chars.len())..end.1.min(chars.len())]
+        .iter()
+        .collect()
 }
 
 fn replace_range(model: &mut TextModel, start: (usize, usize), end: (usize, usize), text: &str) {
@@ -1140,11 +1307,7 @@ pub fn mighty_snippets() -> Vec<SnippetDef> {
             "struct",
             "struct ${1:Name} {\n  ${2:field}: ${3:I32},\n}$0",
         ),
-        SnippetDef::new(
-            "enum",
-            "enum",
-            "enum ${1:Name} {\n  ${2:Variant},\n}$0",
-        ),
+        SnippetDef::new("enum", "enum", "enum ${1:Name} {\n  ${2:Variant},\n}$0"),
         SnippetDef::new(
             "agent",
             "agent",
@@ -1183,16 +1346,36 @@ pub fn mighty_snippets() -> Vec<SnippetDef> {
 pub fn generic_snippets(lang: Language) -> Vec<SnippetDef> {
     match lang {
         Language::Rust => vec![
-            SnippetDef::new("fn", "function", "fn ${1:name}(${2:args}) -> ${3:()} {\n    $0\n}"),
-            SnippetDef::new("struct", "struct", "struct ${1:Name} {\n    ${2:field}: ${3:T},\n}$0"),
+            SnippetDef::new(
+                "fn",
+                "function",
+                "fn ${1:name}(${2:args}) -> ${3:()} {\n    $0\n}",
+            ),
+            SnippetDef::new(
+                "struct",
+                "struct",
+                "struct ${1:Name} {\n    ${2:field}: ${3:T},\n}$0",
+            ),
             SnippetDef::new("if", "if", "if ${1:cond} {\n    $0\n}"),
             SnippetDef::new("for", "for", "for ${1:i} in ${2:iter} {\n    $0\n}"),
-            SnippetDef::new("match", "match", "match ${1:value} {\n    ${2:pat} => $0,\n}"),
-            SnippetDef::new("test", "test", "#[test]\nfn ${1:name}() {\n    assert_eq!(${2:a}, ${3:b});\n    $0\n}"),
+            SnippetDef::new(
+                "match",
+                "match",
+                "match ${1:value} {\n    ${2:pat} => $0,\n}",
+            ),
+            SnippetDef::new(
+                "test",
+                "test",
+                "#[test]\nfn ${1:name}() {\n    assert_eq!(${2:a}, ${3:b});\n    $0\n}",
+            ),
         ],
         Language::Python => vec![
             SnippetDef::new("def", "def", "def ${1:name}(${2:args}):\n    $0"),
-            SnippetDef::new("class", "class", "class ${1:Name}:\n    def __init__(self${2:, args}):\n        $0"),
+            SnippetDef::new(
+                "class",
+                "class",
+                "class ${1:Name}:\n    def __init__(self${2:, args}):\n        $0",
+            ),
             SnippetDef::new("if", "if", "if ${1:cond}:\n    $0"),
             SnippetDef::new("for", "for", "for ${1:item} in ${2:iterable}:\n    $0"),
             SnippetDef::new("while", "while", "while ${1:cond}:\n    $0"),
@@ -1200,13 +1383,25 @@ pub fn generic_snippets(lang: Language) -> Vec<SnippetDef> {
         Language::JavaScript | Language::TypeScript => vec![
             SnippetDef::new("fn", "function", "function ${1:name}(${2:args}) {\n  $0\n}"),
             SnippetDef::new("if", "if", "if (${1:cond}) {\n  $0\n}"),
-            SnippetDef::new("for", "for", "for (let ${1:i} = 0; ${1:i} < ${2:n}; ${1:i}++) {\n  $0\n}"),
+            SnippetDef::new(
+                "for",
+                "for",
+                "for (let ${1:i} = 0; ${1:i} < ${2:n}; ${1:i}++) {\n  $0\n}",
+            ),
             SnippetDef::new("log", "console.log", "console.log($0)"),
         ],
         Language::Go => vec![
-            SnippetDef::new("fn", "func", "func ${1:name}(${2:args}) ${3:error} {\n\t$0\n}"),
+            SnippetDef::new(
+                "fn",
+                "func",
+                "func ${1:name}(${2:args}) ${3:error} {\n\t$0\n}",
+            ),
             SnippetDef::new("if", "if", "if ${1:cond} {\n\t$0\n}"),
-            SnippetDef::new("for", "for", "for ${1:i} := 0; ${1:i} < ${2:n}; ${1:i}++ {\n\t$0\n}"),
+            SnippetDef::new(
+                "for",
+                "for",
+                "for ${1:i} := 0; ${1:i} < ${2:n}; ${1:i}++ {\n\t$0\n}",
+            ),
         ],
         _ => Vec::new(),
     }
@@ -1655,13 +1850,19 @@ mod tests {
         for idx in [8, 13, 18, 23] {
             assert_eq!(chars[idx], '-', "{value}");
         }
-        assert!(chars
-            .iter()
-            .enumerate()
-            .filter(|(idx, _)| ![8, 13, 18, 23].contains(idx))
-            .all(|(_, ch)| ch.is_ascii_hexdigit()), "{value}");
+        assert!(
+            chars
+                .iter()
+                .enumerate()
+                .filter(|(idx, _)| ![8, 13, 18, 23].contains(idx))
+                .all(|(_, ch)| ch.is_ascii_hexdigit()),
+            "{value}"
+        );
         assert_eq!(chars[14], '4', "{value}");
-        assert!(matches!(chars[19], '8' | '9' | 'a' | 'b' | 'A' | 'B'), "{value}");
+        assert!(
+            matches!(chars[19], '8' | '9' | 'a' | 'b' | 'A' | 'B'),
+            "{value}"
+        );
     }
 
     // ---- body parsing ----
@@ -1678,11 +1879,20 @@ mod tests {
             segs,
             vec![
                 Segment::Text("a".into()),
-                Segment::Stop { num: 1, placeholder: String::new() },
+                Segment::Stop {
+                    num: 1,
+                    placeholder: String::new()
+                },
                 Segment::Text("b".into()),
-                Segment::Stop { num: 2, placeholder: String::new() },
+                Segment::Stop {
+                    num: 2,
+                    placeholder: String::new()
+                },
                 Segment::Text("c".into()),
-                Segment::Stop { num: 0, placeholder: String::new() },
+                Segment::Stop {
+                    num: 0,
+                    placeholder: String::new()
+                },
             ]
         );
     }
@@ -1694,9 +1904,15 @@ mod tests {
             segs,
             vec![
                 Segment::Text("fn ".into()),
-                Segment::Stop { num: 1, placeholder: "name".into() },
+                Segment::Stop {
+                    num: 1,
+                    placeholder: "name".into()
+                },
                 Segment::Text("(".into()),
-                Segment::Stop { num: 2, placeholder: "args".into() },
+                Segment::Stop {
+                    num: 2,
+                    placeholder: "args".into()
+                },
                 Segment::Text(")".into()),
             ]
         );
@@ -1755,7 +1971,9 @@ mod tests {
                 Segment::Text("class ".into()),
                 Segment::VariableTransform {
                     name: "TM_FILENAME_BASE".into(),
-                    modifier: "pascalcase".into(),
+                    pattern: "(.*)".into(),
+                    format: "${1:/pascalcase}".into(),
+                    options: "".into(),
                 },
                 Segment::Text(" {}".into()),
             ]
@@ -1769,7 +1987,10 @@ mod tests {
             segs,
             vec![
                 Segment::Text("color: ".into()),
-                Segment::Stop { num: 1, placeholder: "red".into() },
+                Segment::Stop {
+                    num: 1,
+                    placeholder: "red".into()
+                },
                 Segment::Text(";".into()),
             ]
         );
@@ -1778,7 +1999,13 @@ mod tests {
     #[test]
     fn parse_choice_placeholder_honors_escaped_separators() {
         let segs = parse_body("${1|one\\, two,pipe\\|value,slash\\\\value|}");
-        assert_eq!(segs, vec![Segment::Stop { num: 1, placeholder: "one, two".into() }]);
+        assert_eq!(
+            segs,
+            vec![Segment::Stop {
+                num: 1,
+                placeholder: "one, two".into()
+            }]
+        );
     }
 
     #[test]
@@ -1787,7 +2014,10 @@ mod tests {
         assert_eq!(
             segs,
             vec![
-                Segment::Stop { num: 1, placeholder: "a}b $c \\ d".into() },
+                Segment::Stop {
+                    num: 1,
+                    placeholder: "a}b $c \\ d".into()
+                },
                 Segment::Text("!".into()),
             ]
         );
@@ -1799,7 +2029,10 @@ mod tests {
         assert_eq!(
             segs,
             vec![
-                Segment::Stop { num: 1, placeholder: "name = value".into() },
+                Segment::Stop {
+                    num: 1,
+                    placeholder: "name = value".into()
+                },
                 Segment::Text(";".into()),
             ]
         );
@@ -1808,18 +2041,33 @@ mod tests {
     #[test]
     fn parse_bare_nested_tab_stops_do_not_leak_into_placeholder_text() {
         let segs = parse_body("${1:call($2)}");
-        assert_eq!(segs, vec![Segment::Stop { num: 1, placeholder: "call()".into() }]);
+        assert_eq!(
+            segs,
+            vec![Segment::Stop {
+                num: 1,
+                placeholder: "call()".into()
+            }]
+        );
     }
 
     #[test]
     fn parse_escaped_dollar_is_literal() {
-        assert_eq!(parse_body("cost \\$5"), vec![Segment::Text("cost $5".into())]);
+        assert_eq!(
+            parse_body("cost \\$5"),
+            vec![Segment::Text("cost $5".into())]
+        );
     }
 
     #[test]
     fn parse_multidigit_stop() {
         let segs = parse_body("$10");
-        assert_eq!(segs, vec![Segment::Stop { num: 10, placeholder: String::new() }]);
+        assert_eq!(
+            segs,
+            vec![Segment::Stop {
+                num: 10,
+                placeholder: String::new()
+            }]
+        );
     }
 
     #[test]
@@ -1830,7 +2078,10 @@ mod tests {
             segs,
             vec![
                 Segment::Text("x".into()),
-                Segment::Stop { num: 3, placeholder: String::new() },
+                Segment::Stop {
+                    num: 3,
+                    placeholder: String::new()
+                },
                 Segment::Text("y".into()),
             ]
         );
@@ -1845,16 +2096,44 @@ mod tests {
         assert_eq!(exp.text, "let name = value");
         // $1 selects "name" at cols 4..8; $0 is "value" at 11..16, ordered last.
         assert_eq!(exp.stops.len(), 2);
-        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 4), end: (0, 8) });
-        assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 11), end: (0, 16) });
+        assert_eq!(
+            exp.stops[0],
+            Stop {
+                num: 1,
+                start: (0, 4),
+                end: (0, 8)
+            }
+        );
+        assert_eq!(
+            exp.stops[1],
+            Stop {
+                num: 0,
+                start: (0, 11),
+                end: (0, 16)
+            }
+        );
     }
 
     #[test]
     fn expand_choice_placeholder_selects_inserted_first_choice() {
         let exp = expand("kind ${1|error,warning,info|} $0", "", 0, 0);
         assert_eq!(exp.text, "kind error ");
-        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 5), end: (0, 10) });
-        assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 11), end: (0, 11) });
+        assert_eq!(
+            exp.stops[0],
+            Stop {
+                num: 1,
+                start: (0, 5),
+                end: (0, 10)
+            }
+        );
+        assert_eq!(
+            exp.stops[1],
+            Stop {
+                num: 0,
+                start: (0, 11),
+                end: (0, 11)
+            }
+        );
     }
 
     #[test]
@@ -1918,6 +2197,40 @@ mod tests {
     }
 
     #[test]
+    fn expand_variable_transform_capture_replacements() {
+        let path = std::path::Path::new("C:/work/src/my-component.test.mty");
+        let ctx = SnippetContext::from_path(Some(path));
+        let exp = expand_with_context(
+            concat!(
+                "${TM_FILENAME/(.*)\\..+$/$1/}|",
+                "${TM_FILENAME_BASE/(my)-(component).*/${1}_${2}/}|",
+                "${TM_FILENAME/(.*)\\..+$/${1:/pascalcase}/}"
+            ),
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "my-component.test|my_component|MyComponentTest");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_variable_transform_honors_global_and_invalid_regex_fallback() {
+        let path = std::path::Path::new("C:/work/src/my-component.test.mty");
+        let ctx = SnippetContext::from_path(Some(path));
+        let exp = expand_with_context(
+            "${TM_FILENAME_BASE/[-.]/_/g}|${TM_FILENAME_BASE/[/$1/}",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "my_component_test|my-component.test");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
     fn expand_braced_variable_defaults_without_context() {
         let exp = expand("${TM_FILENAME_BASE:main}|${UNKNOWN:fallback}", "", 0, 0);
         assert_eq!(exp.text, "main|fallback");
@@ -1935,21 +2248,29 @@ mod tests {
             &ctx,
         );
         assert_eq!(exp.text, "selected|selected|selected");
-        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 18), end: (0, 26) });
+        assert_eq!(
+            exp.stops[0],
+            Stop {
+                num: 1,
+                start: (0, 18),
+                end: (0, 26)
+            }
+        );
     }
 
     #[test]
     fn expand_clipboard_variable_from_context() {
         let ctx = SnippetContext::default().with_clipboard_text(Some("clip\ntext"));
-        let exp = expand_with_context(
-            "$CLIPBOARD|${CLIPBOARD}|${1:$CLIPBOARD}",
-            "",
-            0,
-            0,
-            &ctx,
-        );
+        let exp = expand_with_context("$CLIPBOARD|${CLIPBOARD}|${1:$CLIPBOARD}", "", 0, 0, &ctx);
         assert_eq!(exp.text, "clip\ntext|clip\ntext|clip\ntext");
-        assert_eq!(exp.stops[0], Stop { num: 1, start: (2, 5), end: (3, 4) });
+        assert_eq!(
+            exp.stops[0],
+            Stop {
+                num: 1,
+                start: (2, 5),
+                end: (3, 4)
+            }
+        );
     }
 
     #[test]
@@ -2000,15 +2321,8 @@ mod tests {
 
     #[test]
     fn expand_empty_current_word_uses_default() {
-        let ctx = SnippetContext::from_editor_context(
-            None,
-            "",
-            None,
-            Some("  "),
-            Some(0),
-            "",
-            None,
-        );
+        let ctx =
+            SnippetContext::from_editor_context(None, "", None, Some("  "), Some(0), "", None);
         let exp = expand_with_context("${TM_CURRENT_WORD:name}|$TM_CURRENT_WORD", "", 0, 0, &ctx);
         assert_eq!(exp.text, "name|");
     }
@@ -2127,9 +2441,17 @@ mod tests {
         let parts: Vec<&str> = exp.text.split('|').collect();
         assert_eq!(parts.len(), 3);
         assert_eq!(parts[0].len(), 6);
-        assert!(parts[0].chars().all(|ch| ch.is_ascii_digit()), "{:?}", parts[0]);
+        assert!(
+            parts[0].chars().all(|ch| ch.is_ascii_digit()),
+            "{:?}",
+            parts[0]
+        );
         assert_eq!(parts[1].len(), 6);
-        assert!(parts[1].chars().all(|ch| ch.is_ascii_hexdigit()), "{:?}", parts[1]);
+        assert!(
+            parts[1].chars().all(|ch| ch.is_ascii_hexdigit()),
+            "{:?}",
+            parts[1]
+        );
         assert_uuid_v4(parts[2]);
     }
 
@@ -2180,16 +2502,44 @@ mod tests {
         let ctx = SnippetContext::from_path(Some(path));
         let exp = expand_with_context("${1:${TM_FILENAME_BASE:default}}_test $0", "", 0, 0, &ctx);
         assert_eq!(exp.text, "main_test ");
-        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 0), end: (0, 4) });
-        assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 10), end: (0, 10) });
+        assert_eq!(
+            exp.stops[0],
+            Stop {
+                num: 1,
+                start: (0, 0),
+                end: (0, 4)
+            }
+        );
+        assert_eq!(
+            exp.stops[1],
+            Stop {
+                num: 0,
+                start: (0, 10),
+                end: (0, 10)
+            }
+        );
     }
 
     #[test]
     fn expand_nested_placeholder_selects_flattened_default() {
         let exp = expand("let ${1:${2:name}: ${3:Type}} = $0", "", 0, 0);
         assert_eq!(exp.text, "let name: Type = ");
-        assert_eq!(exp.stops[0], Stop { num: 1, start: (0, 4), end: (0, 14) });
-        assert_eq!(exp.stops[1], Stop { num: 0, start: (0, 17), end: (0, 17) });
+        assert_eq!(
+            exp.stops[0],
+            Stop {
+                num: 1,
+                start: (0, 4),
+                end: (0, 14)
+            }
+        );
+        assert_eq!(
+            exp.stops[1],
+            Stop {
+                num: 0,
+                start: (0, 17),
+                end: (0, 17)
+            }
+        );
     }
 
     #[test]
@@ -2199,9 +2549,23 @@ mod tests {
         // Continuation lines get the call-site indent prepended.
         assert_eq!(exp.text, "if cond {\n      \n    }");
         // $1 = "cond" on line 2 cols 7..11.
-        assert_eq!(exp.stops[0], Stop { num: 1, start: (2, 7), end: (2, 11) });
+        assert_eq!(
+            exp.stops[0],
+            Stop {
+                num: 1,
+                start: (2, 7),
+                end: (2, 11)
+            }
+        );
         // $0 = zero-length on line 3; col = indent(4) + body "  " (2) = 6.
-        assert_eq!(exp.stops[1], Stop { num: 0, start: (3, 6), end: (3, 6) });
+        assert_eq!(
+            exp.stops[1],
+            Stop {
+                num: 0,
+                start: (3, 6),
+                end: (3, 6)
+            }
+        );
     }
 
     #[test]
@@ -2216,16 +2580,28 @@ mod tests {
     #[test]
     fn session_navigates_next_prev_and_ends() {
         let stops = vec![
-            Stop { num: 1, start: (0, 0), end: (0, 1) },
-            Stop { num: 2, start: (0, 2), end: (0, 3) },
-            Stop { num: 0, start: (0, 4), end: (0, 4) },
+            Stop {
+                num: 1,
+                start: (0, 0),
+                end: (0, 1),
+            },
+            Stop {
+                num: 2,
+                start: (0, 2),
+                end: (0, 3),
+            },
+            Stop {
+                num: 0,
+                start: (0, 4),
+                end: (0, 4),
+            },
         ];
         let mut s = SnippetSession::new();
         assert!(s.begin(stops));
         assert_eq!(s.current().unwrap().num, 1);
         assert_eq!(s.next_stop().unwrap().num, 2);
         assert_eq!(s.next_stop().unwrap().num, 0); // $0 last
-        // Past the last stop -> session ends.
+                                                   // Past the last stop -> session ends.
         assert_eq!(s.next_stop(), None);
         assert!(!s.is_active());
     }
@@ -2233,8 +2609,16 @@ mod tests {
     #[test]
     fn session_prev_clamps_at_first() {
         let stops = vec![
-            Stop { num: 1, start: (0, 0), end: (0, 1) },
-            Stop { num: 0, start: (0, 2), end: (0, 2) },
+            Stop {
+                num: 1,
+                start: (0, 0),
+                end: (0, 1),
+            },
+            Stop {
+                num: 0,
+                start: (0, 2),
+                end: (0, 2),
+            },
         ];
         let mut s = SnippetSession::new();
         s.begin(stops);
@@ -2247,10 +2631,26 @@ mod tests {
     #[test]
     fn session_skips_duplicate_mirror_stops_for_navigation() {
         let stops = vec![
-            Stop { num: 1, start: (0, 0), end: (0, 1) },
-            Stop { num: 1, start: (0, 5), end: (0, 6) },
-            Stop { num: 2, start: (0, 10), end: (0, 11) },
-            Stop { num: 0, start: (0, 12), end: (0, 12) },
+            Stop {
+                num: 1,
+                start: (0, 0),
+                end: (0, 1),
+            },
+            Stop {
+                num: 1,
+                start: (0, 5),
+                end: (0, 6),
+            },
+            Stop {
+                num: 2,
+                start: (0, 10),
+                end: (0, 11),
+            },
+            Stop {
+                num: 0,
+                start: (0, 12),
+                end: (0, 12),
+            },
         ];
         let mut s = SnippetSession::new();
         assert!(s.begin(stops));
@@ -2281,7 +2681,11 @@ mod tests {
     #[test]
     fn session_cancel_deactivates() {
         let mut s = SnippetSession::new();
-        s.begin(vec![Stop { num: 1, start: (0, 0), end: (0, 1) }]);
+        s.begin(vec![Stop {
+            num: 1,
+            start: (0, 0),
+            end: (0, 1),
+        }]);
         assert!(s.is_active());
         s.cancel();
         assert!(!s.is_active());
@@ -2304,7 +2708,10 @@ mod tests {
     fn mighty_snippets_present_and_valid() {
         let defs = mighty_snippets();
         let prefixes: Vec<&str> = defs.iter().map(|d| d.prefix.as_str()).collect();
-        for want in ["fn", "struct", "enum", "agent", "protocol", "match", "if", "ifelse", "for", "while", "let", "test", "log", "main"] {
+        for want in [
+            "fn", "struct", "enum", "agent", "protocol", "match", "if", "ifelse", "for", "while",
+            "let", "test", "log", "main",
+        ] {
             assert!(prefixes.contains(&want), "missing snippet `{want}`");
         }
         // Every body must parse to at least one stop (so a session can begin).
@@ -2328,7 +2735,8 @@ mod tests {
 
     #[test]
     fn parse_user_snippets_tab_separated() {
-        let blob = "# my snippets\nguard\tguard clause\tif ${1:cond} {\\n  return\\n}$0\n\nbad line\n";
+        let blob =
+            "# my snippets\nguard\tguard clause\tif ${1:cond} {\\n  return\\n}$0\n\nbad line\n";
         let defs = parse_user_snippets(blob);
         assert_eq!(defs.len(), 1);
         assert_eq!(defs[0].prefix, "guard");
@@ -2425,10 +2833,7 @@ mod tests {
 
     #[test]
     fn user_snippets_paths_include_vscode_files_in_stable_order() {
-        let dir = std::env::temp_dir().join(format!(
-            "mui-snippet-paths-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("mui-snippet-paths-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("z.code-snippets"), "{}").unwrap();
@@ -2437,7 +2842,10 @@ mod tests {
 
         let files: Vec<String> = user_snippets_paths_in_dir(&dir)
             .into_iter()
-            .filter_map(|path| path.file_name().map(|name| name.to_string_lossy().into_owned()))
+            .filter_map(|path| {
+                path.file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+            })
             .collect();
         assert_eq!(
             files,
@@ -2454,10 +2862,7 @@ mod tests {
 
     #[test]
     fn load_user_snippets_merges_legacy_json_and_code_snippets() {
-        let dir = std::env::temp_dir().join(format!(
-            "mui-snippet-load-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("mui-snippet-load-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let legacy = dir.join("snippets");

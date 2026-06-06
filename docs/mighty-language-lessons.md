@@ -14368,3 +14368,20 @@ clipboard reader.
   depend on external editor state should be explicit context inputs, so parser
   and expansion tests stay deterministic while runtime paths can provide real
   state.
+
+## L1129 - Imported Snippet Transforms Need Real Replacement Semantics
+
+The snippet parser recognized the shape of VS Code variable transforms, but it
+only kept a case modifier and applied that modifier to the whole variable.
+Common imported snippets use transforms to strip extensions, normalize names,
+or replace separators, so `${TM_FILENAME/(.*)\\..+$/$1/}` could not produce the
+captured filename stem.
+
+- **IDE note:** snippet transforms now retain the regex pattern, replacement
+  format, and options. Expansion applies the regex, supports `$1`, `${1}`, and
+  `${1:/modifier}` replacement fields, honors global replacement, and falls back
+  to the original value if a copied snippet contains an invalid regex.
+- **Language note:** no compiler gap surfaced. Parser compatibility work should
+  preserve the full source shape until expansion time; collapsing a rich syntax
+  into one convenient field makes later compatibility fixes harder than the
+  original parse.
