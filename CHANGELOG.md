@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Symbol Rename scopes workspace skip feedback**: skipped workspace-edit
+  targets reported by Rename now use rename-scoped toast text, so stale rename
+  feedback is replaced instead of leaving a generic Code Action warning beside
+  it.
 - **Symbol Rename reports non-file workspace skips**: rename commits now surface
   skipped non-file, missing-file, and write failures from workspace edits, and
   avoid undo checkpoints when the active rename target is already a directory.

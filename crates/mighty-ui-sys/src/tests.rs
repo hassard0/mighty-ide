@@ -16002,7 +16002,7 @@ fn rename_commit_non_file_target_reports_visible_feedback() {
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(
         toast.message,
-        "Skipped non-file during workspace edit: blocked.txt"
+        "Rename: Skipped non-file during workspace edit: blocked.txt"
     );
 
     let _ = std::fs::remove_dir_all(root);

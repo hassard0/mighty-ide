@@ -11760,7 +11760,7 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
 
     let result = apply_workspace_edit(ctx, &we, &new_name);
     ctx.rename.set_edit(Some(we));
-    toast_workspace_edit_skipped_result(ctx, &result);
+    toast_rename_workspace_edit_skipped_result(ctx, &result);
     ctx.rename.cancel();
     let files_changed = result.changed;
     println!(
@@ -12090,45 +12090,58 @@ fn apply_workspace_edit(
     result
 }
 
-fn toast_workspace_edit_skipped_result(
-    ctx: &mut MuiContext,
-    result: &WorkspaceEditApplyResult,
-) -> bool {
+fn workspace_edit_skipped_message(result: &WorkspaceEditApplyResult) -> Option<&str> {
     if result.skipped_dirty > 0 {
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
+        Some(
             result
                 .first_skipped_dirty_message
                 .as_deref()
                 .unwrap_or("Skipped dirty file during workspace edit"),
-        );
-        true
+        )
     } else if result.skipped_not_file > 0 {
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
+        Some(
             result
                 .first_skipped_not_file_message
                 .as_deref()
                 .unwrap_or("Skipped non-file during workspace edit"),
-        );
-        true
+        )
     } else if result.skipped_missing > 0 {
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
+        Some(
             result
                 .first_skipped_missing_message
                 .as_deref()
                 .unwrap_or("Skipped missing file during workspace edit"),
-        );
-        true
+        )
     } else if result.skipped_write > 0 {
-        ctx.push_toast(
-            crate::toast::Kind::Warn,
+        Some(
             result
                 .first_skipped_write_message
                 .as_deref()
                 .unwrap_or("Skipped file during workspace edit"),
-        );
+        )
+    } else {
+        None
+    }
+}
+
+fn toast_workspace_edit_skipped_result(
+    ctx: &mut MuiContext,
+    result: &WorkspaceEditApplyResult,
+) -> bool {
+    if let Some(message) = workspace_edit_skipped_message(result) {
+        ctx.push_toast(crate::toast::Kind::Warn, message);
+        true
+    } else {
+        false
+    }
+}
+
+fn toast_rename_workspace_edit_skipped_result(
+    ctx: &mut MuiContext,
+    result: &WorkspaceEditApplyResult,
+) -> bool {
+    if let Some(message) = workspace_edit_skipped_message(result) {
+        ctx.push_toast(crate::toast::Kind::Warn, format!("Rename: {message}"));
         true
     } else {
         false
