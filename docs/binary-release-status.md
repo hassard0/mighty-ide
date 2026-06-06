@@ -16,8 +16,7 @@ native OS or a matching CI runner:
 - foreign-platform native payloads were absent from the staged package
 - the final archive was scanned for sidecars and foreign native payloads
 - `PACKAGE-MANIFEST.txt` was written with the source commit, payload hashes,
-  payload hashes, payload sizes, generated timestamp, archive name, and
-  clean-binary checks
+  payload sizes, generated timestamp, archive name, and clean-binary checks
 - the packaged executable launched from inside the assembled package directory
   or app bundle
 

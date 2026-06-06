@@ -226,6 +226,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   opening an empty tab, then demote the row while preserving the precise
   `not a file` feedback on repeated clicks
 - **Test runner panel (Ctrl+Shift+T)** — shim-side `mty-test` parser + results model
+- Run Tests and Run Test at Cursor reject binary/read-only previews before
+  starting `mty test`, so preview tabs cannot accidentally drive package tests
 - Testing panel stale toolbar, result-row click, and scroll routes report when
   the panel has already closed and cannot activate retained hidden results
 - Test result jumps reject directory targets from stale suite output instead of

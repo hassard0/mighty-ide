@@ -3221,6 +3221,72 @@ fn test_run_without_file_or_workspace_reports_visible_target_feedback() {
 }
 
 #[test]
+fn test_run_rejects_read_only_binary_preview_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_test_run_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("asset.bin");
+    std::fs::write(&file, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(file);
+    assert!(ctx.tabs.active_read_only());
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_run(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert!(!ctx.tests_panel.is_running());
+    assert_eq!(ctx.tests_panel.row_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Run Tests is unavailable in read-only previews"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
+fn test_run_at_cursor_rejects_read_only_binary_preview_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_test_cursor_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let file = root.join("asset.bin");
+    std::fs::write(&file, b"fn test_smoke()\0binary preview").unwrap();
+    ctx.tabs.open_path(file);
+    assert!(ctx.tabs.active_read_only());
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::testabi::mui_test_run_at_cursor(handle), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_TEST);
+    assert!(ctx.sidebar_visible);
+    assert!(ctx.tests_panel.is_active());
+    assert!(!ctx.tests_panel.is_running());
+    assert_eq!(ctx.tests_panel.row_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Run Test at Cursor is unavailable in read-only previews"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn test_run_spawn_failure_names_target_and_command() {
     let _g = crate::settings::TEST_LOCK
         .lock()

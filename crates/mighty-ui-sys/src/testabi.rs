@@ -127,6 +127,17 @@ fn fail_test_before_start(ctx: &mut MuiContext, path: &std::path::Path, focus: O
     );
 }
 
+fn reject_read_only_test_run(ctx: &mut MuiContext, action: &str) -> i32 {
+    ctx.tests_panel.open();
+    ctx.active_panel = crate::PANEL_TEST;
+    ctx.sidebar_visible = true;
+    ctx.push_toast(
+        crate::toast::Kind::Warn,
+        format!("{action} is unavailable in read-only previews"),
+    );
+    0
+}
+
 pub(crate) fn workspace_test_target_for_root(root: &std::path::Path) -> Option<std::path::PathBuf> {
     if !workspace_root_is_searchable(root) {
         return None;
@@ -244,6 +255,10 @@ pub extern "C" fn mui_test_run(handle: i64) -> i32 {
         return 0;
     };
     let active = active_path(ctx);
+    if active.is_some() && ctx.tabs.active_read_only() {
+        crate::abi::trace("test_run read_only_preview");
+        return reject_read_only_test_run(ctx, "Run Tests");
+    }
     let Some(path) = active.clone().or_else(|| workspace_test_target(ctx)) else {
         ctx.tests_panel.open();
         ctx.active_panel = crate::PANEL_TEST;
@@ -302,6 +317,10 @@ pub extern "C" fn mui_test_run_at_cursor(handle: i64) -> i32 {
         crate::abi::trace("test_run_at_cursor no_target");
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        crate::abi::trace("test_run_at_cursor read_only_preview");
+        return reject_read_only_test_run(ctx, "Run Test at Cursor");
+    }
     // Find the nearest enclosing `fn test_*` above the cursor in the live model.
     let focus = nearest_test_fn(ctx);
     ctx.active_panel = crate::PANEL_TEST;

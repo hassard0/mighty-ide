@@ -24,6 +24,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Run and Debug respects read-only previews**: starting a new debug session
   from a binary/read-only tab now stops before adapter spawn and reports why the
   command is unavailable.
+- **Run Tests respects read-only previews**: Run Tests and Run Test at Cursor
+  now reject binary/read-only buffers before starting `mty test`, keeping the
+  Testing panel visible with direct feedback instead of treating a preview as a
+  runnable source file.
 
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight
