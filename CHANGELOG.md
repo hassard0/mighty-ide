@@ -29,6 +29,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command Palette edit rows explain read-only previews**: Undo, Redo,
   indentation, line movement, duplication, deletion, join-line, and comment
   commands now report read-only previews as unavailable directly in the palette.
+- **Command Palette language and AI edits explain read-only previews**: Find &
+  Replace, autocomplete, Rename Symbol, Code Actions, Inline Ask, and forced
+  ghost completion now surface read-only limitations before a mutation path is
+  attempted.
 - **Command Palette launch commands explain read-only previews**: Format, Run,
   Run Tests, Run Test at Cursor, Debug Start, and Run in Browser now show
   read-only preview limitations directly in the palette instead of waiting for

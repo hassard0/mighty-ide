@@ -52,6 +52,9 @@ runners produce and launch the Mach-O and ELF packages.
 - Command Palette edit rows, including undo/redo, indentation, line movement,
   duplication, deletion, join-line, and comment toggles, report read-only
   previews as unavailable while navigation and selection remain usable
+- Command Palette language and AI edit rows report read-only previews up front:
+  Find remains available while Replace, autocomplete acceptance, Rename Symbol,
+  code-action edits, and inline AI edits are unavailable
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
   read-only previews as unavailable before the command is launched
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
