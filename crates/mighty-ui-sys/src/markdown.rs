@@ -174,7 +174,7 @@ fn parse_lines(lines: &[&str]) -> Vec<Block> {
                 }
                 let depth = indent_depth(lines[i]);
                 let (content, number) = match marker {
-                    Marker::Ordered(n) => (strip_list_marker(lines[i]), Some(n)),
+                    Marker::Ordered(n) => (strip_list_marker(lines[i]), n),
                     Marker::Unordered => (strip_list_marker(lines[i]), None),
                 };
                 items.push(ListItem { depth, spans: parse_inline(content), number });
@@ -252,7 +252,7 @@ fn atx_heading(trimmed: &str) -> Option<(u8, &str)> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Marker {
     Unordered,
-    Ordered(u64),
+    Ordered(Option<u64>),
 }
 
 /// Detect a list marker at the start of `line` (after indentation). Unordered:
@@ -272,7 +272,7 @@ fn list_marker(line: &str) -> Option<Marker> {
             let digits: String = t.chars().take_while(|c| c.is_ascii_digit()).collect();
             let after = &t[digits.len()..];
             if (after.starts_with(". ") || after.starts_with(") ")) && !digits.is_empty() {
-                return digits.parse::<u64>().ok().map(Marker::Ordered);
+                return Some(Marker::Ordered(digits.parse::<u64>().ok()));
             }
             None
         }
@@ -710,6 +710,23 @@ mod tests {
                 assert_eq!(items[0].number, Some(1));
                 assert_eq!(items[2].number, Some(3));
                 assert_eq!(spans_text(&items[1].spans), "second");
+            }
+            other => panic!("expected ordered list, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn ordered_list_marker_overflow_still_renders_as_list() {
+        let src = "999999999999999999999999999999. huge\n2. next";
+        let blocks = parse(src);
+        match &blocks[0] {
+            Block::List { ordered, items } => {
+                assert!(ordered);
+                assert_eq!(items.len(), 2);
+                assert_eq!(items[0].number, None);
+                assert_eq!(spans_text(&items[0].spans), "huge");
+                assert_eq!(items[1].number, Some(2));
+                assert_eq!(spans_text(&items[1].spans), "next");
             }
             other => panic!("expected ordered list, got {other:?}"),
         }
