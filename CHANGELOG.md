@@ -13,9 +13,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
 - **Language actions surface missing LSP servers**: Hover, Go to Definition,
-  Signature Help, and explicit completion requests now share actionable
-  `lsp.toml` feedback when a configured/default language server is unavailable,
-  instead of reporting generic empty hover, definition, or signature results.
+  Signature Help, Rename Symbol, Code Actions, and explicit completion requests
+  now share actionable `lsp.toml` feedback when a configured/default language
+  server is unavailable, instead of reporting generic empty results or opening
+  optimistic fallback edits.
 - **Final binary handoff matrix is explicit**: README and release docs now state
   the final Windows-hosted publish decision for each platform: Windows x64 can
   publish only after the PE package rebuild, ZIP scan, manifest, hash, and

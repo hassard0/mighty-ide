@@ -11183,6 +11183,11 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
     let col0 = col.max(0) as u32;
     let mut symbol = identifier_at(&source, line0, col0);
     if let Some(path) = ctx.file_path.clone() {
+        if let Some(reason) = crate::lspregistry::unavailable_reason(ctx.language) {
+            println!("rename: line={line} col={col} unavailable-lsp");
+            ctx.push_toast(crate::toast::Kind::Warn, reason);
+            return 0;
+        }
         let raw = lsp_prepare_rename_raw(ctx.language, &path, &source, line0, col0);
         if prepare_rename_explicitly_rejected(&raw) {
             println!("rename: line={line} col={col} prepare-rejected");
@@ -11679,6 +11684,11 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
         }
     };
     let (source, _, _) = active_source_and_cursor(ctx);
+    if let Some(reason) = crate::lspregistry::unavailable_reason(ctx.language) {
+        ctx.rename.cancel();
+        ctx.push_toast(crate::toast::Kind::Warn, reason);
+        return -1;
+    }
     let raw = lsp_rename_raw(
         ctx.language,
         &path,
@@ -12122,6 +12132,10 @@ pub extern "C" fn mui_codeaction_request(handle: i64, line: i32, col: i32) -> i3
             crate::toast::Kind::Warn,
             language_needs_file_message(ctx, "code actions"),
         );
+        return 0;
+    }
+    if let Some(reason) = crate::lspregistry::unavailable_reason(ctx.language) {
+        ctx.push_toast(crate::toast::Kind::Warn, reason);
         return 0;
     }
     let actions = compute_line_actions(ctx, line, col);
