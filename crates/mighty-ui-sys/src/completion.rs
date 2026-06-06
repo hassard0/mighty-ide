@@ -1109,7 +1109,9 @@ pub mod lsp {
         let mut out: Vec<SemanticCandidate> = Vec::new();
         let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
         let bytes = json.as_bytes();
-        for items in completion_items_regions(bytes) {
+        for (payload, items) in completion_items_payloads(bytes) {
+            let default_commit_chars = completion_list_default_commit_chars(payload);
+            let default_edit_range = completion_list_default_edit_range(payload);
             for item in split_top_level_objects(items) {
                 let Some(text) = completion_item_insert_text(item) else {
                     continue;
@@ -1124,8 +1126,15 @@ pub mod lsp {
                         kind_label: completion_item_kind_label(item),
                         preselect: completion_item_preselect(item),
                         deprecated: completion_item_deprecated(item),
-                        commit_chars: completion_item_commit_chars(item),
-                        edit_range: completion_item_text_edit_range(item),
+                        commit_chars: {
+                            let chars = completion_item_commit_chars(item);
+                            if chars.is_empty() {
+                                default_commit_chars.clone()
+                            } else {
+                                chars
+                            }
+                        },
+                        edit_range: completion_item_text_edit_range(item).or(default_edit_range),
                         filter_text: completion_item_filter_text(item),
                         sort_text: completion_item_sort_text(item),
                     });
@@ -1173,10 +1182,21 @@ pub mod lsp {
     }
 
     fn completion_item_commit_chars(item: &[u8]) -> Vec<char> {
-        let Some(at) = top_level_field_value_start(item, b"commitCharacters") else {
+        top_level_char_array(item, b"commitCharacters")
+    }
+
+    fn completion_list_default_commit_chars(payload: &[u8]) -> Vec<char> {
+        let Some(defaults) = completion_list_item_defaults(payload) else {
             return Vec::new();
         };
-        let Some(region) = value_region(item, at) else {
+        top_level_char_array(defaults, b"commitCharacters")
+    }
+
+    fn top_level_char_array(obj: &[u8], field: &[u8]) -> Vec<char> {
+        let Some(at) = top_level_field_value_start(obj, field) else {
+            return Vec::new();
+        };
+        let Some(region) = value_region(obj, at) else {
             return Vec::new();
         };
         if region.first() != Some(&b'[') {
@@ -1300,9 +1320,34 @@ pub mod lsp {
             .or_else(|| completion_text_edit_named_range(text_edit, b"insert"))
     }
 
+    fn completion_list_default_edit_range(payload: &[u8]) -> Option<CompletionEditRange> {
+        let defaults = completion_list_item_defaults(payload)?;
+        let edit_range_at = top_level_field_value_start(defaults, b"editRange")?;
+        let edit_range = value_region(defaults, edit_range_at)?;
+        parse_completion_range(edit_range)
+            .or_else(|| completion_text_edit_named_range(edit_range, b"insert"))
+    }
+
+    fn completion_list_item_defaults(payload: &[u8]) -> Option<&[u8]> {
+        if payload.first() != Some(&b'{') {
+            return None;
+        }
+        let defaults_at = top_level_field_value_start(payload, b"itemDefaults")?;
+        let defaults = value_region(payload, defaults_at)?;
+        if defaults.first() == Some(&b'{') {
+            Some(defaults)
+        } else {
+            None
+        }
+    }
+
     fn completion_text_edit_named_range(text_edit: &[u8], field: &[u8]) -> Option<CompletionEditRange> {
         let range_at = top_level_field_value_start(text_edit, field)?;
         let range = value_region(text_edit, range_at)?;
+        parse_completion_range(range)
+    }
+
+    fn parse_completion_range(range: &[u8]) -> Option<CompletionEditRange> {
         if range.first() != Some(&b'{') {
             return None;
         }
@@ -1381,9 +1426,9 @@ pub mod lsp {
         crate::snippets::expand(text, "", 0, 0).text
     }
 
-    fn completion_items_regions(bytes: &[u8]) -> Vec<&[u8]> {
+    fn completion_items_payloads(bytes: &[u8]) -> Vec<(&[u8], &[u8])> {
         if bytes.first() == Some(&b'[') {
-            return vec![bytes];
+            return vec![(bytes, bytes)];
         }
         if bytes.first() == Some(&b'{') {
             let first_end = match_delim(bytes, 0, b'{', b'}').min(bytes.len());
@@ -1392,7 +1437,7 @@ pub mod lsp {
                 && top_level_field_value_start(bytes, b"result").is_some()
                 && top_level_field_value_start(bytes, b"method").is_none()
             {
-                return completion_items_region(bytes).into_iter().collect();
+                return completion_items_payload(bytes).into_iter().collect();
             }
         }
         let mut out = Vec::new();
@@ -1405,8 +1450,8 @@ pub mod lsp {
                     && top_level_field_value_start(obj, b"id").is_some()
                     && top_level_field_value_start(obj, b"method").is_none()
                 {
-                    if let Some(items) = completion_items_region(obj) {
-                        out.push(items);
+                    if let Some(payload) = completion_items_payload(obj) {
+                        out.push(payload);
                     }
                 }
                 i = end;
@@ -1417,7 +1462,7 @@ pub mod lsp {
         out
     }
 
-    fn completion_items_region(obj: &[u8]) -> Option<&[u8]> {
+    fn completion_items_payload(obj: &[u8]) -> Option<(&[u8], &[u8])> {
         let payload = if obj.first() == Some(&b'{') {
             if let Some(result_at) = top_level_field_value_start(obj, b"result") {
                 value_region(obj, result_at)?
@@ -1428,7 +1473,7 @@ pub mod lsp {
             obj
         };
 
-        completion_items_from_payload(payload)
+        completion_items_from_payload(payload).map(|items| (payload, items))
     }
 
     fn completion_items_from_payload(payload: &[u8]) -> Option<&[u8]> {
@@ -2972,6 +3017,57 @@ mod tests {
         let n = engine.request_semantic(b"Console.Wr", 10, &candidates);
         assert_eq!(n, 1);
         assert_eq!(engine.accepted_replace_len(), 2);
+    }
+
+    #[test]
+    fn lsp_scrape_applies_completion_list_item_defaults() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":{"itemDefaults":{"commitCharacters":[".","("],"editRange":{"start":{"line":0,"character":8},"end":{"line":0,"character":10}}},"items":[{"label":"WriteLine","filterText":"WriteLine","textEdit":{"newText":"Console.WriteLine"}},{"label":"override","commitCharacters":[";"],"textEdit":{"newText":"Console.Override","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":10}}}}]}}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].commit_chars, vec!['.', '(']);
+        assert_eq!(
+            candidates[0].edit_range,
+            Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 8,
+                end_line: 0,
+                end_col_utf16: 10,
+            })
+        );
+        assert_eq!(candidates[1].commit_chars, vec![';']);
+        assert_eq!(
+            candidates[1].edit_range,
+            Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 0,
+                end_line: 0,
+                end_col_utf16: 10,
+            })
+        );
+
+        let mut engine = CompletionEngine::new();
+        let n = engine.request_semantic(b"Console.Wr", 10, &candidates);
+        assert_eq!(n, 1);
+        assert_eq!(engine.accepted_replace_len(), 2);
+        assert!(engine.selected_commits_char('.'));
+    }
+
+    #[test]
+    fn lsp_scrape_applies_completion_list_insert_replace_default() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":{"itemDefaults":{"editRange":{"insert":{"start":{"line":0,"character":8},"end":{"line":0,"character":10}},"replace":{"start":{"line":0,"character":0},"end":{"line":0,"character":15}}}},"items":[{"label":"WriteLine","filterText":"WriteLine","textEdit":{"newText":"Console.WriteLine"}}]}}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(
+            candidates[0].edit_range,
+            Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 8,
+                end_line: 0,
+                end_col_utf16: 10,
+            })
+        );
     }
 
     #[test]
