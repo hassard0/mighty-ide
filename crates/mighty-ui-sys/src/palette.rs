@@ -1285,6 +1285,14 @@ impl PaletteEngine {
                     .is_some_and(|terminal| terminal.has_visible_content()),
             );
         }
+        if matches!(id, CMD_PROBLEMS_CLEAR | CMD_PROBLEMS_CLOSE) {
+            return problems_contextual_desc(
+                id,
+                base,
+                ctx.problems.is_open(),
+                ctx.problems.count(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1600,6 +1608,19 @@ fn terminal_contextual_desc<'a>(
             Cow::Borrowed("Terminal is already empty")
         }
         CMD_TERMINAL_CLOSE if !open && !present => Cow::Borrowed("Terminal is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn problems_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    open: bool,
+    count: usize,
+) -> Cow<'a, str> {
+    match id {
+        CMD_PROBLEMS_CLEAR if count == 0 => Cow::Borrowed("Problems diagnostics already empty"),
+        CMD_PROBLEMS_CLOSE if !open => Cow::Borrowed("Problems panel is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -2572,6 +2593,26 @@ mod tests {
         );
         assert_eq!(
             terminal_contextual_desc(CMD_TERMINAL_CLOSE, "base", true, true, false),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn problems_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 0),
+            Cow::Borrowed("Problems diagnostics already empty")
+        );
+        assert_eq!(
+            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", false, 2),
+            Cow::Borrowed("Problems panel is already closed")
+        );
+        assert_eq!(
+            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 2),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", true, 0),
             Cow::Borrowed("base")
         );
     }
