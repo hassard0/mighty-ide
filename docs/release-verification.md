@@ -76,3 +76,8 @@ Linux x64: unbuilt - native Linux runner unavailable for this pass.
 
 Script review or wrong-host refusal checks are source-readiness evidence, not
 clean-binary evidence for macOS or Linux.
+
+For a stop pass from Windows, include the reviewed macOS and Linux package
+commands as script-ready only. Leave their release decision as `unbuilt` until
+the native package script, manifest, archive scan, hash, and packaged launch
+are produced on that platform from the final source commit.

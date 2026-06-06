@@ -22,6 +22,11 @@ native OS or a matching CI runner:
 A Windows package proves only Windows PE payloads. A macOS package proves only
 Mach-O payloads. A Linux package proves only ELF payloads.
 
+Ignored package directories and archives under `dist/` are reusable only as
+evidence for the source commit named in their packaged manifest. If the source
+tree, README, build notes, package scripts, changelog, or release docs change,
+the next release decision must come from a fresh native package run.
+
 ## Decision Values
 
 Use only these release states:

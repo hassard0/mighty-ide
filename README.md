@@ -83,6 +83,11 @@ Final stop-pass order:
    pass` unless their native package runs completed during this same pass.
 6. Stop. Any source change after packaging makes the archive stale.
 
+Ignored files under `dist/` are evidence only for the source commit named in
+their packaged `PACKAGE-MANIFEST.txt`. Existing archives from earlier commits
+must not be carried forward; rerun the native package script after the final
+source commit and report only the archive produced by that run.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`
