@@ -14433,3 +14433,20 @@ backslash too.
 - **Language note:** no compiler gap surfaced. Delimiter-aware parsers need
   escape rules tied to the delimiter, not blanket unescaping, because copied
   snippets mix syntax escapes and regex escapes in the same field.
+
+## L1133 - LSP Completion Labels Are Not Always Insert Text
+
+The generic non-Mighty LSP path scraped only `CompletionItem.label` and told
+servers `snippetSupport:false`. That kept the accept path simple, but it also
+meant real servers could show display labels that were not the text users
+expected to insert, and snippet-formatted completions would either be withheld
+or risk inserting raw `${1:...}` markers.
+
+- **IDE note:** generic LSP initialization now advertises snippet completion
+  support. Completion scraping prefers `textEdit.newText`, then `insertText`,
+  then `label`, and flattens snippet-formatted insert text through the snippet
+  expander before exposing it as an insertable candidate.
+- **Language note:** no compiler gap surfaced. LSP data needs the same
+  envelope discipline used elsewhere in the IDE: display fields, edit fields,
+  and snippet syntax are distinct protocol concepts and should not be collapsed
+  into labels just because the UI row is label-shaped.

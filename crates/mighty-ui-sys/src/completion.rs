@@ -262,7 +262,12 @@ impl CompletionEngine {
     /// `true` if the currently-selected candidate is a snippet prefix (so the
     /// accept path should EXPAND rather than insert the literal text).
     pub fn accepted_is_snippet(&self) -> bool {
-        self.active && self.candidates.get(self.sel).map(|c| c.snippet).unwrap_or(false)
+        self.active
+            && self
+                .candidates
+                .get(self.sel)
+                .map(|c| c.snippet)
+                .unwrap_or(false)
     }
 
     pub fn count(&self) -> usize {
@@ -392,7 +397,8 @@ impl CompletionEngine {
         if !self.active || self.candidates.is_empty() {
             return -1;
         }
-        let (box_x, box_y, box_w, _box_h, pad, row_h, top, shown) = self.geometry(text, cx, cy, width, height);
+        let (box_x, box_y, box_w, _box_h, pad, row_h, top, shown) =
+            self.geometry(text, cx, cy, width, height);
         if x < box_x || x > box_x + box_w {
             return -1;
         }
@@ -440,9 +446,25 @@ impl CompletionEngine {
 
         // Soft drop shadow + rounded raised card + hairline border (mockup
         // `.autocomplete`).
-        ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.8), 24.0);
+        ctx.dl_shadow(
+            box_x,
+            box_y + 8.0,
+            box_w,
+            box_h,
+            radius,
+            MuiColor::new(0.0, 0.0, 0.0, 0.8),
+            24.0,
+        );
         ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_stroke(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::BORDER_STRONG(),
+            1.0,
+        );
 
         for vis in 0..shown {
             let idx = top + vis;
@@ -450,8 +472,24 @@ impl CompletionEngine {
             let row_y = box_y + pad + vis as f32 * row_h;
             let selected = idx == self.sel;
             if selected {
-                ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::accent_a(0.20), 0.9);
-                ctx.dl_stroke(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::ACCENT_LINE(), 1.0);
+                ctx.dl_grad_h(
+                    box_x + 5.0,
+                    row_y + 2.0,
+                    box_w - 10.0,
+                    row_h - 4.0,
+                    5.0,
+                    theme::accent_a(0.20),
+                    0.9,
+                );
+                ctx.dl_stroke(
+                    box_x + 5.0,
+                    row_y + 2.0,
+                    box_w - 10.0,
+                    row_h - 4.0,
+                    5.0,
+                    theme::ACCENT_LINE(),
+                    1.0,
+                );
             }
             // Type badge: a small rounded colored square with a letter, classified
             // by a light heuristic (mockup badge colors).
@@ -460,13 +498,24 @@ impl CompletionEngine {
             let by = row_y + (row_h - 18.0) * 0.5;
             ctx.dl_round(bx, by, 18.0, 18.0, 4.0, badge_bg);
             let lw = completion_badge_letter_width(&mut ctx.text, letter, 10.0);
-            ctx.text.queue_ui_sized(bx + (18.0 - lw) * 0.5, by + 3.0, letter, badge_fg, 10.0, clip);
+            ctx.text.queue_ui_sized(
+                bx + (18.0 - lw) * 0.5,
+                by + 3.0,
+                letter,
+                badge_fg,
+                10.0,
+                clip,
+            );
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let name_x = box_x + 38.0;
             let kind_size = chrome - 1.5;
             let kind_x = completion_kind_x(&mut ctx.text, box_x, box_w, kind, kind_size);
-            let sig_gap = if completion_row_signature_visible(sig) { 2.0 } else { 0.0 };
+            let sig_gap = if completion_row_signature_visible(sig) {
+                2.0
+            } else {
+                0.0
+            };
             let sig_w = if sig_gap > 0.0 {
                 ctx.text.measure_ui_sized(sig, chrome - 1.0).0
             } else {
@@ -474,7 +523,8 @@ impl CompletionEngine {
             };
             let name_budget = (kind_x - 10.0 - name_x - sig_gap - sig_w).max(0.0);
             let shown_name = fit_completion_text(&mut ctx.text, &cand.text, name_budget, chrome);
-            ctx.text.queue_sized(name_x, ty, &shown_name, theme::TEXT(), chrome, clip);
+            ctx.text
+                .queue_sized(name_x, ty, &shown_name, theme::TEXT(), chrome, clip);
             // Signature hint immediately after the name, when the provider has
             // real row-level detail. Avoid placeholder fragments; the footer
             // carries full signature context for the selected row.
@@ -484,31 +534,53 @@ impl CompletionEngine {
                 let sig_budget = (kind_x - 10.0 - sig_x).max(0.0);
                 let shown_sig = fit_completion_text(&mut ctx.text, sig, sig_budget, chrome - 1.0);
                 if !shown_sig.is_empty() {
-                    ctx.text.queue_sized(sig_x, ty, &shown_sig, theme::DIM(), chrome - 1.0, clip);
+                    ctx.text
+                        .queue_sized(sig_x, ty, &shown_sig, theme::DIM(), chrome - 1.0, clip);
                 }
             }
             // Right-aligned kind metadata.
-            ctx.text.queue_ui_sized(kind_x, ty, kind, theme::DIM(), kind_size, clip);
+            ctx.text
+                .queue_ui_sized(kind_x, ty, kind, theme::DIM(), kind_size, clip);
         }
 
         // Signature-hint footer (mockup `.ac-hint`): the selected candidate's
         // signature on a divided strip, the name in accent + a "· pure" tail.
         let hint_y = box_y + box_h - hint_h;
         ctx.dl_rect(box_x + 1.0, hint_y, box_w - 2.0, 1.0, theme::BORDER());
-        ctx.dl_round(box_x + 1.0, hint_y, box_w - 2.0, hint_h - 1.0, 0.0, theme::BG_2());
+        ctx.dl_round(
+            box_x + 1.0,
+            hint_y,
+            box_w - 2.0,
+            hint_h - 1.0,
+            0.0,
+            theme::BG_2(),
+        );
         if let Some(sel) = self.candidates.get(self.sel) {
             let hy = hint_y + (hint_h - (chrome - 1.0)) * 0.5 - 0.5;
             let mut hx = box_x + 12.0;
-            let tail = if sel.semantic { "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure" } else { "  \u{00B7} local symbol" };
+            let tail = if sel.semantic {
+                "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure"
+            } else {
+                "  \u{00B7} local symbol"
+            };
             let tail_w = ctx.text.measure_ui_sized(tail, chrome - 1.0).0;
             let name_budget = (box_x + box_w - 12.0 - tail_w - hx).max(0.0);
-            let shown_name = fit_completion_text(&mut ctx.text, &sel.text, name_budget, chrome - 1.0);
-            ctx.text.queue_sized(hx, hy, &shown_name, theme::ACCENT_BRIGHT(), chrome - 1.0, clip);
+            let shown_name =
+                fit_completion_text(&mut ctx.text, &sel.text, name_budget, chrome - 1.0);
+            ctx.text.queue_sized(
+                hx,
+                hy,
+                &shown_name,
+                theme::ACCENT_BRIGHT(),
+                chrome - 1.0,
+                clip,
+            );
             hx += ctx.text.measure_ui_sized(&shown_name, chrome - 1.0).0;
             let tail_budget = (box_x + box_w - 12.0 - hx).max(0.0);
             let shown_tail = fit_completion_text(&mut ctx.text, tail, tail_budget, chrome - 1.0);
             if !shown_tail.is_empty() {
-                ctx.text.queue_sized(hx, hy, &shown_tail, theme::DIM(), chrome - 1.0, clip);
+                ctx.text
+                    .queue_sized(hx, hy, &shown_tail, theme::DIM(), chrome - 1.0, clip);
             }
         }
     }
@@ -548,7 +620,11 @@ fn completion_popup_width(
     for cand in candidates.iter().skip(top).take(shown) {
         let (_badge_bg, _badge_fg, _letter, kind, sig) = classify_candidate(cand);
         let name_w = text.measure_ui_sized(&cand.text, chrome).0;
-        let sig_gap = if completion_row_signature_visible(sig) { 2.0 } else { 0.0 };
+        let sig_gap = if completion_row_signature_visible(sig) {
+            2.0
+        } else {
+            0.0
+        };
         let sig_w = if sig_gap > 0.0 {
             text.measure_ui_sized(sig, chrome - 1.0).0
         } else {
@@ -558,8 +634,15 @@ fn completion_popup_width(
         desired = desired.max(name_x + name_w + sig_gap + sig_w + kind_gap + kind_w + right_pad);
     }
     if let Some(sel) = candidates.get(selected) {
-        let tail = if sel.semantic { "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure" } else { "  \u{00B7} local symbol" };
-        let footer_w = 12.0 + text.measure_ui_sized(&sel.text, chrome - 1.0).0 + text.measure_ui_sized(tail, chrome - 1.0).0 + right_pad;
+        let tail = if sel.semantic {
+            "(a: I32, b: I32) \u{2192} I32  \u{00B7} pure"
+        } else {
+            "  \u{00B7} local symbol"
+        };
+        let footer_w = 12.0
+            + text.measure_ui_sized(&sel.text, chrome - 1.0).0
+            + text.measure_ui_sized(tail, chrome - 1.0).0
+            + right_pad;
         desired = desired.max(footer_w.min(420.0));
     }
     desired.min(row_max).max(row_min)
@@ -592,11 +675,12 @@ fn fit_completion_text(text: &mut crate::text::Text, s: &str, max_px: f32, size:
 /// capitalized → type (T, teal), keyword set → keyword (K, violet), looks like a
 /// fn (followed by `(` in source isn't known here) → fn (ƒ, gold) when semantic,
 /// else variable (x, grey).
-fn classify_candidate(cand: &Candidate) -> (MuiColor, MuiColor, &'static str, &'static str, &'static str) {
+fn classify_candidate(
+    cand: &Candidate,
+) -> (MuiColor, MuiColor, &'static str, &'static str, &'static str) {
     const KEYWORDS: &[&str] = &[
-        "fn", "let", "mut", "while", "if", "else", "return", "match", "struct",
-        "enum", "for", "in", "type", "true", "false", "await", "async", "pub",
-        "import", "effect", "extern",
+        "fn", "let", "mut", "while", "if", "else", "return", "match", "struct", "enum", "for",
+        "in", "type", "true", "false", "await", "async", "pub", "import", "effect", "extern",
     ];
     let t = cand.text.as_str();
     // Snippet prefixes get a distinct badge regardless of how the text looks.
@@ -701,19 +785,18 @@ pub mod lsp {
         crate::nav::path_to_file_uri(path)
     }
 
-    /// Scrape `CompletionItem.label` values out of a JSON blob. Returns labels
-    /// in result order, deduped. Handles both `result: [items...]` and
-    /// `result: { items: [items...] }`, plus a bare item array for tests.
+    /// Scrape insertable completion text out of a JSON blob. Prefers
+    /// `textEdit.newText`, then `insertText`, then `label`, and flattens LSP
+    /// snippet-formatted insert text to plain text before it reaches the editor.
+    /// Handles both `result: [items...]` and `result: { items: [items...] }`,
+    /// plus a bare item array for tests.
     pub fn scrape_labels(json: &str) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
         let bytes = json.as_bytes();
         for items in completion_items_regions(bytes) {
             for item in split_top_level_objects(items) {
-                let Some(label_at) = top_level_field_value_start(item, b"label") else {
-                    continue;
-                };
-                let Some((val, _past)) = read_json_string_at(item, label_at) else {
+                let Some(val) = completion_item_insert_text(item) else {
                     continue;
                 };
                 if !val.is_empty() && seen.insert(val.clone()) {
@@ -722,6 +805,43 @@ pub mod lsp {
             }
         }
         out
+    }
+
+    fn completion_item_insert_text(item: &[u8]) -> Option<String> {
+        let snippet_format = top_level_number_value(item, b"insertTextFormat") == Some(2);
+        let value = completion_text_edit_new_text(item)
+            .or_else(|| top_level_string_value(item, b"insertText"))
+            .or_else(|| top_level_string_value(item, b"label"))?;
+        if snippet_format {
+            Some(flatten_lsp_snippet_insert_text(&value))
+        } else {
+            Some(value)
+        }
+    }
+
+    fn completion_text_edit_new_text(item: &[u8]) -> Option<String> {
+        let text_edit_at = top_level_field_value_start(item, b"textEdit")?;
+        let text_edit = value_region(item, text_edit_at)?;
+        if text_edit.first() != Some(&b'{') {
+            return None;
+        }
+        top_level_string_value(text_edit, b"newText")
+    }
+
+    fn top_level_string_value(obj: &[u8], field: &[u8]) -> Option<String> {
+        let at = top_level_field_value_start(obj, field)?;
+        read_json_string_at(obj, at).map(|(value, _)| value)
+    }
+
+    fn top_level_number_value(obj: &[u8], field: &[u8]) -> Option<i64> {
+        let at = top_level_field_value_start(obj, field)?;
+        let region = value_region(obj, at)?;
+        let text = std::str::from_utf8(region).ok()?.trim();
+        text.parse::<i64>().ok()
+    }
+
+    fn flatten_lsp_snippet_insert_text(text: &str) -> String {
+        crate::snippets::expand(text, "", 0, 0).text
     }
 
     fn completion_items_regions(bytes: &[u8]) -> Vec<&[u8]> {
@@ -795,7 +915,9 @@ pub mod lsp {
         let end = match bytes[start] {
             b'{' => match_delim(bytes, start, b'{', b'}'),
             b'[' => match_delim(bytes, start, b'[', b']'),
-            b'"' => read_json_string_at(bytes, start).map(|(_, end)| end).unwrap_or(bytes.len()),
+            b'"' => read_json_string_at(bytes, start)
+                .map(|(_, end)| end)
+                .unwrap_or(bytes.len()),
             _ => {
                 let mut i = start;
                 while i < bytes.len() && !matches!(bytes[i], b',' | b'}' | b']') {
@@ -1181,7 +1303,9 @@ pub mod lsp {
                 // reader, then collect whatever it managed to read.
                 let _ = child.kill();
                 let _ = child.wait();
-                let bytes = rx.recv_timeout(Duration::from_millis(500)).unwrap_or_default();
+                let bytes = rx
+                    .recv_timeout(Duration::from_millis(500))
+                    .unwrap_or_default();
                 let _ = writer.join();
                 let _ = reader.join();
                 eprintln!("completion(lsp): timed out after {timeout:?} — buffer words only");
@@ -1194,7 +1318,6 @@ pub mod lsp {
         // item metadata labels are not completion candidates.
         scrape_labels(&text)
     }
-
 }
 
 #[cfg(test)]
@@ -1297,10 +1420,7 @@ mod tests {
         ];
         let got = filter_by_prefix(&words, "count");
         // "count" itself is excluded (equal to prefix); sorted; deduped.
-        assert_eq!(
-            got,
-            vec!["countdown".to_string(), "counter".to_string()]
-        );
+        assert_eq!(got, vec!["countdown".to_string(), "counter".to_string()]);
         // No matches.
         assert!(filter_by_prefix(&words, "zzz").is_empty());
         // Empty prefix -> nothing.
@@ -1403,7 +1523,10 @@ mod tests {
         // It went to the FRONT and is the selected (sel=0) candidate.
         assert_eq!(e.count(), before + 1);
         assert_eq!(e.accepted_text(), "for");
-        assert!(e.accepted_is_snippet(), "snippet entry must flag the accept path");
+        assert!(
+            e.accepted_is_snippet(),
+            "snippet entry must flag the accept path"
+        );
         assert!(e.candidates[0].snippet);
         // Its badge classifies as a snippet (distinct from keyword/type/var).
         let (_, _, letter, kind, _) = classify_candidate(&e.candidates[0]);
@@ -1476,7 +1599,10 @@ mod tests {
             size,
         );
         let shown_w = ctx.text.measure_ui_sized(&shown, size).0;
-        assert!(shown.ends_with("..."), "long completion rows should ellipsize: {shown}");
+        assert!(
+            shown.ends_with("..."),
+            "long completion rows should ellipsize: {shown}"
+        );
         assert!(
             name_x + shown_w <= kind_x - 10.0 + 0.5,
             "completion label should fit before kind metadata: name_end={} kind_x={kind_x}",
@@ -1510,7 +1636,10 @@ mod tests {
         let tail_budget = (box_x + box_w - 12.0 - (hx + name_w)).max(0.0);
         let shown_tail = fit_completion_text(&mut ctx.text, tail, tail_budget, size);
         let total_w = name_w + ctx.text.measure_ui_sized(&shown_tail, size).0;
-        assert!(shown_name.ends_with("..."), "long footer name should ellipsize: {shown_name}");
+        assert!(
+            shown_name.ends_with("..."),
+            "long footer name should ellipsize: {shown_name}"
+        );
         assert!(
             hx + total_w <= box_x + box_w - 12.0 + 0.5,
             "completion footer should fit within panel: footer_end={} panel_right={}",
@@ -1538,10 +1667,13 @@ mod tests {
 
         let narrow_w = completion_popup_width(&mut ctx.text, &narrow, 0, 1, 0, 900.0, chrome);
         let wide_w = completion_popup_width(&mut ctx.text, &wide, 0, 1, 0, 900.0, chrome);
-        let measured_delta =
-            ctx.text.measure_ui_sized(&wide[0].text, chrome).0 - ctx.text.measure_ui_sized(&narrow[0].text, chrome).0;
+        let measured_delta = ctx.text.measure_ui_sized(&wide[0].text, chrome).0
+            - ctx.text.measure_ui_sized(&narrow[0].text, chrome).0;
 
-        assert!(measured_delta > 10.0, "test strings should differ in rendered width");
+        assert!(
+            measured_delta > 10.0,
+            "test strings should differ in rendered width"
+        );
         assert!(
             wide_w >= narrow_w + measured_delta.min(200.0) - 1.0,
             "popup width should grow with measured row text: narrow={narrow_w} wide={wide_w}"
@@ -1555,7 +1687,8 @@ mod tests {
         };
         let mut e = CompletionEngine::new();
         e.candidates = vec![Candidate {
-            text: "very_wide_completion_candidate_name_that_should_not_escape_the_viewport".to_string(),
+            text: "very_wide_completion_candidate_name_that_should_not_escape_the_viewport"
+                .to_string(),
             semantic: true,
             snippet: false,
         }];
@@ -1617,11 +1750,27 @@ mod tests {
         assert!(e.count() >= 2);
         let (box_x, box_y, _box_w, _box_h, pad, row_h, _top, _shown) =
             e.geometry(&mut ctx.text, 250.0, 120.0, 900, 700);
-        let idx = e.click_row(&mut ctx.text, box_x + 24.0, box_y + pad + row_h + 2.0, 250.0, 120.0, 900, 700);
+        let idx = e.click_row(
+            &mut ctx.text,
+            box_x + 24.0,
+            box_y + pad + row_h + 2.0,
+            250.0,
+            120.0,
+            900,
+            700,
+        );
         assert_eq!(idx, 1);
         assert_eq!(e.selection(), 1);
         assert_eq!(
-            e.click_row(&mut ctx.text, box_x - 2.0, box_y + pad + 2.0, 250.0, 120.0, 900, 700),
+            e.click_row(
+                &mut ctx.text,
+                box_x - 2.0,
+                box_y + pad + 2.0,
+                250.0,
+                120.0,
+                900,
+                700
+            ),
             -1
         );
     }
@@ -1631,6 +1780,30 @@ mod tests {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"foo","kind":3},{"label":"bar"},{"label":"foo"}]}"#;
         let labels = super::lsp::scrape_labels(json);
         assert_eq!(labels, vec!["foo".to_string(), "bar".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_prefers_insert_text_over_label() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"println!","insertText":"println($1)"},{"label":"plain"}]}"#;
+        let labels = super::lsp::scrape_labels(json);
+        assert_eq!(labels, vec!["println($1)".to_string(), "plain".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_prefers_text_edit_new_text() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"Console.WriteLine","insertText":"ignored","textEdit":{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":2}},"newText":"Console.WriteLine($1)"}}]}"#;
+        let labels = super::lsp::scrape_labels(json);
+        assert_eq!(labels, vec!["Console.WriteLine($1)".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_flattens_snippet_insert_text() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"for","insertTextFormat":2,"insertText":"for ${1:item} in ${2:items} {\n\t$0\n}"},{"label":"choice","insertTextFormat":2,"insertText":"${1|red,green,blue|}"}]}"#;
+        let labels = super::lsp::scrape_labels(json);
+        assert_eq!(
+            labels,
+            vec!["for item in items {\n\t\n}".to_string(), "red".to_string()]
+        );
     }
 
     #[test]
@@ -1742,13 +1915,7 @@ mod tests {
         let source = "fn main() {\n  let counter = 0\n  le\n}\n";
         // Cursor on line index 2 (`  le`), char 4 (after "le").
         let path = PathBuf::from("probe.mty");
-        let labels = lsp::semantic_labels_with_timeout(
-            &path,
-            source,
-            2,
-            4,
-            Duration::from_secs(8),
-        );
+        let labels = lsp::semantic_labels_with_timeout(&path, source, 2, 4, Duration::from_secs(8));
 
         if labels.is_empty() {
             // Server spawned but returned nothing within the timeout — treat as

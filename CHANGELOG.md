@@ -4,14 +4,19 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1132).
+(lessons L1-L1133).
 
 ## v0.3.0
 
 A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
-driven by `src/main.mty`. ~2,029 shim tests; clean `clippy -D warnings`.
+driven by `src/main.mty`. ~2,033 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Generic LSP completion accepts insert text and snippet items**: non-Mighty
+  language servers are now told the IDE supports snippet completions; completion
+  parsing prefers `textEdit.newText` and `insertText` over display labels, and
+  flattens LSP snippet placeholders to plain insertable text instead of
+  inserting raw `${1:...}` markers.
 - **Imported snippet transforms unescape slash delimiters**: copied VS Code
   snippets can now use `\/` inside transform patterns or replacements to match
   and emit literal path separators without turning the transform into an

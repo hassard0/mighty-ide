@@ -172,7 +172,7 @@ fn initialize_msg(root: &Path) -> String {
     let root_uri = file_uri(root);
     let pid = std::process::id();
     format!(
-        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"workspace":{{"applyEdit":true}},"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":false}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"workspace":{{"applyEdit":true}},"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":true}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
         json_escape(&root_uri)
     )
 }
@@ -330,7 +330,9 @@ pub fn request_with_timeout(
 }
 
 fn lock_shared<T>(shared: &Arc<Mutex<T>>) -> MutexGuard<'_, T> {
-    shared.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    shared
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 fn request_msg(method: &Method, uri: &str, source: &str, line: u32, col: u32) -> String {
@@ -591,7 +593,8 @@ fn parse_publish_diagnostics_latest(stream: &str, wanted_uri: Option<&str>) -> V
 }
 
 fn is_publish_diagnostics_notification(chunk: &[u8]) -> bool {
-    top_level_json_string_field(chunk, b"method").as_deref() == Some("textDocument/publishDiagnostics")
+    top_level_json_string_field(chunk, b"method").as_deref()
+        == Some("textDocument/publishDiagnostics")
 }
 
 fn publish_chunk_matches_uri(chunk: &[u8], wanted_uri: Option<&str>) -> bool {
@@ -1183,7 +1186,10 @@ mod tests {
     fn diagnostics_reader_match_uses_params_uri_not_related_information_uri() {
         let stream = br#"{"jsonrpc":"2.0","method":"textDocument/publishDiagnostics","params":{"uri":"file:///x/other.rs","diagnostics":[{"range":{"start":{"line":1,"character":0},"end":{"line":1,"character":4}},"severity":1,"message":"wrong file","relatedInformation":[{"location":{"uri":"file:///x/main.rs","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}},"message":"related"}]}]}}"#;
 
-        assert!(!has_publish_diagnostics_for_uri(stream, "file:///x/main.rs"));
+        assert!(!has_publish_diagnostics_for_uri(
+            stream,
+            "file:///x/main.rs"
+        ));
     }
 
     #[test]
@@ -1372,9 +1378,8 @@ mod tests {
             4,
             0,
         );
-        assert!(msg.contains(
-            r#""context":{"diagnostics":[{"severity":1,"message":"missing import"}]}"#
-        ));
+        assert!(msg
+            .contains(r#""context":{"diagnostics":[{"severity":1,"message":"missing import"}]}"#));
     }
 
     #[test]
@@ -1457,6 +1462,12 @@ mod tests {
     }
 
     #[test]
+    fn initialize_advertises_completion_snippet_support() {
+        let msg = initialize_msg(Path::new("C:/repo"));
+        assert!(msg.contains(r#""completion":{"completionItem":{"snippetSupport":true}}"#));
+    }
+
+    #[test]
     fn response_id_wait_uses_top_level_response_id() {
         let stream = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}
 {"jsonrpc":"2.0","id":2,"result":{"contents":"right"}}"#;
@@ -1468,8 +1479,10 @@ mod tests {
     fn response_id_wait_ignores_nested_id_and_requests() {
         let nested_id = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}"#;
         let server_request = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
-        let request_with_result = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"applied":true}}"#;
-        let response_error = br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
+        let request_with_result =
+            br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"applied":true}}"#;
+        let response_error =
+            br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
 
         assert!(!has_response_id(nested_id, "2"));
         assert!(!has_response_id(server_request, "2"));
