@@ -777,6 +777,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Sorted tabs by name"
         || m == "No closed tab to reopen"
         || m == "No duplicate file tabs"
+        || m == "Only one tab open"
         || m.starts_with("Save or discard changes before reloading")
         || m.starts_with("No file-backed tab to ")
         || m.starts_with("No saved tabs")
@@ -1519,6 +1520,11 @@ mod tests {
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Tabs already sorted");
         assert!(!q.toasts().iter().any(|t| t.message == "Tab is already first"));
+
+        q.push_at(Kind::Info, "Only one tab open", t0 + Duration::from_millis(2050));
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Only one tab open");
+        assert!(!q.toasts().iter().any(|t| t.message == "Tabs already sorted"));
 
         q.push_at(
             Kind::Warn,

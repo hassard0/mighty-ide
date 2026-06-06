@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Single-tab navigation feedback coalesces as tab feedback**: the `Only one
+  tab open` no-op message now replaces stale tab-management toasts instead of
+  stacking beside them.
 - **Jump Back palette mirrors navigation history**: Command Palette now reports
   `No previous location` before dispatch until Go to Definition records a
   return target, then restores the normal Jump Back description after history is
