@@ -1362,6 +1362,34 @@ impl PaletteEngine {
                 ctx.md_preview.is_open() || ctx.md_pane.is_some(),
             );
         }
+        if matches!(
+            id,
+            CMD_AI_CLOSE
+                | CMD_SIDEBAR_CLOSE
+                | CMD_COLOR_THEME_CLOSE
+                | CMD_HOVER_CLOSE
+                | CMD_SIGNATURE_HELP_CLOSE
+                | CMD_CODE_ACTIONS_CLOSE
+                | CMD_FIND_REPLACE_CLOSE
+                | CMD_AUTOCOMPLETE_CLOSE
+                | CMD_COMMAND_PALETTE_CLOSE
+                | CMD_QUICK_OPEN_CLOSE
+        ) {
+            return transient_surface_contextual_desc(
+                id,
+                base,
+                ctx.ai.open,
+                ctx.sidebar_visible,
+                ctx.theme_picker.is_active(),
+                ctx.hover.is_active(),
+                ctx.sig.is_active(),
+                ctx.codeaction.is_active(),
+                ctx.replace_bar.is_active(),
+                ctx.complete.is_active(),
+                ctx.palette.is_active(),
+                ctx.quickopen.is_active(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1807,6 +1835,46 @@ fn close_surface_contextual_desc<'a>(
         CMD_MARKDOWN_CLOSE_PREVIEW if !markdown_open => {
             Cow::Borrowed("Markdown preview is already closed")
         }
+        _ => Cow::Borrowed(base),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn transient_surface_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    ai_open: bool,
+    sidebar_open: bool,
+    theme_picker_open: bool,
+    hover_open: bool,
+    signature_open: bool,
+    code_actions_open: bool,
+    find_replace_open: bool,
+    autocomplete_open: bool,
+    palette_open: bool,
+    quickopen_open: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_AI_CLOSE if !ai_open => Cow::Borrowed("AI Copilot is already closed"),
+        CMD_SIDEBAR_CLOSE if !sidebar_open => Cow::Borrowed("Sidebar is already closed"),
+        CMD_COLOR_THEME_CLOSE if !theme_picker_open => {
+            Cow::Borrowed("No color theme picker open")
+        }
+        CMD_HOVER_CLOSE if !hover_open => Cow::Borrowed("No hover popup open"),
+        CMD_SIGNATURE_HELP_CLOSE if !signature_open => {
+            Cow::Borrowed("No signature help popup open")
+        }
+        CMD_CODE_ACTIONS_CLOSE if !code_actions_open => {
+            Cow::Borrowed("No code action menu open")
+        }
+        CMD_FIND_REPLACE_CLOSE if !find_replace_open => {
+            Cow::Borrowed("No Find & Replace bar open")
+        }
+        CMD_AUTOCOMPLETE_CLOSE if !autocomplete_open => {
+            Cow::Borrowed("No autocomplete suggestions open")
+        }
+        CMD_COMMAND_PALETTE_CLOSE if !palette_open => Cow::Borrowed("No command palette open"),
+        CMD_QUICK_OPEN_CLOSE if !quickopen_open => Cow::Borrowed("No Quick Open panel open"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -3083,6 +3151,208 @@ mod tests {
             close_surface_contextual_desc(
                 CMD_MARKDOWN_CLOSE_PREVIEW,
                 "base",
+                false,
+                false,
+                false,
+                true
+            ),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn transient_surface_command_descriptions_reflect_runtime_state() {
+        let cases = [
+            (CMD_AI_CLOSE, "AI Copilot is already closed"),
+            (CMD_SIDEBAR_CLOSE, "Sidebar is already closed"),
+            (CMD_COLOR_THEME_CLOSE, "No color theme picker open"),
+            (CMD_HOVER_CLOSE, "No hover popup open"),
+            (
+                CMD_SIGNATURE_HELP_CLOSE,
+                "No signature help popup open",
+            ),
+            (CMD_CODE_ACTIONS_CLOSE, "No code action menu open"),
+            (CMD_FIND_REPLACE_CLOSE, "No Find & Replace bar open"),
+            (
+                CMD_AUTOCOMPLETE_CLOSE,
+                "No autocomplete suggestions open",
+            ),
+            (CMD_COMMAND_PALETTE_CLOSE, "No command palette open"),
+            (CMD_QUICK_OPEN_CLOSE, "No Quick Open panel open"),
+        ];
+        for (id, expected) in cases {
+            assert_eq!(
+                transient_surface_contextual_desc(
+                    id, "base", false, false, false, false, false, false, false, false, false,
+                    false
+                ),
+                Cow::Borrowed(expected)
+            );
+        }
+
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_AI_CLOSE,
+                "base",
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_SIDEBAR_CLOSE,
+                "base",
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_COLOR_THEME_CLOSE,
+                "base",
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_HOVER_CLOSE,
+                "base",
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_SIGNATURE_HELP_CLOSE,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_CODE_ACTIONS_CLOSE,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_FIND_REPLACE_CLOSE,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_AUTOCOMPLETE_CLOSE,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_COMMAND_PALETTE_CLOSE,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_QUICK_OPEN_CLOSE,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
                 false,
                 false,
                 false,
