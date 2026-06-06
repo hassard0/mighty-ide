@@ -793,6 +793,49 @@ pub(crate) fn scm_section_branch_budget(
     branch_right - branch_left - 16.0 - ab_w
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ScmRowTextFit {
+    pub name: String,
+    pub dir: String,
+    pub dir_x: f32,
+}
+
+pub(crate) fn fit_scm_row_name_and_dir(
+    text: &mut crate::text::Text,
+    name: &str,
+    dir: &str,
+    name_x: f32,
+    action_left: f32,
+    chrome: f32,
+) -> ScmRowTextFit {
+    let available = (action_left - name_x - 8.0).max(0.0);
+    if dir.is_empty() {
+        return ScmRowTextFit {
+            name: fit_tail_px(text, name, available, chrome),
+            dir: String::new(),
+            dir_x: action_left,
+        };
+    }
+
+    let dir_size = chrome - 1.5;
+    let dir_full_w = text.measure_ui_sized(dir, dir_size).0;
+    let dir_budget = dir_full_w
+        .min((available * 0.38).max(48.0))
+        .min((available - 46.0).max(0.0));
+    let gap = if dir_budget > 0.0 { 6.0 } else { 0.0 };
+    let name_budget = (available - dir_budget - gap).max(0.0);
+    let shown_name = fit_tail_px(text, name, name_budget, chrome);
+    let name_w = text.measure_ui_sized(&shown_name, chrome).0;
+    let dir_x = name_x + name_w + gap;
+    let remaining_dir = (action_left - dir_x - 8.0).max(0.0);
+
+    ScmRowTextFit {
+        name: shown_name,
+        dir: fit_tail_px(text, dir, remaining_dir.min(dir_budget), dir_size),
+        dir_x,
+    }
+}
+
 /// `1` if the last click landed on the Source Control commit-message clear
 /// affordance, else `0`.
 #[no_mangle]
@@ -965,18 +1008,12 @@ pub extern "C" fn mui_scm_draw(handle: i64) {
 
         let name_x = sx + 47.0;
         let action_left = sx + sw - 30.0;
-        let dir_reserve = if dir.is_empty() { 8.0 } else { 72.0 };
-        let shown_name = fit_tail_px(&mut ctx.text, &name, (action_left - name_x - dir_reserve).max(0.0), chrome);
-        if !shown_name.is_empty() {
-            ctx.text.queue_ui_sized(name_x, txt_y, &shown_name, theme::TEXT_1(), chrome, clip);
+        let fit = fit_scm_row_name_and_dir(&mut ctx.text, &name, &dir, name_x, action_left, chrome);
+        if !fit.name.is_empty() {
+            ctx.text.queue_ui_sized(name_x, txt_y, &fit.name, theme::TEXT_1(), chrome, clip);
         }
-        if !dir.is_empty() {
-            let (name_w, _) = ctx.text.measure_ui_sized(&shown_name, chrome);
-            let dx = name_x + name_w + 6.0;
-            if dx < action_left - 8.0 {
-                let shown_dir = fit_tail_px(&mut ctx.text, &dir, (action_left - dx - 8.0).max(0.0), chrome - 1.5);
-                ctx.text.queue_ui_sized(dx, txt_y, &shown_dir, theme::TEXT_4(), chrome - 1.5, clip);
-            }
+        if !fit.dir.is_empty() && fit.dir_x < action_left - 8.0 {
+            ctx.text.queue_ui_sized(fit.dir_x, txt_y, &fit.dir, theme::TEXT_4(), chrome - 1.5, clip);
         }
 
         let act_x = sx + sw - 26.0;

@@ -1681,7 +1681,8 @@ the right edge.
 
 - **IDE note:** Source Control now uses measured UI text fitting for the commit
   box, branch label, changed-file name, and directory tail. File rows reserve the
-  stage/unstage action zone before drawing text.
+  stage/unstage action zone before drawing text, and name/directory budgets are
+  computed together instead of relying on a fixed directory-width estimate.
 - **Language note:** no new Mighty gap surfaced. This reinforces the same
   shim-side layout requirement as L89-L96: proportional chrome text needs
   measured pixel budgets until Mighty exposes richer UI layout primitives.

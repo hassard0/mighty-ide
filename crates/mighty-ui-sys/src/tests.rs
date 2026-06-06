@@ -10142,30 +10142,44 @@ fn scm_row_name_and_dir_fit_before_stage_action() {
     let name_x = sx + 47.0;
     let action_left = sx + sw - 30.0;
 
-    let name = crate::panels::fit_tail_px(
+    let fit = crate::panels::fit_scm_row_name_and_dir(
         &mut ctx.text,
         "very-long-source-file-name-that-should-not-run-under-stage-action.mty",
-        action_left - name_x - 72.0,
+        "src/deeply/nested/module/path",
+        name_x,
+        action_left,
         chrome,
     );
-    let (name_w, _) = ctx.text.measure_ui_sized(&name, chrome);
+    let (name_w, _) = ctx.text.measure_ui_sized(&fit.name, chrome);
     assert!(name_x + name_w + 8.0 <= action_left);
-    assert!(name.starts_with('\u{2026}'));
+    assert!(fit.name.starts_with('\u{2026}'));
 
-    let dir_x = name_x + name_w + 6.0;
-    let dir = crate::panels::fit_tail_px(
-        &mut ctx.text,
-        "src/deeply/nested/module/path",
-        action_left - dir_x - 8.0,
-        chrome - 1.5,
+    let (dir_w, _) = ctx.text.measure_ui_sized(&fit.dir, chrome - 1.5);
+    assert!(
+        fit.dir_x >= name_x + name_w,
+        "directory tail should start after the measured file name"
     );
-    let (dir_w, _) = ctx.text.measure_ui_sized(&dir, chrome - 1.5);
-    assert!(dir_x + dir_w + 8.0 <= action_left);
+    assert!(fit.dir_x + dir_w + 8.0 <= action_left);
+    assert!(fit.dir.starts_with('\u{2026}'));
+
+    let no_dir = crate::panels::fit_scm_row_name_and_dir(
+        &mut ctx.text,
+        "very-long-source-file-name-that-can-use-the-whole-row-budget.mty",
+        "",
+        name_x,
+        action_left,
+        chrome,
+    );
+    let (no_dir_w, _) = ctx.text.measure_ui_sized(&no_dir.name, chrome);
+    assert!(name_x + no_dir_w + 8.0 <= action_left);
+    assert!(no_dir.dir.is_empty());
 }
 
 #[test]
 fn scm_open_row_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SCM;
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::panels::mui_scm_open_row(handle, -1), -1);
@@ -10234,6 +10248,8 @@ fn scm_open_row_misses_report_visible_feedback() {
 #[test]
 fn scm_open_row_directory_target_reports_visible_feedback() {
     let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SCM;
     let root = std::env::temp_dir().join(format!("mui_scm_open_dir_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("changed.mty")).unwrap();
@@ -10266,6 +10282,8 @@ fn scm_open_row_directory_target_reports_visible_feedback() {
 #[test]
 fn scm_open_row_records_recent_file() {
     let mut ctx = ctx_or_skip!();
+    ctx.sidebar_visible = true;
+    ctx.active_panel = crate::PANEL_SCM;
     let root = std::env::temp_dir().join(format!("mui_scm_open_records_recent_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();

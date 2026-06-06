@@ -76,6 +76,9 @@ driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
   now measures the synthetic git badge text and draws the badge at the same
   measured right edge used for filename truncation, keeping compact sidebars
   from crowding `M`/`A`/`U` markers.
+- **Source Control rows share measured name and path budgets**: changed-file
+  rows now fit filename and directory-tail text together against the real
+  stage/unstage action boundary instead of reserving a fixed path width.
 - **Imported snippets resolve random and UUID variables**: VS Code snippets using
   `$RANDOM`, `$RANDOM_HEX`, or `$UUID` now expand formatted values instead of
   leaving marker text in the editor, with tests pinning digit, hex, and UUID v4
