@@ -552,6 +552,7 @@ fn toast_fill_alpha(presence: f32) -> f32 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OperationKey {
     Save,
+    ReadOnly,
     Open,
     NameInput,
     CreateFile,
@@ -658,6 +659,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Agents ")
     {
         Some(OperationKey::Agents)
+    } else if m.ends_with(" is read-only in the text editor") {
+        Some(OperationKey::ReadOnly)
     } else if m == "No unsaved files"
         || m.starts_with("Save All failed")
         || m == "Save cancelled; tab is still open"
@@ -671,7 +674,6 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No file path to save"
         || m == "Choose a file name"
         || m == "Target file is already open"
-        || m.ends_with(" is read-only in the text editor")
         || m == "Saved"
         || m.starts_with("Saved ")
         || m.starts_with("Save skipped:")
@@ -1888,15 +1890,27 @@ mod tests {
             "preview.md is read-only in the text editor",
             t0 + Duration::from_millis(450),
         );
-        assert_eq!(q.len(), 1);
+        assert_eq!(q.len(), 2);
         assert_eq!(
-            q.toasts()[0].message,
+            q.toasts()[1].message,
             "preview.md is read-only in the text editor"
         );
 
+        q.push_at(
+            Kind::Warn,
+            "asset.bin is read-only in the text editor",
+            t0 + Duration::from_millis(460),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(
+            q.toasts()[1].message,
+            "asset.bin is read-only in the text editor"
+        );
+
         q.push_at(Kind::Success, "Saved 2 files", t0 + Duration::from_millis(475));
-        assert_eq!(q.len(), 1);
-        assert_eq!(q.toasts()[0].message, "Saved 2 files");
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].message, "asset.bin is read-only in the text editor");
+        assert_eq!(q.toasts()[1].message, "Saved 2 files");
     }
 
     #[test]

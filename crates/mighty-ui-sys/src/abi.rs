@@ -7153,15 +7153,11 @@ pub(crate) fn copy_directory_failed_message(text: &str, e: &std::io::Error) -> S
 }
 
 fn active_file_target_name(ctx: &MuiContext) -> String {
-    ctx.tabs
-        .active_path()
-        .as_deref()
-        .map(basename)
-        .unwrap_or_else(|| "(scratch)".to_string())
+    ctx.active_file_target_name()
 }
 
 fn read_only_active_file_message(ctx: &MuiContext) -> String {
-    format!("{} is read-only in the text editor", active_file_target_name(ctx))
+    ctx.read_only_active_file_message()
 }
 
 fn copy_needs_file_message(ctx: &MuiContext, what: &str) -> String {
@@ -12991,7 +12987,10 @@ unsafe fn model_mut_for_navigation<'a>(handle: i64) -> Option<&'a mut TextModel>
 }
 
 fn reject_read_only_edit(ctx: &mut MuiContext) -> i32 {
-    ctx.push_toast(crate::toast::Kind::Warn, "Edit is unavailable in read-only previews");
+    ctx.push_toast(
+        crate::toast::Kind::Warn,
+        ctx.read_only_active_file_message(),
+    );
     0
 }
 

@@ -13404,7 +13404,7 @@ fn editor_mutating_commands_report_read_only_preview() {
         assert_eq!(edit(h), 0);
         let toast = ctx.toasts.toasts().last().unwrap();
         assert_eq!(toast.kind, crate::toast::Kind::Warn);
-        assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+        assert_eq!(toast.message, "asset.bin is read-only in the text editor");
         assert_eq!(ctx.tabs.active_model().as_text(), before);
         assert!(!ctx.tabs.is_dirty(active));
     }
@@ -13417,7 +13417,7 @@ fn editor_mutating_commands_report_read_only_preview() {
         assert_eq!(edit(h, 'x' as i32), 0);
         let toast = ctx.toasts.toasts().last().unwrap();
         assert_eq!(toast.kind, crate::toast::Kind::Warn);
-        assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+        assert_eq!(toast.message, "asset.bin is read-only in the text editor");
         assert_eq!(ctx.tabs.active_model().as_text(), before);
         assert!(!ctx.tabs.is_dirty(active));
     }
@@ -16041,7 +16041,7 @@ fn completion_accept_preflight_tracks_editability() {
     assert_eq!(crate::mui_ed_complete_accept(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -16670,7 +16670,7 @@ fn snippet_expand_preflight_tracks_read_only_without_toast() {
     assert_eq!(mui_snippet_try_expand(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -17262,7 +17262,7 @@ fn line_command_preflights_track_noop_and_read_only_states() {
     assert_eq!(crate::mui_ed_delete_current_line(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -17301,7 +17301,7 @@ fn outdent_preflight_tracks_indented_ranges_and_read_only() {
     assert_eq!(crate::mui_ed_outdent(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -17344,7 +17344,7 @@ fn cut_preflight_tracks_mutating_targets_and_read_only() {
     assert_eq!(crate::mui_ed_cut(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -17548,7 +17548,7 @@ fn paste_preflight_tracks_clipboard_editability_and_read_only() {
     assert_eq!(crate::mui_ed_paste(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Edit is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     std::env::remove_var("MUI_CLIPBOARD_TEXT");
     std::env::remove_var("MUI_CLIPBOARD_READ_FORCE_FAIL");
@@ -17635,14 +17635,14 @@ fn always_mutating_editor_preflights_track_read_only_editability() {
     assert_eq!(crate::mui_ed_toggle_comment(h), 0);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "Edit is unavailable in read-only previews"
+        "asset.bin is read-only in the text editor"
     );
 
     ctx.toasts.clear();
     assert_eq!(crate::mui_ed_duplicate(h), 0);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "Edit is unavailable in read-only previews"
+        "asset.bin is read-only in the text editor"
     );
 
     let _ = std::fs::remove_dir_all(root);

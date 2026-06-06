@@ -513,6 +513,19 @@ impl MuiContext {
         self.toasts.push(kind, message);
     }
 
+    pub(crate) fn active_file_target_name(&self) -> String {
+        self.tabs
+            .active_path()
+            .as_ref()
+            .and_then(|path| path.file_name())
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| "(scratch)".to_string())
+    }
+
+    pub(crate) fn read_only_active_file_message(&self) -> String {
+        format!("{} is read-only in the text editor", self.active_file_target_name())
+    }
+
     /// Any lower dock that consumes editor vertical space. Keep this centralized
     /// so editor row math, ghost text, and dock drawing agree.
     pub(crate) fn bottom_dock_open(&self) -> bool {

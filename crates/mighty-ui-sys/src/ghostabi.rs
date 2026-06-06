@@ -123,7 +123,7 @@ pub extern "C" fn mui_ghost_accept(handle: i64) -> i32 {
         return 0;
     };
     if c.tabs.active_read_only() {
-        c.push_toast(Kind::Warn, "Edit is unavailable in read-only previews");
+        c.push_toast(Kind::Warn, c.read_only_active_file_message());
         return 0;
     }
     let Some(text) = c.ghost.accept() else {
@@ -146,7 +146,7 @@ pub extern "C" fn mui_ghost_accept_word(handle: i64) -> i32 {
         return 0;
     };
     if c.tabs.active_read_only() {
-        c.push_toast(Kind::Warn, "Edit is unavailable in read-only previews");
+        c.push_toast(Kind::Warn, c.read_only_active_file_message());
         return 0;
     }
     let Some(word) = c.ghost.accept_word() else {
