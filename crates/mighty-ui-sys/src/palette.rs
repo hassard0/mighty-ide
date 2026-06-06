@@ -1416,6 +1416,8 @@ impl PaletteEngine {
                 | CMD_RUN_TESTS
                 | CMD_RUN_TEST_AT_CURSOR
                 | CMD_DEBUG_START_CONTINUE
+                | CMD_INLINE_AI_ASK
+                | CMD_FORCE_GHOST_COMPLETION
         )
             && active_read_only
         {
@@ -5811,6 +5813,16 @@ mod tests {
         assert_eq!(
             engine
                 .contextual_desc(&ctx, CMD_DEBUG_START_CONTINUE, "base")
+                .as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_INLINE_AI_ASK, "base").as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_FORCE_GHOST_COMPLETION, "base")
                 .as_ref(),
             "asset.bin is read-only in the text editor"
         );

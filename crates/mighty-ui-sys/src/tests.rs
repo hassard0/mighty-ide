@@ -3762,10 +3762,7 @@ fn agents_run_rejects_read_only_binary_preview_before_spawn() {
     assert!(!ctx.sidebar_visible);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(
-        toast.message,
-        "Agents Run is unavailable in read-only previews"
-    );
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }

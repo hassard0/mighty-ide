@@ -1178,7 +1178,7 @@ pub extern "C" fn mui_agents_run(handle: i64) -> i32 {
         crate::abi::trace("agents_run read_only_preview");
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Agents Run is unavailable in read-only previews",
+            ctx.read_only_active_file_message(),
         );
         return 0;
     }

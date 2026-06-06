@@ -200,7 +200,7 @@ pub extern "C" fn mui_ghost_force(handle: i64) -> i32 {
     };
     if c.tabs.active_read_only() {
         c.ghost.dismiss();
-        c.push_toast(Kind::Warn, "Inline AI is unavailable in read-only previews");
+        c.push_toast(Kind::Warn, c.read_only_active_file_message());
         return 0;
     }
     if !crate::settings::inline_ai() {
@@ -363,7 +363,7 @@ mod tests {
         assert_eq!(ctx.toasts.toasts().len(), 1);
         assert_eq!(
             ctx.toasts.toasts()[0].message,
-            "Inline AI is unavailable in read-only previews"
+            "asset.bin is read-only in the text editor"
         );
         assert_eq!(ctx.toasts.toasts()[0].kind, Kind::Warn);
 

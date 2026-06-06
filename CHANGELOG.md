@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Agents Run and Inline AI name read-only preview targets**: forced inline AI
+  completions and Agents Run now report the protected binary/read-only preview
+  by name, with matching Command Palette hints for inline AI edit commands.
 - **Test and Debug commands name read-only preview targets**: Run Tests, Run
   Test at Cursor, and Debug Start now report the protected binary/read-only
   preview by name, with matching Command Palette hints.
