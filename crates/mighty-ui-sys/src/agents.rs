@@ -656,6 +656,13 @@ fn top_level_uint_field(region: &[u8], field: &[u8]) -> Option<u64> {
     }
     if j == start {
         None
+    } else if j < region.len()
+        && !matches!(
+            region[j],
+            b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']'
+        )
+    {
+        None
     } else {
         Some(v)
     }
@@ -1085,6 +1092,40 @@ fn main() {
         assert_eq!(s.agents.len(), 1);
         assert_eq!(s.agents[0].agent_id, 7);
         assert_eq!(s.agents[0].agent_type, "Right");
+        assert_eq!(s.agents[0].mailbox_depth, 0);
+        assert_eq!(s.agents[0].mailbox_high_water, 0);
+    }
+
+    #[test]
+    fn parse_snapshot_rejects_fractional_worker_count_prefix() {
+        let s = parse_snapshot(r#"{"worker_count":4.5,"agents":[]}"#).expect("snapshot");
+        assert_eq!(s.worker_count, 0);
+    }
+
+    #[test]
+    fn parse_snapshot_skips_fractional_agent_id_prefix() {
+        let raw = r#"{"worker_count":1,"agents":[
+          {"agent_id":7.5,"agent_type":"Bad","mailbox_depth":9},
+          {"agent_id":8,"agent_type":"Good","mailbox_depth":1}
+        ]}"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!(s.agents[0].agent_id, 8);
+        assert_eq!(s.agents[0].agent_type, "Good");
+    }
+
+    #[test]
+    fn parse_snapshot_rejects_fractional_counter_prefixes() {
+        let raw = r#"{"worker_count":1,"agents":[
+          {
+            "agent_id":8,
+            "agent_type":"Counter",
+            "mailbox_depth":2.5,
+            "mailbox_high_water":7e1
+          }
+        ]}"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+        assert_eq!(s.agents.len(), 1);
         assert_eq!(s.agents[0].mailbox_depth, 0);
         assert_eq!(s.agents[0].mailbox_high_water, 0);
     }

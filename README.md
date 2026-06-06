@@ -565,6 +565,9 @@ source commit and report only the archive produced by that run.
 - Recent file and folder persistence warnings coalesce with other Open Recent
   feedback instead of stacking beside stale recent-row messages
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
+- Agents live-inspect worker counts, agent IDs, mailbox depths, and mailbox
+  high-water counters require complete integer tokens, so malformed runtime
+  snapshots cannot truncate numeric prefixes into plausible rows
 - Agents Run rejects binary/read-only previews before starting `mty run`, so
   preview tabs cannot launch agent programs accidentally
 - Mighty Agents stale header, topology-row, scroll, and node-open routes report
@@ -755,7 +758,7 @@ the package run that produced them.
 
 ## Dogfooding Mighty
 
-The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1159) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
+The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1160) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
 
 ## Status & known caveats
 
