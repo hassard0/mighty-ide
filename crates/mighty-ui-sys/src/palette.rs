@@ -1244,6 +1244,9 @@ impl PaletteEngine {
                 ),
             );
         }
+        if matches!(id, CMD_ZOOM_IN | CMD_ZOOM_OUT | CMD_ZOOM_RESET) {
+            return zoom_contextual_desc(id, base, crate::uiscale::user_zoom());
+        }
         if id == CMD_AUTOCOMPLETE && active_has_path && !active_read_only {
             return autocomplete_contextual_desc(base, ctx.language);
         }
@@ -2502,6 +2505,40 @@ fn pane_contextual_desc<'a>(id: u32, base: &'a str, pane_count: usize) -> Cow<'a
         CMD_FOCUS_NEXT_PANE | CMD_CLOSE_PANE if pane_count <= 1 => {
             Cow::Borrowed("Only one editor pane")
         }
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn zoom_percent(zoom: f32) -> i32 {
+    (crate::uiscale::clamp_zoom(zoom) * 100.0).round() as i32
+}
+
+fn zoom_contextual_desc<'a>(id: u32, base: &'a str, user_zoom: f32) -> Cow<'a, str> {
+    let current = crate::uiscale::clamp_zoom(user_zoom);
+    let current_pct = zoom_percent(current);
+    match id {
+        CMD_ZOOM_IN if current >= crate::uiscale::ZOOM_MAX => {
+            Cow::Owned(format!("Zoom is already at maximum ({current_pct}%)"))
+        }
+        CMD_ZOOM_OUT if current <= crate::uiscale::ZOOM_MIN => {
+            Cow::Owned(format!("Zoom is already at minimum ({current_pct}%)"))
+        }
+        CMD_ZOOM_RESET if (current - 1.0).abs() < 0.001 => Cow::Borrowed("Zoom is already 100%"),
+        CMD_ZOOM_IN => {
+            let next = zoom_percent(current + crate::uiscale::ZOOM_STEP);
+            Cow::Owned(format!(
+                "Increase IDE UI scale from {current_pct}% to {next}%"
+            ))
+        }
+        CMD_ZOOM_OUT => {
+            let next = zoom_percent(current - crate::uiscale::ZOOM_STEP);
+            Cow::Owned(format!(
+                "Decrease IDE UI scale from {current_pct}% to {next}%"
+            ))
+        }
+        CMD_ZOOM_RESET => Cow::Owned(format!(
+            "Reset IDE UI scale from {current_pct}% to 100%"
+        )),
         _ => Cow::Borrowed(base),
     }
 }
@@ -5947,6 +5984,42 @@ mod tests {
             "Duplicate selected line range"
         );
         assert_eq!(ctx.tabs.active_model().as_text(), "plain\n  indented");
+    }
+
+    #[test]
+    fn zoom_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_IN, "base", 1.0).as_ref(),
+            "Increase IDE UI scale from 100% to 110%"
+        );
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_OUT, "base", 1.0).as_ref(),
+            "Decrease IDE UI scale from 100% to 90%"
+        );
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_RESET, "base", 1.0),
+            Cow::Borrowed("Zoom is already 100%")
+        );
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_RESET, "base", 1.4).as_ref(),
+            "Reset IDE UI scale from 140% to 100%"
+        );
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_IN, "base", crate::uiscale::ZOOM_MAX).as_ref(),
+            "Zoom is already at maximum (300%)"
+        );
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_OUT, "base", crate::uiscale::ZOOM_MIN).as_ref(),
+            "Zoom is already at minimum (50%)"
+        );
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_IN, "base", 9.0).as_ref(),
+            "Zoom is already at maximum (300%)"
+        );
+        assert_eq!(
+            zoom_contextual_desc(CMD_ZOOM_OUT, "base", 0.0).as_ref(),
+            "Zoom is already at minimum (50%)"
+        );
     }
 
     #[test]

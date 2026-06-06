@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Zoom palette names current and next scale**: Command Palette zoom rows now
+  report the current percent, next zoom step, and min/max/100% reset no-op
+  states before dispatch.
 - **Navigation palette mirrors cursor edge states**: Command Palette now reports
   document, line, and word-boundary no-ops for cursor movement, plus empty or
   already-selected targets for Select All and Select Line, before dispatch.
