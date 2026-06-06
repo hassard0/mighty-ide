@@ -9,6 +9,7 @@ DIST="dist/$PKG"
 ZIP="dist/mighty-ide-$VERSION-linux-x64.tar.gz"
 MTY="${MIGHTY_MTY:-mty}"
 CLANG="${CLANG:-clang}"
+MIN_MTY_VERSION="0.47.0"
 ORIGINAL_TOML="$ROOT/mighty.toml"
 BACKUP_TOML="$ROOT/mighty.toml.package-backup"
 
@@ -22,6 +23,24 @@ if ! command -v file >/dev/null 2>&1; then
 fi
 
 cd "$ROOT"
+check_mty_version() {
+  local text version IFS
+  text="$("$MTY" --version 2>/dev/null || true)"
+  if [[ ! "$text" =~ ([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+    echo "ERROR: unable to parse Mighty compiler version from: $text" >&2
+    exit 1
+  fi
+  version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+  IFS=. read -r -a got <<<"$version"
+  IFS=. read -r -a need <<<"$MIN_MTY_VERSION"
+  for i in 0 1 2; do
+    if (( got[i] > need[i] )); then return 0; fi
+    if (( got[i] < need[i] )); then
+      echo "ERROR: mty compiler $version is too old for Mighty IDE; require $MIN_MTY_VERSION or newer. Set MIGHTY_MTY to a current compiler." >&2
+      exit 1
+    fi
+  done
+}
 if [[ "$MTY" == */* || "$MTY" == *\\* ]]; then
   if [[ ! -x "$MTY" && ! -f "$MTY" ]]; then
     echo "ERROR: MIGHTY_MTY points to a missing compiler: $MTY" >&2
@@ -31,6 +50,7 @@ elif ! command -v "$MTY" >/dev/null 2>&1; then
   echo "ERROR: mty compiler not found. Set MIGHTY_MTY or put mty on PATH." >&2
   exit 1
 fi
+check_mty_version
 if [[ -d .git ]] && command -v git >/dev/null 2>&1; then
   if [[ -n "$(git status --porcelain)" ]]; then
     echo "ERROR: package-linux.sh requires a clean git worktree before building release artifacts." >&2

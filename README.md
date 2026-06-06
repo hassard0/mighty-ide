@@ -333,7 +333,7 @@ Two layers, one clean boundary:
 ## Build & Run
 
 Prerequisites:
-- The **`mty` compiler** from [hassard0/Mighty](https://github.com/hassard0/Mighty) (build with `cargo build -p mty-cli --bin mty`)
+- The **`mty` compiler** from [hassard0/Mighty](https://github.com/hassard0/Mighty) v0.47.0 or newer (build with `cargo build -p mty-cli --bin mty`)
 - A **Rust** toolchain
 - **clang** (the linker `mty build` drives)
 
@@ -343,6 +343,7 @@ Prerequisites:
 ```
 
 `build-ide.sh` sets `MTY_LINKER=clang`, builds `mighty-ui-sys` as a DLL, stages the import lib + the bumpalo arena runtime, copies the DLL beside the exe, and runs `mty build`.
+Build and package scripts run `mty --version` first and reject stale compilers before they can emit noisy parser errors against `src/main.mty`.
 
 - `MTY_LINKER` — point `mty build` at clang (the build script sets it).
 - `ANTHROPIC_API_KEY` — enables the AI copilot panel.

@@ -4,7 +4,7 @@
 
 | Tool | What it does | How it is resolved |
 |------|--------------|--------------------|
-| **`mty`** (Mighty compiler) | builds `src/main.mty` → `target/main.exe` | Set `MIGHTY_MTY` or put `mty` on PATH |
+| **`mty`** (Mighty compiler) | builds `src/main.mty` -> `target/main.exe`; requires v0.47.0 or newer | Set `MIGHTY_MTY` or put `mty` on PATH |
 | **Rust** toolchain | builds the `mighty-ui-sys` shim cdylib + the arena runtime | `cargo` on PATH |
 | **clang** | the linker `mty build` drives (GNU `-o` arg syntax) | `C:\Program Files\LLVM\bin\clang.exe` |
 | **llvm-ar** | archives the arena runtime staticlib | `C:\Program Files\LLVM\bin\llvm-ar.exe` |
@@ -19,6 +19,8 @@ cargo build -p mty-cli --bin mty
 
 Build scripts resolve the Mighty compiler from `MIGHTY_MTY` first and then
 from `mty` on PATH. The PowerShell entry points also accept `-Mty`.
+All build and package scripts preflight `mty --version` and fail before
+compilation if the selected compiler is older than v0.47.0.
 
 ## One-shot build
 

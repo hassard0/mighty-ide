@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Release packaging
+- **Stale Mighty compilers fail fast**: build and package scripts now preflight
+  `mty --version` and require v0.47.0 or newer, so release packaging reports a
+  direct toolchain error instead of cascading parser errors from `src/main.mty`.
 - **Package manifests record the source commit**: Windows, macOS, and Linux
   package scripts now include the exact committed source hash in
   `PACKAGE-MANIFEST.txt`, tying each clean-binary archive back to the README and

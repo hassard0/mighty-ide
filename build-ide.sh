@@ -15,8 +15,28 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLANG="${CLANG:-C:\\Program Files\\LLVM\\bin\\clang.exe}"
 MTY="${MIGHTY_MTY:-mty}"
+MIN_MTY_VERSION="0.47.0"
 
 cd "$ROOT"
+
+check_mty_version() {
+  local text version IFS
+  text="$("$MTY" --version 2>/dev/null || true)"
+  if [[ ! "$text" =~ ([0-9]+)\.([0-9]+)\.([0-9]+) ]]; then
+    echo "ERROR: unable to parse Mighty compiler version from: $text" >&2
+    exit 1
+  fi
+  version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+  IFS=. read -r -a got <<<"$version"
+  IFS=. read -r -a need <<<"$MIN_MTY_VERSION"
+  for i in 0 1 2; do
+    if (( got[i] > need[i] )); then return 0; fi
+    if (( got[i] < need[i] )); then
+      echo "ERROR: mty compiler $version is too old for Mighty IDE; require $MIN_MTY_VERSION or newer. Set MIGHTY_MTY to a current compiler." >&2
+      exit 1
+    fi
+  done
+}
 
 if [[ "$MTY" == */* || "$MTY" == *\\* ]]; then
   if [[ ! -x "$MTY" && ! -f "$MTY" ]]; then
@@ -27,6 +47,7 @@ elif ! command -v "$MTY" >/dev/null 2>&1; then
   echo "ERROR: mty compiler not found. Set MIGHTY_MTY or put mty on PATH." >&2
   exit 1
 fi
+check_mty_version
 
 echo "[1/4] cargo build -p mighty-ui-sys (cdylib) + mty-rt-abi (real arena runtime)"
 cargo build -p mighty-ui-sys -p mty-rt-abi

@@ -12,6 +12,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
+$MinMtyVersion = [version]"0.47.0"
 
 function Resolve-MtyCompiler {
   param([string]$Requested)
@@ -39,6 +40,17 @@ function Resolve-MtyCompiler {
 $Mty = Resolve-MtyCompiler $Mty
 if (-not (Test-Path -LiteralPath $Mty -PathType Leaf)) {
   throw "mty compiler not found: $Mty"
+}
+$mtyVersionText = (& $Mty --version) -join " "
+if ($LASTEXITCODE -ne 0) {
+  throw "failed to run '$Mty --version'; cannot verify Mighty compiler version"
+}
+if ($mtyVersionText -notmatch '(\d+)\.(\d+)\.(\d+)') {
+  throw "unable to parse Mighty compiler version from '$mtyVersionText'"
+}
+$mtyVersion = [version]$Matches[0]
+if ($mtyVersion -lt $MinMtyVersion) {
+  throw "mty compiler $mtyVersion is too old for Mighty IDE; require $MinMtyVersion or newer. Set -Mty or MIGHTY_MTY to a current compiler."
 }
 if (-not (Test-Path -LiteralPath $Clang -PathType Leaf)) {
   throw "clang linker not found: $Clang"

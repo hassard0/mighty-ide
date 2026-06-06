@@ -163,14 +163,17 @@ On Linux:
 ./package-linux.sh
 ```
 
-Set `MIGHTY_MTY=/path/to/mty` if the Mighty compiler is not on `PATH`. Set
-`CLANG=/path/to/clang` if the default `clang` executable is not the intended
-linker.
+Set `MIGHTY_MTY=/path/to/mty` if the Mighty compiler is not on `PATH`. The
+selected compiler must report v0.47.0 or newer from `mty --version`; the build
+and package scripts reject older compilers before they can fail later with
+parser noise from `src/main.mty`. Set `CLANG=/path/to/clang` if the default
+`clang` executable is not the intended linker.
 
 Both scripts:
 
 - refuse to run on the wrong host OS
 - refuse to run from a dirty git worktree
+- reject stale Mighty compilers before release build work starts
 - require the `file` utility for native binary validation
 - remove the previous platform package directory before assembly
 - remove the previous same-version platform archive before building
