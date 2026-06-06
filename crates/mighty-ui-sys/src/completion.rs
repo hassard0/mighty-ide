@@ -39,6 +39,8 @@ pub struct Candidate {
     pub documentation_text: Option<String>,
     /// Optional provider kind label shown in the right metadata column.
     pub kind_label: Option<&'static str>,
+    /// `true` when the provider asked this item to be initially selected.
+    pub preselect: bool,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
     /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
@@ -59,6 +61,8 @@ pub struct SemanticCandidate {
     pub documentation_text: Option<String>,
     /// Optional LSP `kind` mapped to a stable display label.
     pub kind_label: Option<&'static str>,
+    /// LSP `preselect` preference for the initial selected row.
+    pub preselect: bool,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
@@ -228,6 +232,7 @@ impl CompletionEngine {
                 detail_text: None,
                 documentation_text: None,
                 kind_label: None,
+                preselect: false,
                 filter_text: None,
                 sort_text: None,
             })
@@ -274,6 +279,7 @@ impl CompletionEngine {
                     detail_text: item.detail_text.clone(),
                     documentation_text: item.documentation_text.clone(),
                     kind_label: item.kind_label,
+                    preselect: item.preselect,
                     semantic: true,
                     snippet: false,
                 });
@@ -290,6 +296,7 @@ impl CompletionEngine {
                     detail_text: None,
                     documentation_text: None,
                     kind_label: None,
+                    preselect: false,
                     semantic: false,
                     snippet: false,
                 });
@@ -297,6 +304,9 @@ impl CompletionEngine {
         }
 
         self.active = !self.candidates.is_empty();
+        if let Some(idx) = self.candidates.iter().position(|candidate| candidate.preselect) {
+            self.sel = idx;
+        }
         self.candidates.len()
     }
 
@@ -317,6 +327,7 @@ impl CompletionEngine {
                     detail_text: None,
                     documentation_text: None,
                     kind_label: Some("snippet"),
+                    preselect: false,
                     semantic: false,
                     snippet: true,
                 });
@@ -327,6 +338,7 @@ impl CompletionEngine {
         }
         front.append(&mut self.candidates);
         self.candidates = front;
+        self.sel = 0;
         self.active = true;
     }
 
@@ -967,6 +979,7 @@ pub mod lsp {
                         detail_text: completion_item_detail_text(item),
                         documentation_text: completion_item_documentation_text(item),
                         kind_label: completion_item_kind_label(item),
+                        preselect: completion_item_preselect(item),
                         filter_text: completion_item_filter_text(item),
                         sort_text: completion_item_sort_text(item),
                     });
@@ -1002,6 +1015,10 @@ pub mod lsp {
 
     fn completion_item_sort_text(item: &[u8]) -> Option<String> {
         top_level_string_value(item, b"sortText").filter(|sort| !sort.is_empty())
+    }
+
+    fn completion_item_preselect(item: &[u8]) -> bool {
+        top_level_bool_value(item, b"preselect").unwrap_or(false)
     }
 
     fn completion_item_display_text(item: &[u8], insert_text: &str) -> Option<String> {
@@ -1081,6 +1098,16 @@ pub mod lsp {
         let region = value_region(obj, at)?;
         let text = std::str::from_utf8(region).ok()?.trim();
         text.parse::<i64>().ok()
+    }
+
+    fn top_level_bool_value(obj: &[u8], field: &[u8]) -> Option<bool> {
+        let at = top_level_field_value_start(obj, field)?;
+        let region = value_region(obj, at)?;
+        match std::str::from_utf8(region).ok()?.trim() {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        }
     }
 
     fn flatten_lsp_snippet_insert_text(text: &str) -> String {
@@ -1697,6 +1724,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             filter_text: Some("np".to_string()),
             sort_text: None,
         }];
@@ -1718,6 +1746,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             filter_text: Some("println".to_string()),
             sort_text: None,
         }];
@@ -1740,6 +1769,7 @@ mod tests {
                 detail_text: None,
                 documentation_text: None,
                 kind_label: None,
+                preselect: false,
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -1749,6 +1779,7 @@ mod tests {
                 detail_text: None,
                 documentation_text: None,
                 kind_label: None,
+                preselect: false,
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1758,6 +1789,7 @@ mod tests {
                 detail_text: None,
                 documentation_text: None,
                 kind_label: None,
+                preselect: false,
                 filter_text: None,
                 sort_text: None,
             },
@@ -1774,6 +1806,64 @@ mod tests {
     }
 
     #[test]
+    fn request_semantic_uses_preselected_candidate_after_sorting() {
+        let mut e = CompletionEngine::new();
+        let src = b"pr";
+        let semantic = vec![
+            SemanticCandidate {
+                text: "printf".to_string(),
+                display_text: None,
+                detail_text: None,
+                documentation_text: None,
+                kind_label: None,
+                preselect: false,
+                filter_text: None,
+                sort_text: Some("010".to_string()),
+            },
+            SemanticCandidate {
+                text: "printer".to_string(),
+                display_text: None,
+                detail_text: None,
+                documentation_text: None,
+                kind_label: None,
+                preselect: true,
+                filter_text: None,
+                sort_text: Some("020".to_string()),
+            },
+        ];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 2);
+        assert_eq!(e.selection(), 1);
+        assert_eq!(e.accepted_text(), "printer");
+    }
+
+    #[test]
+    fn injected_snippets_override_semantic_preselect() {
+        let mut e = CompletionEngine::new();
+        let src = b"pr";
+        let semantic = vec![SemanticCandidate {
+            text: "printer".to_string(),
+            display_text: None,
+            detail_text: None,
+            documentation_text: None,
+            kind_label: None,
+            preselect: true,
+            filter_text: None,
+            sort_text: None,
+        }];
+
+        e.request_semantic(src, src.len(), &semantic);
+        assert_eq!(e.accepted_text(), "printer");
+        e.inject_snippets(&["print-snippet".to_string()]);
+
+        assert_eq!(e.selection(), 0);
+        assert_eq!(e.accepted_text(), "print-snippet");
+        assert!(e.accepted_is_snippet());
+    }
+
+    #[test]
     fn semantic_completion_footer_prefers_provider_detail() {
         let cand = Candidate {
             text: "println($1)".to_string(),
@@ -1781,6 +1871,7 @@ mod tests {
             detail_text: Some("macro println!(...)".to_string()),
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             semantic: true,
             snippet: false,
         };
@@ -1797,6 +1888,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             semantic: true,
             snippet: false,
         };
@@ -1813,6 +1905,7 @@ mod tests {
             detail_text: None,
             documentation_text: Some("Collects an iterator into a collection.".to_string()),
             kind_label: Some("method"),
+            preselect: false,
             semantic: true,
             snippet: false,
         };
@@ -1831,6 +1924,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: Some("variable"),
+            preselect: false,
             semantic: true,
             snippet: false,
         };
@@ -1850,6 +1944,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             filter_text: Some("let".to_string()),
             sort_text: None,
         }];
@@ -1961,6 +2056,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             semantic: true,
             snippet: false,
         };
@@ -2080,6 +2176,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             semantic: false,
             snippet: false,
         }];
@@ -2089,6 +2186,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             semantic: false,
             snippet: false,
         }];
@@ -2121,6 +2219,7 @@ mod tests {
             detail_text: None,
             documentation_text: None,
             kind_label: None,
+            preselect: false,
             semantic: true,
             snippet: false,
         }];
@@ -2298,6 +2397,17 @@ mod tests {
             Some("**rich** docs")
         );
         assert_eq!(candidates[2].documentation_text, None);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_preselect() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"first","preselect":false},{"label":"chosen","preselect":true},{"label":"plain"}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 3);
+        assert!(!candidates[0].preselect);
+        assert!(candidates[1].preselect);
+        assert!(!candidates[2].preselect);
     }
 
     #[test]
