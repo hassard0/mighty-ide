@@ -119,6 +119,8 @@ source state and requires a new package run.
 - Command Palette Search and Outline lifecycle rows mirror Search and Outline
   no-op states, including empty search queries, stale or missing replacement
   results, empty result/symbol lists, and closed panels
+- Command Palette Search toggle rows say which search field will receive focus
+  when switching between query and replace
 - Command Palette Debug lifecycle rows mirror Run and Debug no-op states,
   including unavailable pause, step, restart, and clear-breakpoint actions,
   idle stops, empty sessions, and closed panel

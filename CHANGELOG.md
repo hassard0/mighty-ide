@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette Search focus toggle is explicit**: `Search: Toggle Replace
+  Field` now says whether it will focus the query field or replace field,
+  including when it first opens the Search panel.
 - **Command Palette folding commands explain no-op states**: Fold Toggle, Fold
   All, and Unfold All now mirror runtime feedback for missing foldable blocks,
   already-folded documents, and documents with nothing folded.
