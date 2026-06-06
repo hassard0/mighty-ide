@@ -630,7 +630,10 @@ impl QuickOpen {
             return -1;
         }
         let n = Mode::strip(Mode::GotoLine, &self.query).trim();
-        n.parse::<i32>().ok().filter(|v| *v >= 1).unwrap_or(-1)
+        crate::parse_unsigned_decimal_u32_token(n)
+            .filter(|&v| v >= 1 && v <= i32::MAX as u32)
+            .map(|v| v as i32)
+            .unwrap_or(-1)
     }
 
     /// Open the finder: clear the query, build file rows (MRU, then workspace files).
@@ -1482,6 +1485,24 @@ mod tests {
         qo.cancel();
         qo.open();
         for ch in ":abc".chars() {
+            qo.push_char(ch);
+        }
+        assert_eq!(qo.goto_line(), -1);
+    }
+
+    #[test]
+    fn goto_line_rejects_signed_and_overflowing_tokens() {
+        let mut qo = QuickOpen::new();
+        qo.open();
+        for ch in ":+42".chars() {
+            qo.push_char(ch);
+        }
+        assert_eq!(qo.mode(), Mode::GotoLine);
+        assert_eq!(qo.goto_line(), -1);
+
+        qo.cancel();
+        qo.open();
+        for ch in ":2147483648".chars() {
             qo.push_char(ch);
         }
         assert_eq!(qo.goto_line(), -1);

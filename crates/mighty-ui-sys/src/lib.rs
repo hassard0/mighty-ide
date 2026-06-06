@@ -111,6 +111,13 @@ pub(crate) fn parse_unsigned_decimal_u32_token(text: &str) -> Option<u32> {
     text.parse::<u32>().ok()
 }
 
+pub(crate) fn parse_unsigned_decimal_usize_token(text: &str) -> Option<usize> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<usize>().ok()
+}
+
 pub(crate) fn parse_signed_decimal_i32_token(text: &str) -> Option<i32> {
     let bytes = text.as_bytes();
     if bytes.is_empty() {
@@ -149,15 +156,18 @@ pub(crate) fn parse_decimal_f32_token(text: &str) -> Option<f32> {
 mod env_numeric_token_tests {
     use super::{
         parse_decimal_f32_token, parse_signed_decimal_i32_token,
-        parse_unsigned_decimal_u32_token,
+        parse_unsigned_decimal_u32_token, parse_unsigned_decimal_usize_token,
     };
 
     #[test]
     fn unsigned_env_tokens_reject_signs_and_partial_numbers() {
         assert_eq!(parse_unsigned_decimal_u32_token("128"), Some(128));
+        assert_eq!(parse_unsigned_decimal_usize_token("128"), Some(128));
         assert_eq!(parse_unsigned_decimal_u32_token("+128"), None);
+        assert_eq!(parse_unsigned_decimal_usize_token("+128"), None);
         assert_eq!(parse_unsigned_decimal_u32_token("-128"), None);
         assert_eq!(parse_unsigned_decimal_u32_token("128px"), None);
+        assert_eq!(parse_unsigned_decimal_usize_token("128px"), None);
         assert_eq!(parse_unsigned_decimal_u32_token("1.5"), None);
     }
 

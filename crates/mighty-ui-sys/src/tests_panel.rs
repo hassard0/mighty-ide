@@ -585,11 +585,10 @@ fn parse_summary(rest: &str) -> Option<(usize, usize, usize)> {
         let (Some(num), Some(word)) = (it.next(), it.next()) else {
             continue;
         };
-        let Ok(n) = num.parse::<usize>() else { continue };
         match word {
-            "passed" => passed = Some(n),
-            "failed" => failed = Some(n),
-            "total" => total = Some(n),
+            "passed" => passed = Some(crate::parse_unsigned_decimal_usize_token(num)?),
+            "failed" => failed = Some(crate::parse_unsigned_decimal_usize_token(num)?),
+            "total" => total = Some(crate::parse_unsigned_decimal_usize_token(num)?),
             _ => {}
         }
     }
@@ -678,6 +677,20 @@ mod tests {
         let mut t = TestPanel::new();
         t.feed("test result: 4 passed; 2 failed\n");
         assert_eq!(t.total(), 6);
+    }
+
+    #[test]
+    fn summary_rejects_signed_numeric_tokens() {
+        let mut t = TestPanel::new();
+        t.feed("test result: +2 passed; 1 failed; 3 total\n");
+        assert_eq!(t.passed(), 0);
+        assert_eq!(t.failed(), 0);
+        assert_eq!(t.total(), 0);
+
+        t.feed("test result: 2 passed; +1 failed; 3 total\n");
+        assert_eq!(t.passed(), 0);
+        assert_eq!(t.failed(), 0);
+        assert_eq!(t.total(), 0);
     }
 
     #[test]
