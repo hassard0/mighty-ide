@@ -10,8 +10,16 @@
 //! calls ([`discover_root`], [`status`], [`stage`], [`unstage`], [`commit`],
 //! [`diff`]) are thin wrappers around `std::process::Command`.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
+
+pub(crate) const MAX_GIT_OUTPUT_BYTES: usize = 2 * 1024 * 1024;
 
 /// A single changed path in the working tree / index.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -324,12 +332,78 @@ pub struct GitResult {
 /// wrapper: returns `(success, trimmed combined output)`. Used by push/pull/
 /// fetch/branch ops so the exact git message can be toasted.
 fn run_git(root: &Path, args: &[&str]) -> GitResult {
-    let out = Command::new("git").arg("-C").arg(root).args(args).output();
-    match out {
-        Ok(o) => {
+    let child = Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+    match child {
+        Ok(mut child) => {
+            let Some(stdout) = child.stdout.take() else {
+                let _ = child.kill();
+                let _ = child.wait();
+                return GitResult {
+                    ok: false,
+                    message: "git stdout pipe unavailable".to_string(),
+                };
+            };
+            let Some(stderr) = child.stderr.take() else {
+                let _ = child.kill();
+                let _ = child.wait();
+                return GitResult {
+                    ok: false,
+                    message: "git stderr pipe unavailable".to_string(),
+                };
+            };
+            let exceeded = Arc::new(AtomicBool::new(false));
+            let stdout_exceeded = Arc::clone(&exceeded);
+            let stderr_exceeded = Arc::clone(&exceeded);
+            let stdout_reader = std::thread::spawn(move || {
+                read_git_stream_capped(stdout, MAX_GIT_OUTPUT_BYTES, stdout_exceeded)
+            });
+            let stderr_reader = std::thread::spawn(move || {
+                read_git_stream_capped(stderr, MAX_GIT_OUTPUT_BYTES, stderr_exceeded)
+            });
+
+            let status = loop {
+                if exceeded.load(Ordering::Relaxed) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let _ = stdout_reader.join();
+                    let _ = stderr_reader.join();
+                    return GitResult {
+                        ok: false,
+                        message: "git output too large".to_string(),
+                    };
+                }
+                match child.try_wait() {
+                    Ok(Some(status)) => break status,
+                    Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+                    Err(e) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        let _ = stdout_reader.join();
+                        let _ = stderr_reader.join();
+                        return GitResult {
+                            ok: false,
+                            message: format!("git failed: {e}"),
+                        };
+                    }
+                }
+            };
+            let stdout = stdout_reader.join().unwrap_or_default();
+            let stderr = stderr_reader.join().unwrap_or_default();
+            if exceeded.load(Ordering::Relaxed) {
+                return GitResult {
+                    ok: false,
+                    message: "git output too large".to_string(),
+                };
+            }
             let mut combined = String::new();
-            combined.push_str(&String::from_utf8_lossy(&o.stdout));
-            let err = String::from_utf8_lossy(&o.stderr);
+            combined.push_str(&String::from_utf8_lossy(&stdout));
+            let err = String::from_utf8_lossy(&stderr);
             if !err.trim().is_empty() {
                 if !combined.trim().is_empty() {
                     combined.push('\n');
@@ -337,7 +411,7 @@ fn run_git(root: &Path, args: &[&str]) -> GitResult {
                 combined.push_str(&err);
             }
             GitResult {
-                ok: o.status.success(),
+                ok: status.success(),
                 message: summarize(combined.trim()),
             }
         }
@@ -346,6 +420,37 @@ fn run_git(root: &Path, args: &[&str]) -> GitResult {
             message: format!("git failed to start: {e}"),
         },
     }
+}
+
+fn append_git_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if buf.len().saturating_add(chunk.len()) > cap {
+        buf.clear();
+        return false;
+    }
+    buf.extend_from_slice(chunk);
+    true
+}
+
+fn read_git_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_git_output_with_cap(&mut buf, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    buf
 }
 
 /// Collapse multi-line git output into a single short line for a toast: take the
@@ -876,6 +981,35 @@ impl BranchPicker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn git_output_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"ab");
+
+        assert!(append_git_output_with_cap(&mut buf, b"cd", 4));
+        assert_eq!(buf, b"abcd");
+    }
+
+    #[test]
+    fn git_output_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"git:");
+
+        assert!(!append_git_output_with_cap(&mut buf, b"overflow", 8));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn git_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_git_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
+    }
 
     #[test]
     fn discover_root_skips_plain_folders_without_git_marker() {

@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1195).
+(lessons L1-L1196).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Source Control git output is byte-capped**: push, pull, fetch, and branch
+  actions now stream git stdout/stderr through 2 MiB per-stream caps and report
+  `git output too large` instead of allocating unbounded process output.
 - **Clipboard reads are byte-capped**: editor paste, terminal paste, and snippet
   clipboard-variable expansion now reject clipboard text above 4 MiB before it
   can be inserted into editor or terminal surfaces.
