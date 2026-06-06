@@ -1343,6 +1343,31 @@ impl PaletteEngine {
         }
         if matches!(
             id,
+            CMD_MOVE_LINE_UP | CMD_MOVE_LINE_DOWN | CMD_DELETE_LINE | CMD_JOIN_LINE
+        ) && !active_read_only
+        {
+            let can_move_up = if id == CMD_MOVE_LINE_UP {
+                can_move_active_line_range(model, -1)
+            } else {
+                true
+            };
+            let can_move_down = if id == CMD_MOVE_LINE_DOWN {
+                can_move_active_line_range(model, 1)
+            } else {
+                true
+            };
+            return line_edit_contextual_desc(
+                id,
+                base,
+                model.cursor_line(),
+                model.line_count(),
+                model.line(0).is_empty(),
+                can_move_up,
+                can_move_down,
+            );
+        }
+        if matches!(
+            id,
             CMD_SELECT_WORD
                 | CMD_ADD_CARET_NEXT_OCCURRENCE
                 | CMD_ADD_CARET_ABOVE
@@ -2446,6 +2471,47 @@ fn word_delete_contextual_desc<'a>(
             Cow::Borrowed("No previous word to delete")
         }
         CMD_DELETE_NEXT_WORD if !can_delete_next_word => Cow::Borrowed("No next word to delete"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn can_move_active_line_range(model: &crate::editor::TextModel, delta: isize) -> bool {
+    let line_count = model.line_count();
+    if line_count == 0 {
+        return false;
+    }
+    let (l0, l1) = model
+        .selection_range()
+        .map(|((start_line, _), (end_line, _))| (start_line, end_line))
+        .unwrap_or_else(|| {
+            let line = model.cursor_line();
+            (line, line)
+        });
+    let l0 = l0.min(line_count - 1);
+    let l1 = l1.min(line_count - 1);
+    if delta < 0 {
+        l0 > 0
+    } else {
+        l1 + 1 < line_count
+    }
+}
+
+fn line_edit_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    cursor_line: usize,
+    line_count: usize,
+    first_line_empty: bool,
+    can_move_up: bool,
+    can_move_down: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_MOVE_LINE_UP if !can_move_up => Cow::Borrowed("Line is already at the top"),
+        CMD_MOVE_LINE_DOWN if !can_move_down => Cow::Borrowed("Line is already at the bottom"),
+        CMD_DELETE_LINE if line_count <= 1 && first_line_empty => {
+            Cow::Borrowed("Current line is already empty")
+        }
+        CMD_JOIN_LINE if cursor_line + 1 >= line_count => Cow::Borrowed("No next line to join"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -5517,6 +5583,109 @@ mod tests {
             "Delete the active selection"
         );
         assert!(ctx.tabs.active_model().has_selection());
+    }
+
+    #[test]
+    fn line_edit_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            line_edit_contextual_desc(CMD_MOVE_LINE_UP, "base", 0, 3, false, false, true),
+            Cow::Borrowed("Line is already at the top")
+        );
+        assert_eq!(
+            line_edit_contextual_desc(CMD_MOVE_LINE_DOWN, "base", 2, 3, false, true, false),
+            Cow::Borrowed("Line is already at the bottom")
+        );
+        assert_eq!(
+            line_edit_contextual_desc(CMD_DELETE_LINE, "base", 0, 1, true, true, true),
+            Cow::Borrowed("Current line is already empty")
+        );
+        assert_eq!(
+            line_edit_contextual_desc(CMD_JOIN_LINE, "base", 1, 2, false, true, true),
+            Cow::Borrowed("No next line to join")
+        );
+        assert_eq!(
+            line_edit_contextual_desc(CMD_MOVE_LINE_UP, "base", 1, 3, false, true, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            line_edit_contextual_desc(CMD_MOVE_LINE_DOWN, "base", 1, 3, false, true, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            line_edit_contextual_desc(CMD_DELETE_LINE, "base", 0, 1, false, true, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            line_edit_contextual_desc(CMD_JOIN_LINE, "base", 0, 2, false, true, true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn line_edit_palette_descriptions_probe_active_editor_state() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("one\ntwo\nthree");
+        ctx.tabs.active_model_mut().move_to(0, 0);
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_MOVE_LINE_UP, "base").as_ref(),
+            "Line is already at the top"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_MOVE_LINE_DOWN, "base")
+                .as_ref(),
+            "base"
+        );
+
+        ctx.tabs.active_model_mut().move_to(2, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_MOVE_LINE_DOWN, "base")
+                .as_ref(),
+            "Line is already at the bottom"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_MOVE_LINE_UP, "base").as_ref(),
+            "base"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_JOIN_LINE, "base").as_ref(),
+            "No next line to join"
+        );
+
+        ctx.tabs.active_model_mut().set_selection((0, 0), (2, 5));
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_MOVE_LINE_UP, "base").as_ref(),
+            "Line is already at the top"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_MOVE_LINE_DOWN, "base")
+                .as_ref(),
+            "Line is already at the bottom"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "one\ntwo\nthree");
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("");
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_DELETE_LINE, "base").as_ref(),
+            "Current line is already empty"
+        );
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("one");
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_DELETE_LINE, "base").as_ref(),
+            "base"
+        );
     }
 
     #[test]

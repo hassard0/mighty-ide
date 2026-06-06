@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Line-edit palette mirrors boundary preflights**: Command Palette now reports
+  top/bottom move-line no-ops, empty-line delete no-ops, and missing next-line
+  join no-ops before dispatch, matching the editor undo preflight rules.
 - **Word-delete palette mirrors edit preflights**: Command Palette now reports
   active-selection deletion and start/end word-delete no-ops before dispatch,
   using the same clone-based mutation checks as the editor undo preflight.
