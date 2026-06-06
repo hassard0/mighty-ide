@@ -11536,6 +11536,10 @@ fn top_level_json_uint_field(bytes: &[u8], field: &str) -> Option<u32> {
     }
     if i == start {
         None
+    } else if i < bytes.len()
+        && !matches!(bytes[i], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        None
     } else {
         Some(value)
     }
@@ -11658,6 +11662,18 @@ mod rename_prepare_tests {
     #[test]
     fn prepare_rename_start_requires_response_envelope() {
         let raw = r#"{"jsonrpc":"2.0","id":3,"method":"workspace/applyEdit","result":{"start":{"line":9,"character":1},"end":{"line":9,"character":4}}}"#;
+        assert_eq!(parse_prepare_rename_start(raw), None);
+    }
+
+    #[test]
+    fn prepare_rename_start_rejects_fractional_line_prefix() {
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":4.5,"character":8},"end":{"line":4,"character":12}},"id":3}"#;
+        assert_eq!(parse_prepare_rename_start(raw), None);
+    }
+
+    #[test]
+    fn prepare_rename_start_rejects_fractional_character_prefix() {
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8.5},"end":{"line":4,"character":12}},"id":3}"#;
         assert_eq!(parse_prepare_rename_start(raw), None);
     }
 

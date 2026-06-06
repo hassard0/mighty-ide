@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1162).
+(lessons L1-L1163).
 
 ## v0.3.0
 
@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Prepare-rename coordinates reject numeric prefixes**: `prepareRename`
+  result `start.line` and `start.character` now require complete integer
+  tokens before positioning the symbol rename prompt, so malformed fractional
+  ranges fall back to the cursor-derived symbol instead of truncating.
 - **Outline document-symbol numbers reject numeric prefixes**: LSP
   document-symbol error codes, SymbolKind values, and range start lines now
   require complete integer tokens, so malformed outline payloads cannot trigger

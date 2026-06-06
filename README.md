@@ -378,9 +378,9 @@ source commit and report only the archive produced by that run.
   token-boundary checks, so malformed `id:2.5` responses cannot short-circuit
   the real `id:2` result
 - LSP payload numeric fields for signature help, parameter offset labels,
-  workspace edits, and diagnostics require complete unsigned integer tokens, so
-  fractional positions are rejected instead of truncated into edit or diagnostic
-  coordinates
+  prepare-rename ranges, workspace edits, and diagnostics require complete
+  unsigned integer tokens, so fractional positions are rejected instead of
+  truncated into rename prompts, edits, or diagnostic coordinates
 - Outline document-symbol error codes, SymbolKind values, and range start lines
   require complete integer tokens, so malformed LSP outline payloads cannot
   trigger scanner fallback, classify rows, or jump to truncated line numbers
@@ -764,7 +764,7 @@ the package run that produced them.
 
 ## Dogfooding Mighty
 
-The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1162) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
+The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1163) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
 
 ## Status & known caveats
 
