@@ -172,13 +172,25 @@ fn parse_branch_line(rest: &str, status: &mut ScmStatus) {
             for part in inner.split(',') {
                 let part = part.trim();
                 if let Some(n) = part.strip_prefix("ahead ") {
-                    status.ahead = n.trim().parse().unwrap_or(0);
+                    if let Some(count) = parse_branch_count(n) {
+                        status.ahead = count;
+                    }
                 } else if let Some(n) = part.strip_prefix("behind ") {
-                    status.behind = n.trim().parse().unwrap_or(0);
+                    if let Some(count) = parse_branch_count(n) {
+                        status.behind = count;
+                    }
                 }
             }
         }
     }
+}
+
+fn parse_branch_count(raw: &str) -> Option<i32> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || !trimmed.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    trimmed.parse().ok()
 }
 
 /// Remove the surrounding quotes git adds for paths with special chars (best
@@ -921,6 +933,18 @@ mod tests {
         let s = parse_status("## feature/x...origin/feature/x [ahead 3]\n");
         assert_eq!(s.branch, "feature/x");
         assert_eq!(s.ahead, 3);
+        assert_eq!(s.behind, 0);
+    }
+
+    #[test]
+    fn parse_branch_rejects_malformed_divergence_counts() {
+        let s = parse_status("## main...origin/main [ahead -2, behind +1]\n");
+        assert_eq!(s.branch, "main");
+        assert_eq!(s.ahead, 0);
+        assert_eq!(s.behind, 0);
+
+        let s = parse_status("## main...origin/main [ahead 2.5, behind 1e0]\n");
+        assert_eq!(s.ahead, 0);
         assert_eq!(s.behind, 0);
     }
 

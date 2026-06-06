@@ -425,6 +425,9 @@ source commit and report only the archive produced by that run.
 - Mighty compiler report locations are treated as 1-based in Problems and Run
   output; malformed `line:0` or `column:0` records are ignored instead of
   becoming clickable jumps to the top-left of the file
+- Source Control accepts only unsigned decimal git divergence counts, so
+  malformed `ahead` / `behind` porcelain cannot display signed or exponent-style
+  branch sync totals
 - Generic diagnostics report stale non-active source files, including directory
   targets as `not a file`, instead of treating failed disk reads as empty clean
   buffers
@@ -767,7 +770,7 @@ the package run that produced them.
 
 ## Dogfooding Mighty
 
-The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1164) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
+The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1165) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
 
 ## Status & known caveats
 
