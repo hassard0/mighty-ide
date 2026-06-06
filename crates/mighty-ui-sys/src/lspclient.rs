@@ -785,6 +785,10 @@ fn top_level_uint_field(obj: &[u8], field: &[u8]) -> Option<u32> {
     }
     if j == start {
         None
+    } else if j < obj.len()
+        && !matches!(obj[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        None
     } else {
         Some(value)
     }
@@ -1154,6 +1158,17 @@ mod tests {
         assert_eq!(diags[0].col_start, 7);
         assert_eq!(diags[0].col_end, 12);
         assert_eq!(diags[0].message, "primary");
+    }
+
+    #[test]
+    fn diagnostics_reject_fractional_range_positions() {
+        let stream = r#"{"params":{"diagnostics":[{"range":{"start":{"line":6.5,"character":7},"end":{"line":6,"character":12}},"severity":1,"message":"bad"},{"range":{"start":{"line":8,"character":2},"end":{"line":8,"character":5}},"severity":2,"message":"good"}]}}"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 8);
+        assert_eq!(diags[0].col_start, 2);
+        assert_eq!(diags[0].message, "good");
     }
 
     #[test]

@@ -304,7 +304,15 @@ fn read_uint_at(obj: &[u8], mut i: usize) -> Option<(u32, usize)> {
             .saturating_add((obj[i] - b'0') as u32);
         i += 1;
     }
-    (i > start).then_some((value, i))
+    if i == start {
+        None
+    } else if i < obj.len()
+        && !matches!(obj[i], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        None
+    } else {
+        Some((value, i))
+    }
 }
 
 fn collect_json_objects(arr: &[u8]) -> Vec<&[u8]> {
@@ -458,7 +466,9 @@ fn parse_changes_map_at_value(bytes: &[u8], i: usize, we: &mut WorkspaceEdit) {
         }
         let arr_end = match_bracket(region, j);
         let edits = parse_text_edits(&region[j..arr_end.min(region.len())]);
-        we.files.push((uri, edits));
+        if !edits.is_empty() {
+            we.files.push((uri, edits));
+        }
         k = arr_end;
     }
 }
@@ -2023,6 +2033,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_signature_help_rejects_fractional_numeric_prefixes() {
+        let json = r#"{"result":{"activeSignature":1.5,"activeParameter":1.5,"signatures":[{"label":"first(x)","parameters":[{"label":"x"}]},{"label":"second(y)","parameters":[{"label":"y"}]}]},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+
+        assert_eq!(sig.label, "first(x)");
+        assert_eq!(sig.active, 0);
+    }
+
+    #[test]
     fn parse_signature_help_uses_result_signatures_not_envelope_fields() {
         let json = r#"{"jsonrpc":"2.0","signatures":[{"label":"wrong(x)","parameters":[{"label":"x"}]}],"activeSignature":0,"result":{"activeSignature":0,"activeParameter":1,"signatures":[{"label":"right(a, b)","parameters":[{"label":"a"},{"label":"b"}]}]},"id":2}"#;
         let sig = parse_signature_help(json).expect("sig");
@@ -2067,6 +2086,14 @@ mod tests {
         let sig = parse_signature_help(json).expect("sig");
 
         assert_eq!(sig.params, vec!["x".to_string()]);
+    }
+
+    #[test]
+    fn parse_signature_help_rejects_fractional_offset_labels() {
+        let json = r#"{"result":{"signatures":[{"label":"fn add(a: I32)","parameters":[{"label":[7.5,13]},{"label":"fallback"}]}]},"id":2}"#;
+        let sig = parse_signature_help(json).expect("sig");
+
+        assert_eq!(sig.params, vec!["fallback".to_string()]);
     }
 
     #[test]
@@ -2171,6 +2198,16 @@ mod tests {
     fn parse_workspace_edit_ignores_nested_changes_without_owner() {
         let json = r#"{"result":{"metadata":{"changes":{"file:///wrong.mty":[{"newText":"wrong","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":1}}}]}}},"id":4}"#;
         assert!(parse_workspace_edit(json).is_empty());
+    }
+
+    #[test]
+    fn parse_workspace_edit_rejects_fractional_range_positions() {
+        let json = r#"{"result":{"changes":{"file:///bad.mty":[{"newText":"bad","range":{"start":{"line":1.5,"character":2},"end":{"line":1,"character":5}}}],"file:///good.mty":[{"newText":"good","range":{"start":{"line":2,"character":3},"end":{"line":2,"character":7}}}]}},"id":4}"#;
+        let we = parse_workspace_edit(json);
+
+        assert_eq!(we.file_count(), 1);
+        assert_eq!(we.files[0].0, "file:///good.mty");
+        assert_eq!(we.files[0].1[0].new_text, "good");
     }
 
     #[test]
