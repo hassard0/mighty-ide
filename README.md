@@ -401,9 +401,9 @@ source commit and report only the archive produced by that run.
   or thread state
 - Headless/screenshot automation numeric environment controls require complete
   decimal tokens, so plus-prefixed or partial `MUI_WIDTH`,
-  `MUI_SCREENSHOT_W`, `MUI_LIGHTBULB_AUTOOPEN`, `MUI_SETTINGS_AUTOOPEN`, and
-  `MUI_HEADLESS_FRAMES` values cannot silently drive malformed capture geometry
-  or seeded rows
+  `MUI_SCREENSHOT_W`, `MUI_SCREENSHOT_FRAME`, `MUI_LIGHTBULB_AUTOOPEN`,
+  `MUI_SETTINGS_AUTOOPEN`, and `MUI_HEADLESS_FRAMES` values cannot silently
+  drive malformed capture geometry, target frames, or seeded rows
 - Semantic autocomplete preserves LSP `label`, `kind`, `filterText`,
   `sortText`, `preselect`, `deprecated`, `commitCharacters`, `insertText`,
   `textEditText`, safe same-line `textEdit.range` /

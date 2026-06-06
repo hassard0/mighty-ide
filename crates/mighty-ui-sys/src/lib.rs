@@ -104,6 +104,48 @@ pub extern "C" fn mui_smoke_add(a: i32, b: i32) -> i32 {
     a + b
 }
 
+pub(crate) fn parse_unsigned_decimal_u32_token(text: &str) -> Option<u32> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<u32>().ok()
+}
+
+pub(crate) fn parse_signed_decimal_i32_token(text: &str) -> Option<i32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() {
+        return None;
+    }
+    let digits = if bytes[0] == b'-' { &bytes[1..] } else { bytes };
+    if digits.is_empty() || !digits.iter().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<i32>().ok()
+}
+
+#[cfg(test)]
+mod env_numeric_token_tests {
+    use super::{parse_signed_decimal_i32_token, parse_unsigned_decimal_u32_token};
+
+    #[test]
+    fn unsigned_env_tokens_reject_signs_and_partial_numbers() {
+        assert_eq!(parse_unsigned_decimal_u32_token("128"), Some(128));
+        assert_eq!(parse_unsigned_decimal_u32_token("+128"), None);
+        assert_eq!(parse_unsigned_decimal_u32_token("-128"), None);
+        assert_eq!(parse_unsigned_decimal_u32_token("128px"), None);
+        assert_eq!(parse_unsigned_decimal_u32_token("1.5"), None);
+    }
+
+    #[test]
+    fn signed_env_tokens_reject_plus_prefixes_and_partial_numbers() {
+        assert_eq!(parse_signed_decimal_i32_token("240"), Some(240));
+        assert_eq!(parse_signed_decimal_i32_token("-1"), Some(-1));
+        assert_eq!(parse_signed_decimal_i32_token("+240"), None);
+        assert_eq!(parse_signed_decimal_i32_token("240frames"), None);
+        assert_eq!(parse_signed_decimal_i32_token("2e2"), None);
+    }
+}
+
 /// Opaque handle returned to the IDE. Layout is private to Rust.
 pub struct MuiContext {
     gpu: Gpu,
@@ -765,11 +807,11 @@ pub(crate) fn build_context(
     let (host, window, gpu) = if screenshot.is_some() {
         let sw = std::env::var("MUI_SCREENSHOT_W")
             .ok()
-            .and_then(|v| v.trim().parse::<u32>().ok())
+            .and_then(|v| parse_unsigned_decimal_u32_token(v.trim()))
             .unwrap_or(width);
         let sh = std::env::var("MUI_SCREENSHOT_H")
             .ok()
-            .and_then(|v| v.trim().parse::<u32>().ok())
+            .and_then(|v| parse_unsigned_decimal_u32_token(v.trim()))
             .unwrap_or(height);
         let gpu = match Gpu::new_offscreen(sw, sh) {
             Ok(Some(g)) => g,

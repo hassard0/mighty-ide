@@ -45,7 +45,7 @@ impl ScreenshotState {
         }
         let target_frame = std::env::var("MUI_SCREENSHOT_FRAME")
             .ok()
-            .and_then(|v| v.trim().parse::<u32>().ok())
+            .and_then(|v| crate::parse_unsigned_decimal_u32_token(v.trim()))
             .unwrap_or(DEFAULT_TARGET_FRAME);
         Some(ScreenshotState {
             out_path: PathBuf::from(s.to_string()),
@@ -88,7 +88,7 @@ pub fn write_png(
 
 #[cfg(test)]
 mod tests {
-    use super::write_png;
+    use super::{write_png, ScreenshotState};
 
     #[test]
     fn write_png_reports_parent_directory_creation_failures() {
@@ -113,6 +113,25 @@ mod tests {
             "expected blocked parent path in error, got {err}"
         );
 
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn screenshot_frame_rejects_plus_prefixed_env_token() {
+        let root = std::env::temp_dir().join(format!(
+            "mighty_ide_screenshot_frame_{}",
+            std::process::id()
+        ));
+        let out = root.join("shot.png");
+        std::env::set_var("MUI_SCREENSHOT", &out);
+        std::env::set_var("MUI_SCREENSHOT_FRAME", "+9");
+
+        let state = ScreenshotState::from_env().expect("screenshot state");
+
+        assert_eq!(state.target_frame, super::DEFAULT_TARGET_FRAME);
+
+        std::env::remove_var("MUI_SCREENSHOT_FRAME");
+        std::env::remove_var("MUI_SCREENSHOT");
         let _ = std::fs::remove_dir_all(&root);
     }
 }

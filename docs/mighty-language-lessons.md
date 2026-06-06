@@ -15145,15 +15145,16 @@ ranges.
 ## L1180 - Headless Environment Numeric Controls Need Token Boundaries
 
 Headless screenshots and capture probes read numeric values from environment
-variables for window dimensions, visible-surface caps, seeded auto-open rows,
-and the self-terminating frame cap. Those hooks used direct Rust integer
-parsing, which accepts `+N`; malformed automation input could therefore drive
-capture geometry or seeded rows as if it were a clean decimal token.
+variables for window dimensions, screenshot target frames, visible-surface caps,
+seeded auto-open rows, and the self-terminating frame cap. Those hooks used
+direct Rust integer parsing, which accepts `+N`; malformed automation input
+could therefore drive capture geometry, target frames, or seeded rows as if it
+were a clean decimal token.
 
 - **IDE note:** screenshot dimensions, surface caps, lightbulb auto-open rows,
-  settings auto-open rows, and `MUI_HEADLESS_FRAMES` now validate token shape
-  before parsing. Plus-prefixed and partial numeric values are ignored, while
-  ordinary unsigned dimensions and signed row/frame-style tokens keep their
-  previous behavior.
+  settings auto-open rows, `MUI_SCREENSHOT_FRAME`, and `MUI_HEADLESS_FRAMES`
+  now validate token shape before parsing. Plus-prefixed and partial numeric
+  values are ignored, while ordinary unsigned dimensions and signed
+  row/frame-style tokens keep their previous behavior.
 - **Language note:** no compiler gap surfaced. This is headless automation
   parser hygiene in Rust-owned ABI setup code.
