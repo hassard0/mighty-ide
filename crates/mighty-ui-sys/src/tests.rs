@@ -11676,6 +11676,48 @@ fn breakpoint_toggle_without_file_reports_visible_feedback() {
 }
 
 #[test]
+fn breakpoint_toggle_rejects_stale_active_targets() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_bp_toggle_stale_active_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let missing = root.join("gone.mty");
+    std::fs::write(&missing, "fn main() {}\n").unwrap();
+    ctx.tabs.open_path(missing.clone());
+    std::fs::remove_file(&missing).unwrap();
+    let missing_key = missing.to_string_lossy().to_string();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::dapabi::mui_bp_toggle(handle, 0), 0);
+    assert!(!ctx.dbg.has_breakpoint(&missing_key, 0));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Breakpoint target missing: gone.mty");
+
+    assert_eq!(crate::dapabi::mui_bp_toggle_at_cursor(handle), 0);
+    assert!(!ctx.dbg.has_breakpoint(&missing_key, 0));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Breakpoint target missing: gone.mty");
+
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir_all(&blocked).unwrap();
+    ctx.tabs.set_active_path(blocked.clone());
+    let blocked_key = blocked.to_string_lossy().to_string();
+
+    assert_eq!(crate::dapabi::mui_bp_toggle(handle, 0), 0);
+    assert!(!ctx.dbg.has_breakpoint(&blocked_key, 0));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Breakpoint target is not a file: blocked.mty");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn breakpoint_toggle_at_cursor_command_opens_debug_and_reports_set_clear() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_bp_cursor_{}", std::process::id()));

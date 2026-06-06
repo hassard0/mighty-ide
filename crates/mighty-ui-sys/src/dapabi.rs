@@ -151,6 +151,16 @@ fn reject_bad_breakpoint_target(
     -1
 }
 
+fn reject_bad_breakpoint_toggle_target(ctx: &mut MuiContext, path: &std::path::Path) -> bool {
+    match breakpoint_target_kind(path) {
+        BreakpointTargetKind::File => false,
+        kind => {
+            let _ = reject_bad_breakpoint_target(ctx, path, kind);
+            true
+        }
+    }
+}
+
 fn active_debug_target_name(ctx: &MuiContext) -> String {
     ctx.tabs
         .active_path()
@@ -554,6 +564,10 @@ pub extern "C" fn mui_bp_toggle(handle: i64, line: i32) -> i32 {
         crate::abi::trace("bp_toggle no_file");
         return 0;
     }
+    if reject_bad_breakpoint_toggle_target(ctx, std::path::Path::new(&file)) {
+        crate::abi::trace("bp_toggle stale_target");
+        return 0;
+    }
     let now_on = ctx.dbg.toggle_breakpoint(&file, line);
     // Live session: re-push breakpoints for the program file.
     if ctx.dbg.state() != crate::dap::DebugState::Idle
@@ -580,6 +594,10 @@ pub extern "C" fn mui_bp_toggle_at_cursor(handle: i64) -> i32 {
             debug_needs_file_message(ctx, "setting breakpoints"),
         );
         crate::abi::trace("bp_toggle_cursor no_file");
+        return 0;
+    }
+    if reject_bad_breakpoint_toggle_target(ctx, std::path::Path::new(&file)) {
+        crate::abi::trace("bp_toggle_cursor stale_target");
         return 0;
     }
     let line = ctx.tabs.active_model().cursor_line() as i32;

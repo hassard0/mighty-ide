@@ -1255,6 +1255,13 @@ impl PaletteEngine {
                 }
             }
         }
+        if id == CMD_DEBUG_TOGGLE_BREAKPOINT && active_has_path && !active_read_only {
+            if let Some(path) = ctx.tabs.active_path() {
+                if let Some(desc) = breakpoint_stale_target_desc(&path) {
+                    return Cow::Owned(desc);
+                }
+            }
+        }
         if id == CMD_GIT_TOGGLE_BLAME {
             if !ctx.blame.is_active() {
                 if let Some(path) = ctx.tabs.active_path() {
@@ -2860,6 +2867,15 @@ fn debug_stale_target_desc(prefix: &str, path: &std::path::Path) -> Option<Strin
         Ok(meta) if meta.is_file() => None,
         Ok(_) => Some(format!("{prefix}: target is not a file: {name}")),
         Err(_) => Some(format!("{prefix}: target missing: {name}")),
+    }
+}
+
+fn breakpoint_stale_target_desc(path: &std::path::Path) -> Option<String> {
+    let name = palette_basename(path);
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => None,
+        Ok(_) => Some(format!("Breakpoint target is not a file: {name}")),
+        Err(_) => Some(format!("Breakpoint target missing: {name}")),
     }
 }
 
@@ -4687,6 +4703,44 @@ mod tests {
                 .contextual_desc(&ctx, CMD_DEBUG_START_CONTINUE, "Start debug")
                 .as_ref(),
             "Debug unavailable: target is not a file: blocked.mty"
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn breakpoint_description_reports_stale_active_target() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_breakpoint_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let missing = root.join("gone.mty");
+        std::fs::write(&missing, "fn main() {}\n").unwrap();
+        ctx.tabs.open_path(missing.clone());
+        std::fs::remove_file(&missing).unwrap();
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DEBUG_TOGGLE_BREAKPOINT, "Toggle breakpoint")
+                .as_ref(),
+            "Breakpoint target missing: gone.mty"
+        );
+
+        let blocked = root.join("blocked.mty");
+        std::fs::create_dir_all(&blocked).unwrap();
+        ctx.tabs.set_active_path(blocked);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DEBUG_TOGGLE_BREAKPOINT, "Toggle breakpoint")
+                .as_ref(),
+            "Breakpoint target is not a file: blocked.mty"
         );
 
         let _ = std::fs::remove_dir_all(&root);

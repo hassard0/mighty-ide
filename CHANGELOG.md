@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Breakpoint toggles reject stale active targets**: gutter and Command
+  Palette breakpoint toggles now refuse missing or directory-backed active
+  files instead of recording unusable breakpoints, with matching palette
+  preflight feedback.
 - **Command Palette launch preflight names stale targets**: Run, Run in
   Browser, Run Tests, and Run Test at Cursor now report missing or
   directory-backed active targets before dispatch, matching their runtime
