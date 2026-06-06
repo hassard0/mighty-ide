@@ -2109,6 +2109,7 @@ fn terminal_contextual_desc<'a>(
     has_visible_content: bool,
 ) -> Cow<'a, str> {
     match id {
+        CMD_TERMINAL_CLEAR if !open => Cow::Borrowed("Terminal is already closed"),
         CMD_TERMINAL_CLEAR if open && present && !has_visible_content => {
             Cow::Borrowed("Terminal is already empty")
         }
@@ -4284,7 +4285,11 @@ mod tests {
         );
         assert_eq!(
             terminal_contextual_desc(CMD_TERMINAL_CLEAR, "base", false, false, false),
-            Cow::Borrowed("base")
+            Cow::Borrowed("Terminal is already closed")
+        );
+        assert_eq!(
+            terminal_contextual_desc(CMD_TERMINAL_CLEAR, "base", false, true, true),
+            Cow::Borrowed("Terminal is already closed")
         );
         assert_eq!(
             terminal_contextual_desc(CMD_TERMINAL_CLEAR, "base", true, true, true),

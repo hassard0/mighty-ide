@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Terminal Clear palette matches closed-panel state**: Command Palette now
+  reports `Terminal is already closed` for Clear Buffer when the terminal panel
+  is hidden, even if the shim still retains terminal state.
 - **Revert palette distinguishes clean files**: Command Palette now reports
   `No local edits; reload from disk` for clean file-backed tabs instead of
   implying that Revert will discard edits when the runtime will only reload.
