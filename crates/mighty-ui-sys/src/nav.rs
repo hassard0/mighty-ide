@@ -90,7 +90,17 @@ impl HoverState {
         }
         let row_h = layout::LINE_H();
         let pad = 4.0;
-        let g = hover_popup_geometry(&mut ctx.text, &self.lines, cx, cy, width, height, theme::FONT_SIZE(), pad, row_h);
+        let g = hover_popup_geometry(
+            &mut ctx.text,
+            &self.lines,
+            cx,
+            cy,
+            width,
+            height,
+            theme::FONT_SIZE(),
+            pad,
+            row_h,
+        );
         if g.visible == 0 {
             return;
         }
@@ -103,9 +113,33 @@ impl HoverState {
         ));
         let radius = 9.0_f32;
         // Soft shadow + rounded elevated card + hairline border.
-        ctx.dl_shadow(g.box_x, g.box_y + 5.0, g.box_w, g.box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
-        ctx.dl_grad_v(g.box_x, g.box_y, g.box_w, g.box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
-        ctx.dl_stroke(g.box_x, g.box_y, g.box_w, g.box_h, radius, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_shadow(
+            g.box_x,
+            g.box_y + 5.0,
+            g.box_w,
+            g.box_h,
+            radius,
+            MuiColor::new(0.0, 0.0, 0.0, 0.6),
+            18.0,
+        );
+        ctx.dl_grad_v(
+            g.box_x,
+            g.box_y,
+            g.box_w,
+            g.box_h,
+            radius,
+            theme::ELEVATED_2(),
+            theme::ELEVATED(),
+        );
+        ctx.dl_stroke(
+            g.box_x,
+            g.box_y,
+            g.box_w,
+            g.box_h,
+            radius,
+            theme::BORDER_STRONG(),
+            1.0,
+        );
         let fg = theme::TEXT();
         let text_w = (g.box_w - 12.0).max(0.0);
         for (i, line) in self.lines.iter().take(g.visible).enumerate() {
@@ -452,14 +486,17 @@ pub fn parse_hover_value(json: &str) -> Option<String> {
         b'[' => parse_hover_array(result, contents_at)?,
         _ => return None,
     };
-    if text.trim().is_empty() { None } else { Some(text) }
+    if text.trim().is_empty() {
+        None
+    } else {
+        Some(text)
+    }
 }
 
 fn parse_hover_object(bytes: &[u8], object_at: usize) -> Option<String> {
     let end = match_enclosed(bytes, object_at, b'{', b'}');
     let obj = &bytes[object_at..end.min(bytes.len())];
-    let language = top_level_json_string_field(obj, b"language")
-        .filter(|s| !s.trim().is_empty());
+    let language = top_level_json_string_field(obj, b"language").filter(|s| !s.trim().is_empty());
     let value = top_level_json_string_field(obj, b"value")?;
     match language {
         Some(lang) => Some(format!("```{lang}\n{value}\n```")),
@@ -497,7 +534,11 @@ fn parse_hover_array(bytes: &[u8], array_at: usize) -> Option<String> {
             _ => i += 1,
         }
     }
-    if parts.is_empty() { None } else { Some(parts.join("\n")) }
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("\n"))
+    }
 }
 
 /// Extract the definition target line/col from a definition JSON-RPC response.
@@ -597,8 +638,7 @@ fn top_level_uint_field(obj: &[u8], field: &[u8]) -> Option<u32> {
     }
     if j == start {
         None
-    } else if j < obj.len()
-        && !matches!(obj[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    } else if j < obj.len() && !matches!(obj[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
     {
         None
     } else {
@@ -664,9 +704,7 @@ pub fn uri_to_path(uri: &str) -> Option<std::path::PathBuf> {
     // looks like `/home/...`. A URI authority (`file://server/share/x`) is a UNC
     // path; `localhost` is the local machine and should be ignored.
     let mut rest = percent_decode(rest);
-    if rest.len() >= 10
-        && rest.as_bytes()[9] == b'/'
-        && rest[..9].eq_ignore_ascii_case("localhost")
+    if rest.len() >= 10 && rest.as_bytes()[9] == b'/' && rest[..9].eq_ignore_ascii_case("localhost")
     {
         rest = format!("/{}", &rest[10..]);
     }
@@ -852,9 +890,7 @@ fn push_json_code_unit(out: &mut String, high_surrogate: &mut Option<u16>, unit:
 }
 
 fn skip_json_ws_and_commas(bytes: &[u8], mut pos: usize) -> usize {
-    while pos < bytes.len()
-        && matches!(bytes[pos], b' ' | b',' | b'\t' | b'\r' | b'\n')
-    {
+    while pos < bytes.len() && matches!(bytes[pos], b' ' | b',' | b'\t' | b'\r' | b'\n') {
         pos += 1;
     }
     pos
@@ -936,6 +972,8 @@ pub mod lsp {
     use std::process::{Child, Command, Stdio};
     use std::sync::mpsc;
     use std::time::Duration;
+
+    pub(crate) const MAX_RESPONSE_BYTES: usize = 1024 * 1024;
 
     fn mty_path() -> String {
         crate::mty::path()
@@ -1072,11 +1110,10 @@ pub mod lsp {
                 match stdout.read(&mut chunk) {
                     Ok(0) => break,
                     Ok(n) => {
-                        buf.extend_from_slice(&chunk[..n]);
-                        if has_response_id(&buf, 2) {
+                        if !append_stream_chunk(&mut buf, &chunk[..n], MAX_RESPONSE_BYTES) {
                             break;
                         }
-                        if buf.len() > 1024 * 1024 {
+                        if has_response_id(&buf, 2) {
                             break;
                         }
                     }
@@ -1096,7 +1133,9 @@ pub mod lsp {
             Err(_) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                let bytes = rx.recv_timeout(Duration::from_millis(500)).unwrap_or_default();
+                let bytes = rx
+                    .recv_timeout(Duration::from_millis(500))
+                    .unwrap_or_default();
                 let _ = writer.join();
                 let _ = reader.join();
                 eprintln!("nav(lsp): {method} timed out after {timeout:?}");
@@ -1116,14 +1155,25 @@ pub mod lsp {
         r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"hover":{"contentFormat":["markdown","plaintext"]},"definition":{"linkSupport":true}}}}}"#.to_string()
     }
 
+    pub(crate) fn append_stream_chunk(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+        if buf.len().saturating_add(chunk.len()) > cap {
+            buf.clear();
+            return false;
+        }
+        buf.extend_from_slice(chunk);
+        true
+    }
+
     pub(crate) fn has_response_id(stream: &[u8], wanted_id: u32) -> bool {
-        response_object_ranges(stream).into_iter().any(|(start, end)| {
-            let obj = &stream[start..end];
-            super::top_level_uint_field(obj, b"id") == Some(wanted_id)
-                && super::top_level_field_value_start(obj, b"method").is_none()
-                && (super::top_level_field_value_start(obj, b"result").is_some()
-                    || super::top_level_field_value_start(obj, b"error").is_some())
-        })
+        response_object_ranges(stream)
+            .into_iter()
+            .any(|(start, end)| {
+                let obj = &stream[start..end];
+                super::top_level_uint_field(obj, b"id") == Some(wanted_id)
+                    && super::top_level_field_value_start(obj, b"method").is_none()
+                    && (super::top_level_field_value_start(obj, b"result").is_some()
+                        || super::top_level_field_value_start(obj, b"error").is_some())
+            })
     }
 
     fn response_object_ranges(stream: &[u8]) -> Vec<(usize, usize)> {
@@ -1157,7 +1207,6 @@ pub mod lsp {
         }
         stream.to_string()
     }
-
 }
 
 #[cfg(test)]
@@ -1168,7 +1217,8 @@ mod tests {
 
     #[test]
     fn wrap_hover_drops_fences_and_keeps_signature() {
-        let v = "```mty\nfn add(a: I32, b: I32) -> I32\n```\n\n_node_: `NAME_REF`\n\n_token_: `IDENT`";
+        let v =
+            "```mty\nfn add(a: I32, b: I32) -> I32\n```\n\n_node_: `NAME_REF`\n\n_token_: `IDENT`";
         let lines = wrap_hover(v, 60, 6);
         assert_eq!(
             lines,
@@ -1191,7 +1241,10 @@ mod tests {
     fn wrap_hover_truncates_to_max_lines() {
         let v = "a\nb\nc\nd\ne\nf\ng\nh";
         let lines = wrap_hover(v, 60, 3);
-        assert_eq!(lines, vec!["a".to_string(), "b".to_string(), "c".to_string()]);
+        assert_eq!(
+            lines,
+            vec!["a".to_string(), "b".to_string(), "c".to_string()]
+        );
     }
 
     #[test]
@@ -1257,7 +1310,17 @@ mod tests {
             "three".to_string(),
             "four".to_string(),
         ];
-        let g = hover_popup_geometry(&mut ctx.text, &lines, 180.0, 38.0, 320, 46, size, pad, row_h);
+        let g = hover_popup_geometry(
+            &mut ctx.text,
+            &lines,
+            180.0,
+            38.0,
+            320,
+            46,
+            size,
+            pad,
+            row_h,
+        );
 
         assert!(g.visible < lines.len());
         assert!(g.box_y >= 0.0);
@@ -1273,7 +1336,17 @@ mod tests {
         let pad = 4.0;
         let row_h = layout::LINE_H();
         let lines = vec!["one".to_string()];
-        let g = hover_popup_geometry(&mut ctx.text, &lines, 160.0, 12.0, 320, 20, size, pad, row_h);
+        let g = hover_popup_geometry(
+            &mut ctx.text,
+            &lines,
+            160.0,
+            12.0,
+            320,
+            20,
+            size,
+            pad,
+            row_h,
+        );
 
         assert_eq!(g.visible, 0);
         assert!(g.box_h <= 20.0);
@@ -1511,7 +1584,10 @@ mod tests {
     #[test]
     fn uri_to_path_unc_authority() {
         let p = uri_to_path("file://server/share/folder/foo.mty").unwrap();
-        assert_eq!(p, std::path::PathBuf::from(r"\\server\share\folder\foo.mty"));
+        assert_eq!(
+            p,
+            std::path::PathBuf::from(r"\\server\share\folder\foo.mty")
+        );
     }
 
     #[test]
@@ -1582,7 +1658,8 @@ mod tests {
 
     #[test]
     fn isolate_response_picks_id2_object() {
-        let stream = r#"{"result":{"capabilities":{}},"id":1}{"result":{"contents":{"value":"X"}},"id":2}"#;
+        let stream =
+            r#"{"result":{"capabilities":{}},"id":1}{"result":{"contents":{"value":"X"}},"id":2}"#;
         let one = lsp::isolate_response_id(stream, 2);
         assert!(one.contains("\"value\":\"X\""));
         assert!(!one.contains("capabilities"));
@@ -1614,7 +1691,8 @@ mod tests {
         let nested_id = br#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}"#;
         let server_request = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
         let server_request_with_result = br#"{"jsonrpc":"2.0","id":2,"method":"workspace/applyEdit","result":{"contents":"wrong"}}"#;
-        let response_error = br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
+        let response_error =
+            br#"{"jsonrpc":"2.0","id":2,"error":{"code":-32603,"message":"failed"}}"#;
 
         assert!(!lsp::has_response_id(nested_id, 2));
         assert!(!lsp::has_response_id(server_request, 2));
@@ -1630,6 +1708,22 @@ mod tests {
 
         assert!(!lsp::has_response_id(fractional, 2));
         assert!(lsp::has_response_id(stream, 2));
+    }
+
+    #[test]
+    fn mty_lsp_stream_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"abc");
+
+        assert!(lsp::append_stream_chunk(&mut buf, b"de", 5));
+        assert_eq!(buf, b"abcde");
+    }
+
+    #[test]
+    fn mty_lsp_stream_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"{\"jsonrpc\":\"2.0\",");
+
+        assert!(!lsp::append_stream_chunk(&mut buf, b"\"id\":2}", 20));
+        assert!(buf.is_empty());
     }
 
     #[test]
@@ -1697,7 +1791,8 @@ mod tests {
         }
 
         // `add` defined on line 0, called on line 5 (0-based).
-        let source = "fn add(a: I32, b: I32) -> I32 {\n  a + b\n}\n\nfn main() {\n  let r = add(1, 2)\n}\n";
+        let source =
+            "fn add(a: I32, b: I32) -> I32 {\n  a + b\n}\n\nfn main() {\n  let r = add(1, 2)\n}\n";
         // Use an ABSOLUTE path so the uri round-trip (uri the server echoes ->
         // uri_to_path) matches faithfully (a relative path becomes `/probe.mty`
         // -> `\probe.mty`, which is only a test artifact, not a real flow).

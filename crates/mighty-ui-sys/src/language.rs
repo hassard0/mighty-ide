@@ -215,7 +215,11 @@ fn parse_parameter_label(param: &[u8], signature_label: &str) -> Option<String> 
     }
 }
 
-fn parse_parameter_label_offsets(param: &[u8], value_at: usize, signature_label: &str) -> Option<String> {
+fn parse_parameter_label_offsets(
+    param: &[u8],
+    value_at: usize,
+    signature_label: &str,
+) -> Option<String> {
     let end = match_bracket(param, value_at).min(param.len());
     let arr = &param[value_at..end];
     let mut i = 1usize;
@@ -228,9 +232,7 @@ fn parse_parameter_label_offsets(param: &[u8], value_at: usize, signature_label:
     if start >= end || end > signature_label.len() {
         return None;
     }
-    signature_label
-        .get(start..end)
-        .map(|s| s.to_string())
+    signature_label.get(start..end).map(|s| s.to_string())
 }
 
 /// Read the signature `documentation` (string or MarkupContent form) if present.
@@ -305,8 +307,7 @@ fn read_uint_at(obj: &[u8], mut i: usize) -> Option<(u32, usize)> {
     }
     if i == start {
         None
-    } else if i < obj.len()
-        && !matches!(obj[i], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    } else if i < obj.len() && !matches!(obj[i], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
     {
         None
     } else {
@@ -342,7 +343,9 @@ fn skip_json_ws_and_commas(bytes: &[u8], mut i: usize) -> usize {
 
 fn json_value_end(bytes: &[u8], pos: usize) -> usize {
     match bytes.get(pos).copied() {
-        Some(b'"') => read_json_string_at(bytes, pos).map(|(_, end)| end).unwrap_or(bytes.len()),
+        Some(b'"') => read_json_string_at(bytes, pos)
+            .map(|(_, end)| end)
+            .unwrap_or(bytes.len()),
         Some(b'{') => match_brace(bytes, pos),
         Some(b'[') => match_bracket(bytes, pos),
         _ => {
@@ -812,7 +815,10 @@ pub struct CodeAction {
 
 impl CodeAction {
     fn is_actionable(&self) -> bool {
-        self.edit.is_some() || self.command_edit.is_some() || self.command.is_some() || self.fix_all_mty
+        self.edit.is_some()
+            || self.command_edit.is_some()
+            || self.command.is_some()
+            || self.fix_all_mty
     }
 }
 
@@ -931,7 +937,10 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
 }
 
 fn is_mighty_fix_all_command(command: &str) -> bool {
-    matches!(command, "mighty.fixAll" | "mighty.fix_all" | "mty.fixAll" | "mty.fix_all")
+    matches!(
+        command,
+        "mighty.fixAll" | "mighty.fix_all" | "mty.fixAll" | "mty.fix_all"
+    )
 }
 
 fn code_action_disabled(obj: &[u8]) -> bool {
@@ -940,9 +949,7 @@ fn code_action_disabled(obj: &[u8]) -> bool {
 }
 
 fn top_level_bool_field(obj: &[u8], field: &str) -> bool {
-    top_level_field_value_start(obj, field).is_some_and(|i| {
-        obj.get(i..i + 4) == Some(b"true")
-    })
+    top_level_field_value_start(obj, field).is_some_and(|i| obj.get(i..i + 4) == Some(b"true"))
 }
 
 fn top_level_field_value_start(obj: &[u8], field: &str) -> Option<usize> {
@@ -1006,7 +1013,9 @@ fn read_arguments_json(obj: &[u8]) -> Option<String> {
         return None;
     }
     let end = match_bracket(obj, i).min(obj.len());
-    std::str::from_utf8(&obj[i..end]).ok().map(|s| s.to_string())
+    std::str::from_utf8(&obj[i..end])
+        .ok()
+        .map(|s| s.to_string())
 }
 
 fn parse_command_edit(obj: &[u8]) -> Option<WorkspaceEdit> {
@@ -1156,7 +1165,9 @@ impl SigState {
         let (doc_w, _) = ctx.text.measure_sized(&sig.doc, chrome - 1.0);
         let w = width as f32;
         let h = height as f32;
-        let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
+        let min_x = min_x
+            .max(POPUP_MARGIN)
+            .min((w - POPUP_MARGIN).max(POPUP_MARGIN));
         let max_box_w = popup_available_width(w, min_x, 120.0);
         let wanted_w = (label_w.max(doc_w) + 2.0 * pad + 8.0).max(120.0);
         let box_w = wanted_w.min(max_box_w);
@@ -1181,9 +1192,33 @@ impl SigState {
             box_h.max(0.0) as u32,
         ));
         let radius = 9.0_f32;
-        ctx.dl_shadow(box_x, box_y + 5.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.6), 18.0);
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_shadow(
+            box_x,
+            box_y + 5.0,
+            box_w,
+            box_h,
+            radius,
+            MuiColor::new(0.0, 0.0, 0.0, 0.6),
+            18.0,
+        );
+        ctx.dl_grad_v(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::ELEVATED_2(),
+            theme::ELEVATED(),
+        );
+        ctx.dl_stroke(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::BORDER_STRONG(),
+            1.0,
+        );
 
         let text_x = box_x + pad;
         let label_y = box_y + pad - 0.5;
@@ -1196,17 +1231,34 @@ impl SigState {
             if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= content_w {
                 let hx = text_x + prefix_w - 3.0;
                 let hw = param_w + 6.0;
-                ctx.dl_round(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::accent_a(0.26));
-                ctx.dl_stroke(hx, label_y - 1.0, hw, chrome + 4.0, 4.0, theme::ACCENT_LINE(), 1.0);
+                ctx.dl_round(
+                    hx,
+                    label_y - 1.0,
+                    hw,
+                    chrome + 4.0,
+                    4.0,
+                    theme::accent_a(0.26),
+                );
+                ctx.dl_stroke(
+                    hx,
+                    label_y - 1.0,
+                    hw,
+                    chrome + 4.0,
+                    4.0,
+                    theme::ACCENT_LINE(),
+                    1.0,
+                );
             }
         }
         // The signature label, with the active param drawn in accent on top.
-        ctx.text.queue_sized(text_x, label_y, &shown_label, theme::TEXT(), chrome, clip);
+        ctx.text
+            .queue_sized(text_x, label_y, &shown_label, theme::TEXT(), chrome, clip);
         if let Some((prefix_w, param_w)) = hi_span {
             if label_is_full && param_w > 0.0 && prefix_w + param_w + 3.0 <= content_w {
                 if let Some(p) = active_param {
                     let px = text_x + prefix_w;
-                    ctx.text.queue_sized(px, label_y, p, theme::ACCENT_BRIGHT(), chrome, clip);
+                    ctx.text
+                        .queue_sized(px, label_y, p, theme::ACCENT_BRIGHT(), chrome, clip);
                 }
             }
         }
@@ -1214,7 +1266,8 @@ impl SigState {
         if has_doc {
             let dy = label_y + line_h;
             let shown_doc = fit_sized(&mut ctx.text, &sig.doc, content_w, chrome - 1.0);
-            ctx.text.queue_sized(text_x, dy, &shown_doc, theme::TEXT_3(), chrome - 1.0, clip);
+            ctx.text
+                .queue_sized(text_x, dy, &shown_doc, theme::TEXT_3(), chrome - 1.0, clip);
         }
     }
 }
@@ -1321,13 +1374,44 @@ impl RenameState {
         let box_x = rename_card_x(w, box_w);
         let box_y = layout::TAB_BAR_H + layout::BREADCRUMB_H + 24.0;
         let radius = 10.0;
-        ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.7), 26.0);
-        ctx.dl_grad_v(box_x, box_y, box_w, box_h, radius, theme::ELEVATED_2(), theme::ELEVATED());
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::ACCENT_LINE(), 1.0);
+        ctx.dl_shadow(
+            box_x,
+            box_y + 8.0,
+            box_w,
+            box_h,
+            radius,
+            MuiColor::new(0.0, 0.0, 0.0, 0.7),
+            26.0,
+        );
+        ctx.dl_grad_v(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::ELEVATED_2(),
+            theme::ELEVATED(),
+        );
+        ctx.dl_stroke(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::ACCENT_LINE(),
+            1.0,
+        );
 
         // Header: "Rename Symbol".
         let title = "Rename Symbol";
-        ctx.text.queue_ui_sized(box_x + 14.0, box_y + 8.0, title, theme::TEXT_3(), 11.0, clip);
+        ctx.text.queue_ui_sized(
+            box_x + 14.0,
+            box_y + 8.0,
+            title,
+            theme::TEXT_3(),
+            11.0,
+            clip,
+        );
 
         // Input field with the editable new name.
         let field_x = box_x + 14.0;
@@ -1335,19 +1419,40 @@ impl RenameState {
         let field_w = box_w - 28.0;
         let field_h = 22.0;
         ctx.dl_round(field_x, field_y, field_w, field_h, 5.0, theme::BG_1());
-        ctx.dl_stroke(field_x, field_y, field_w, field_h, 5.0, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_stroke(
+            field_x,
+            field_y,
+            field_w,
+            field_h,
+            5.0,
+            theme::BORDER_STRONG(),
+            1.0,
+        );
         let name = self.name_string();
         let text_x = field_x + 7.0;
         let text_budget = rename_field_text_budget(field_w);
         let shown = fit_sized(&mut ctx.text, &name, text_budget, chrome);
-        ctx.text.queue_sized(text_x, field_y + 4.0, &shown, theme::ACCENT_BRIGHT(), chrome, clip);
+        ctx.text.queue_sized(
+            text_x,
+            field_y + 4.0,
+            &shown,
+            theme::ACCENT_BRIGHT(),
+            chrome,
+            clip,
+        );
         let (shown_w, _) = ctx.text.measure_sized(&shown, chrome);
         let caret_x = if name.is_empty() {
             text_x
         } else {
             (text_x + shown_w + 1.0).min(field_x + field_w - 7.0)
         };
-        ctx.dl_rect(caret_x, field_y + 4.0, 1.5, chrome + 2.0, theme::ACCENT_BRIGHT());
+        ctx.dl_rect(
+            caret_x,
+            field_y + 4.0,
+            1.5,
+            chrome + 2.0,
+            theme::ACCENT_BRIGHT(),
+        );
     }
 }
 
@@ -1473,7 +1578,9 @@ impl CodeActionState {
         let w = width as f32;
         let h = height as f32;
         let total = self.actions.len();
-        let min_x = min_x.max(POPUP_MARGIN).min((w - POPUP_MARGIN).max(POPUP_MARGIN));
+        let min_x = min_x
+            .max(POPUP_MARGIN)
+            .min((w - POPUP_MARGIN).max(POPUP_MARGIN));
         let max_box_w = popup_available_width(w, min_x, 180.0);
         let wanted_w = code_action_popup_width(text, &self.actions, chrome);
         let box_w = wanted_w.min(max_box_w);
@@ -1486,7 +1593,8 @@ impl CodeActionState {
             box_y = (cy - box_h).max(0.0);
         }
 
-        let first = code_action_first_visible(self.sel.min(total.saturating_sub(1)), total, visible);
+        let first =
+            code_action_first_visible(self.sel.min(total.saturating_sub(1)), total, visible);
         CodeActionGeometry {
             box_x,
             box_y,
@@ -1593,16 +1701,54 @@ impl CodeActionState {
             box_h.max(0.0) as u32,
         ));
         let radius = 8.0_f32;
-        ctx.dl_shadow(box_x, box_y + 8.0, box_w, box_h, radius, MuiColor::new(0.0, 0.0, 0.0, 0.8), 24.0);
+        ctx.dl_shadow(
+            box_x,
+            box_y + 8.0,
+            box_w,
+            box_h,
+            radius,
+            MuiColor::new(0.0, 0.0, 0.0, 0.8),
+            24.0,
+        );
         ctx.dl_round(box_x, box_y, box_w, box_h, radius, theme::ELEVATED());
-        ctx.dl_stroke(box_x, box_y, box_w, box_h, radius, theme::BORDER_STRONG(), 1.0);
+        ctx.dl_stroke(
+            box_x,
+            box_y,
+            box_w,
+            box_h,
+            radius,
+            theme::BORDER_STRONG(),
+            1.0,
+        );
 
-        for (i, a) in self.actions.iter().enumerate().skip(g.first).take(g.visible) {
+        for (i, a) in self
+            .actions
+            .iter()
+            .enumerate()
+            .skip(g.first)
+            .take(g.visible)
+        {
             let row_y = box_y + pad + (i - g.first) as f32 * row_h;
             let selected = i == self.sel;
             if selected {
-                ctx.dl_grad_h(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::accent_a(0.20), 0.9);
-                ctx.dl_stroke(box_x + 5.0, row_y + 2.0, box_w - 10.0, row_h - 4.0, 5.0, theme::ACCENT_LINE(), 1.0);
+                ctx.dl_grad_h(
+                    box_x + 5.0,
+                    row_y + 2.0,
+                    box_w - 10.0,
+                    row_h - 4.0,
+                    5.0,
+                    theme::accent_a(0.20),
+                    0.9,
+                );
+                ctx.dl_stroke(
+                    box_x + 5.0,
+                    row_y + 2.0,
+                    box_w - 10.0,
+                    row_h - 4.0,
+                    5.0,
+                    theme::ACCENT_LINE(),
+                    1.0,
+                );
             }
             // Lightbulb glyph badge for quick-fix vibe.
             let bx = box_x + 10.0;
@@ -1618,17 +1764,36 @@ impl CodeActionState {
             // Vector icon (the embedded UI fonts lack the emoji/symbol glyphs that
             // previously rendered as boxes here): a check for "fix all", else a
             // wrench for a single quick-fix.
-            let icon = if a.fix_all_mty || a.is_preferred { crate::icons::CHECK } else { crate::icons::WRENCH };
-            ctx.dl_icon(bx + 3.0, by + 3.0, 12.0, 12.0, icon, theme::SYN_FUNCTION(), 1.6, false);
+            let icon = if a.fix_all_mty || a.is_preferred {
+                crate::icons::CHECK
+            } else {
+                crate::icons::WRENCH
+            };
+            ctx.dl_icon(
+                bx + 3.0,
+                by + 3.0,
+                12.0,
+                12.0,
+                icon,
+                theme::SYN_FUNCTION(),
+                1.6,
+                false,
+            );
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
-            let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
+            let fg = if selected {
+                theme::TEXT()
+            } else {
+                theme::TEXT_1()
+            };
             let title_budget = box_w - 52.0 - if a.is_preferred { 68.0 } else { 0.0 };
             let title = fit_ui_sized(&mut ctx.text, &a.title, title_budget, chrome);
-            ctx.text.queue_ui_sized(box_x + 36.0, ty, &title, fg, chrome, clip);
+            ctx.text
+                .queue_ui_sized(box_x + 36.0, ty, &title, fg, chrome, clip);
             if a.is_preferred {
                 let sx = box_x + box_w - 66.0;
-                ctx.text.queue_ui_sized(sx, ty, "preferred", theme::TEXT_3(), chrome - 1.0, clip);
+                ctx.text
+                    .queue_ui_sized(sx, ty, "preferred", theme::TEXT_3(), chrome - 1.0, clip);
             }
         }
     }
@@ -1658,7 +1823,11 @@ fn signature_content_budget(text_w: f32) -> f32 {
     (text_w - 22.0).max(12.0)
 }
 
-fn code_action_popup_width(text: &mut crate::text::Text, actions: &[CodeAction], chrome: f32) -> f32 {
+fn code_action_popup_width(
+    text: &mut crate::text::Text,
+    actions: &[CodeAction],
+    chrome: f32,
+) -> f32 {
     let content_w = actions
         .iter()
         .map(|a| {
@@ -1705,7 +1874,9 @@ fn fit_sized(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> S
 }
 
 fn fit_ui_sized(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) -> String {
-    fit_measured(s, max_px, |candidate| text.measure_ui_sized(candidate, size).0)
+    fit_measured(s, max_px, |candidate| {
+        text.measure_ui_sized(candidate, size).0
+    })
 }
 
 fn fit_measured<F>(s: &str, max_px: f32, mut measure: F) -> String
@@ -1794,9 +1965,19 @@ pub mod lsp {
     /// `params` body). `line`/`col` are 0-based positions; `extra` carries the
     /// method-specific tail (e.g. `,"newName":"x"` or the codeAction range/context).
     pub enum Req {
-        SignatureHelp { line: u32, col: u32 },
-        PrepareRename { line: u32, col: u32 },
-        Rename { line: u32, col: u32, new_name: String },
+        SignatureHelp {
+            line: u32,
+            col: u32,
+        },
+        PrepareRename {
+            line: u32,
+            col: u32,
+        },
+        Rename {
+            line: u32,
+            col: u32,
+            new_name: String,
+        },
         CodeAction {
             start_line: u32,
             start_col: u32,
@@ -1827,7 +2008,11 @@ pub mod lsp {
                 Req::SignatureHelp { line, col } | Req::PrepareRename { line, col } => format!(
                     r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}}}}"#
                 ),
-                Req::Rename { line, col, new_name } => format!(
+                Req::Rename {
+                    line,
+                    col,
+                    new_name,
+                } => format!(
                     r#"{{"textDocument":{{"uri":"{u}"}},"position":{{"line":{line},"character":{col}}},"newName":"{}"}}"#,
                     json_escape(new_name)
                 ),
@@ -1851,12 +2036,7 @@ pub mod lsp {
         request_with_timeout(path, source, req, Duration::from_millis(2500))
     }
 
-    pub fn request_with_timeout(
-        path: &Path,
-        source: &str,
-        req: Req,
-        timeout: Duration,
-    ) -> String {
+    pub fn request_with_timeout(path: &Path, source: &str, req: Req, timeout: Duration) -> String {
         let mty = mty_path();
         let child = Command::new(&mty)
             .arg("lsp")
@@ -1922,11 +2102,14 @@ pub mod lsp {
                 match stdout.read(&mut chunk) {
                     Ok(0) => break,
                     Ok(n) => {
-                        buf.extend_from_slice(&chunk[..n]);
-                        if crate::nav::lsp::has_response_id(&buf, 2) {
+                        if !crate::nav::lsp::append_stream_chunk(
+                            &mut buf,
+                            &chunk[..n],
+                            crate::nav::lsp::MAX_RESPONSE_BYTES,
+                        ) {
                             break;
                         }
-                        if buf.len() > 1024 * 1024 {
+                        if crate::nav::lsp::has_response_id(&buf, 2) {
                             break;
                         }
                     }
@@ -1946,7 +2129,9 @@ pub mod lsp {
             Err(_) => {
                 let _ = child.kill();
                 let _ = child.wait();
-                let bytes = rx.recv_timeout(Duration::from_millis(500)).unwrap_or_default();
+                let bytes = rx
+                    .recv_timeout(Duration::from_millis(500))
+                    .unwrap_or_default();
                 let _ = writer.join();
                 let _ = reader.join();
                 eprintln!("language(lsp): {method} timed out after {timeout:?}");
@@ -2155,8 +2340,26 @@ mod tests {
         assert_eq!(we.total_edits(), 2);
         let (uri, edits) = &we.files[0];
         assert_eq!(uri, "file:///C:/tmp/probe.mty");
-        assert_eq!(edits[0], TextEdit { start_line: 0, start_col: 3, end_line: 0, end_col: 6, new_text: "plus".into() });
-        assert_eq!(edits[1], TextEdit { start_line: 5, start_col: 10, end_line: 5, end_col: 13, new_text: "plus".into() });
+        assert_eq!(
+            edits[0],
+            TextEdit {
+                start_line: 0,
+                start_col: 3,
+                end_line: 0,
+                end_col: 6,
+                new_text: "plus".into()
+            }
+        );
+        assert_eq!(
+            edits[1],
+            TextEdit {
+                start_line: 5,
+                start_col: 10,
+                end_line: 5,
+                end_col: 13,
+                new_text: "plus".into()
+            }
+        );
     }
 
     #[test]
@@ -2234,7 +2437,16 @@ mod tests {
         let we = parse_workspace_edit(json);
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///z.mty");
-        assert_eq!(we.files[0].1[0], TextEdit { start_line: 2, start_col: 0, end_line: 2, end_col: 1, new_text: "X".into() });
+        assert_eq!(
+            we.files[0].1[0],
+            TextEdit {
+                start_line: 2,
+                start_col: 0,
+                end_line: 2,
+                end_col: 1,
+                new_text: "X".into()
+            }
+        );
     }
 
     #[test]
@@ -2243,7 +2455,16 @@ mod tests {
         let we = parse_workspace_edit(json);
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///right.mty");
-        assert_eq!(we.files[0].1[0], TextEdit { start_line: 3, start_col: 4, end_line: 3, end_col: 8, new_text: "right".into() });
+        assert_eq!(
+            we.files[0].1[0],
+            TextEdit {
+                start_line: 3,
+                start_col: 4,
+                end_line: 3,
+                end_col: 8,
+                new_text: "right".into()
+            }
+        );
     }
 
     #[test]
@@ -2258,7 +2479,16 @@ mod tests {
         let we = parse_workspace_edit(json);
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///edited.rs");
-        assert_eq!(we.files[0].1[0], TextEdit { start_line: 1, start_col: 2, end_line: 1, end_col: 5, new_text: "ok".into() });
+        assert_eq!(
+            we.files[0].1[0],
+            TextEdit {
+                start_line: 1,
+                start_col: 2,
+                end_line: 1,
+                end_col: 5,
+                new_text: "ok".into()
+            }
+        );
     }
 
     #[test]
@@ -2267,7 +2497,16 @@ mod tests {
         let we = parse_workspace_edit(json);
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///edited.rs");
-        assert_eq!(we.files[0].1[0], TextEdit { start_line: 3, start_col: 1, end_line: 3, end_col: 4, new_text: "ok".into() });
+        assert_eq!(
+            we.files[0].1[0],
+            TextEdit {
+                start_line: 3,
+                start_col: 1,
+                end_line: 3,
+                end_col: 4,
+                new_text: "ok".into()
+            }
+        );
     }
 
     #[test]
@@ -2298,7 +2537,16 @@ mod tests {
         let we = parse_workspace_edit(json);
         assert_eq!(we.file_count(), 1);
         assert_eq!(we.files[0].0, "file:///right.rs");
-        assert_eq!(we.files[0].1[0], TextEdit { start_line: 4, start_col: 8, end_line: 4, end_col: 13, new_text: "right".into() });
+        assert_eq!(
+            we.files[0].1[0],
+            TextEdit {
+                start_line: 4,
+                start_col: 8,
+                end_line: 4,
+                end_col: 13,
+                new_text: "right".into()
+            }
+        );
     }
 
     #[test]
@@ -2330,8 +2578,20 @@ mod tests {
         // would shift line-5's offsets after line-0 grows; back-to-front is safe.
         let src = "fn add(a, b) {\n  a + b\n}\n\nfn main() {\n  add(1, 2)\n}\n";
         let edits = vec![
-            TextEdit { start_line: 0, start_col: 3, end_line: 0, end_col: 6, new_text: "plus".into() },
-            TextEdit { start_line: 5, start_col: 2, end_line: 5, end_col: 5, new_text: "plus".into() },
+            TextEdit {
+                start_line: 0,
+                start_col: 3,
+                end_line: 0,
+                end_col: 6,
+                new_text: "plus".into(),
+            },
+            TextEdit {
+                start_line: 5,
+                start_col: 2,
+                end_line: 5,
+                end_col: 5,
+                new_text: "plus".into(),
+            },
         ];
         let out = apply_text_edits(src, &edits);
         assert!(out.contains("fn plus(a, b)"));
@@ -2345,8 +2605,20 @@ mod tests {
         // is spliced first.
         let src = "let x = foo + foo";
         let edits = vec![
-            TextEdit { start_line: 0, start_col: 8, end_line: 0, end_col: 11, new_text: "bar".into() },
-            TextEdit { start_line: 0, start_col: 14, end_line: 0, end_col: 17, new_text: "bar".into() },
+            TextEdit {
+                start_line: 0,
+                start_col: 8,
+                end_line: 0,
+                end_col: 11,
+                new_text: "bar".into(),
+            },
+            TextEdit {
+                start_line: 0,
+                start_col: 14,
+                end_line: 0,
+                end_col: 17,
+                new_text: "bar".into(),
+            },
         ];
         let out = apply_text_edits(src, &edits);
         assert_eq!(out, "let x = bar + bar");
@@ -2358,7 +2630,13 @@ mod tests {
         let src = "café = 1";
         let edits = vec![
             // Replace `café` (4 chars) with `tea`.
-            TextEdit { start_line: 0, start_col: 0, end_line: 0, end_col: 4, new_text: "tea".into() },
+            TextEdit {
+                start_line: 0,
+                start_col: 0,
+                end_line: 0,
+                end_col: 4,
+                new_text: "tea".into(),
+            },
         ];
         let out = apply_text_edits(src, &edits);
         assert_eq!(out, "tea = 1");
@@ -2404,7 +2682,7 @@ mod tests {
         assert_eq!(offset_of(text, &ls, 1, 0), 3); // start of "cde"
         assert_eq!(offset_of(text, &ls, 1, 3), 6); // end of "cde"
         assert_eq!(offset_of(text, &ls, 2, 0), 7); // start of "f"
-        // Out-of-range line clamps to end.
+                                                   // Out-of-range line clamps to end.
         assert_eq!(offset_of(text, &ls, 9, 0), text.len());
     }
 
@@ -2446,7 +2724,10 @@ mod tests {
         let actions = parse_code_actions(json);
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].title, "Right");
-        assert_eq!(actions[0].command.as_ref().map(|c| c.command.as_str()), Some("server.apply"));
+        assert_eq!(
+            actions[0].command.as_ref().map(|c| c.command.as_str()),
+            Some("server.apply")
+        );
         assert!(!actions[0].fix_all_mty);
     }
 
@@ -2464,13 +2745,17 @@ mod tests {
         assert_eq!(actions[0].title, "Right");
         assert!(actions[0].edit.is_none());
         assert!(actions[0].command_edit.is_none());
-        assert_eq!(actions[0].command.as_ref().map(|c| c.command.as_str()), Some("server.apply"));
+        assert_eq!(
+            actions[0].command.as_ref().map(|c| c.command.as_str()),
+            Some("server.apply")
+        );
         assert!(!actions[0].fix_all_mty);
     }
 
     #[test]
     fn parse_code_actions_decodes_unicode_titles() {
-        let json = r#"{"result":[{"title":"Fix 東京 caf\u00e9 \ud83d\ude00","kind":"quickfix"}],"id":5}"#;
+        let json =
+            r#"{"result":[{"title":"Fix 東京 caf\u00e9 \ud83d\ude00","kind":"quickfix"}],"id":5}"#;
         let actions = parse_code_actions(json);
         assert_eq!(actions.len(), 1);
         assert_eq!(actions[0].title, "Fix 東京 café \u{1f600}");
@@ -2484,7 +2769,10 @@ mod tests {
         assert_eq!(actions[0].title, "Run fixer");
         assert!(actions[0].edit.is_none());
         assert!(actions[0].command_edit.is_none());
-        assert_eq!(actions[0].command.as_ref().map(|c| c.command.as_str()), Some("mighty.fixAll"));
+        assert_eq!(
+            actions[0].command.as_ref().map(|c| c.command.as_str()),
+            Some("mighty.fixAll")
+        );
         assert!(actions[0].fix_all_mty);
     }
 
@@ -2539,7 +2827,11 @@ mod tests {
         assert_eq!(e.files[0].1[0].new_text, "println!");
         let command = actions[0].command.as_ref().expect("command");
         assert_eq!(command.command, "rust-analyzer.applySourceChange");
-        assert!(command.arguments_json.as_ref().unwrap().contains("workspaceEdit"));
+        assert!(command
+            .arguments_json
+            .as_ref()
+            .unwrap()
+            .contains("workspaceEdit"));
     }
 
     #[test]
@@ -2550,7 +2842,10 @@ mod tests {
 
         let direct = r#"{"result":[{"title":"Direct edit","command":"server.apply","arguments":[{"changes":{"file:///a.rs":[{"newText":"ok","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":6}}}]}}]}],"id":5}"#;
         let direct_actions = parse_code_actions(direct);
-        let edit = direct_actions[0].command_edit.as_ref().expect("direct edit");
+        let edit = direct_actions[0]
+            .command_edit
+            .as_ref()
+            .expect("direct edit");
 
         assert_eq!(edit.total_edits(), 1);
         assert_eq!(edit.files[0].1[0].new_text, "ok");
@@ -2601,7 +2896,11 @@ mod tests {
         assert_eq!(actions[0].title, "Apply command");
         let command = actions[0].command.as_ref().expect("command");
         assert_eq!(command.command, "server.apply");
-        assert!(command.arguments_json.as_ref().unwrap().contains("disabled"));
+        assert!(command
+            .arguments_json
+            .as_ref()
+            .unwrap()
+            .contains("disabled"));
     }
 
     // ---- state types ----
@@ -2610,12 +2909,20 @@ mod tests {
     fn sig_state_set_clear() {
         let mut s = SigState::new();
         assert!(!s.is_active());
-        assert!(s.set(Some(ParsedSignature { label: "f(a)".into(), params: vec!["a".into()], active: 0, doc: String::new() })));
+        assert!(s.set(Some(ParsedSignature {
+            label: "f(a)".into(),
+            params: vec!["a".into()],
+            active: 0,
+            doc: String::new()
+        })));
         assert!(s.is_active());
         // Empty label -> not active.
         assert!(!s.set(Some(ParsedSignature::default())));
         assert!(!s.is_active());
-        s.set(Some(ParsedSignature { label: "x".into(), ..Default::default() }));
+        s.set(Some(ParsedSignature {
+            label: "x".into(),
+            ..Default::default()
+        }));
         s.clear();
         assert!(!s.is_active());
     }
@@ -2629,7 +2936,11 @@ mod tests {
         assert_eq!(r.name_string(), "add");
         assert_eq!(r.original(), "add");
         r.push('p' as u32);
-        assert_eq!(r.name_string(), "p", "first typed char replaces the selected original");
+        assert_eq!(
+            r.name_string(),
+            "p",
+            "first typed char replaces the selected original"
+        );
         r.backspace();
         assert_eq!(r.name_string(), "");
         for c in "plus".chars() {
@@ -2689,12 +3000,26 @@ mod tests {
         assert_eq!(c.set(vec![]), 0);
         assert!(!c.is_active());
         assert_eq!(
-            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: false }]),
+            c.set(vec![CodeAction {
+                title: "Inert command".into(),
+                edit: None,
+                command_edit: None,
+                command: None,
+                is_preferred: false,
+                fix_all_mty: false
+            }]),
             0,
             "non-actionable code actions are hidden instead of becoming inert menu rows"
         );
         let actions = vec![
-            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: false, fix_all_mty: false },
+            CodeAction {
+                title: "A".into(),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                is_preferred: false,
+                fix_all_mty: false,
+            },
             CodeAction {
                 title: "C".into(),
                 edit: None,
@@ -2706,7 +3031,14 @@ mod tests {
                 is_preferred: false,
                 fix_all_mty: false,
             },
-            CodeAction { title: "B".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: true },
+            CodeAction {
+                title: "B".into(),
+                edit: None,
+                command_edit: None,
+                command: None,
+                is_preferred: false,
+                fix_all_mty: true,
+            },
         ];
         assert_eq!(c.set(actions), 3);
         assert!(c.is_active());
@@ -2731,9 +3063,30 @@ mod tests {
     fn code_action_state_selects_first_preferred_action() {
         let mut c = CodeActionState::new();
         let actions = vec![
-            CodeAction { title: "Ordinary".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: false, fix_all_mty: false },
-            CodeAction { title: "Preferred".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: true, fix_all_mty: false },
-            CodeAction { title: "Later preferred".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: true, fix_all_mty: false },
+            CodeAction {
+                title: "Ordinary".into(),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                is_preferred: false,
+                fix_all_mty: false,
+            },
+            CodeAction {
+                title: "Preferred".into(),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                is_preferred: true,
+                fix_all_mty: false,
+            },
+            CodeAction {
+                title: "Later preferred".into(),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                is_preferred: true,
+                fix_all_mty: false,
+            },
         ];
 
         assert_eq!(c.set(actions), 3);
@@ -2748,17 +3101,47 @@ mod tests {
         };
         let mut c = CodeActionState::new();
         let actions = vec![
-            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: false, fix_all_mty: false },
-            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: true },
+            CodeAction {
+                title: "Replace typo".into(),
+                edit: Some(WorkspaceEdit::default()),
+                command_edit: None,
+                command: None,
+                is_preferred: false,
+                fix_all_mty: false,
+            },
+            CodeAction {
+                title: "Fix all".into(),
+                edit: None,
+                command_edit: None,
+                command: None,
+                is_preferred: false,
+                fix_all_mty: true,
+            },
         ];
         assert_eq!(c.set(actions), 2);
         let (box_x, box_y, _box_w, _box_h, pad, row_h) =
             c.geometry(&mut ctx.text, 300.0, 120.0, 900, 700);
-        let idx = c.click_row(&mut ctx.text, box_x + 24.0, box_y + pad + row_h + 3.0, 300.0, 120.0, 900, 700);
+        let idx = c.click_row(
+            &mut ctx.text,
+            box_x + 24.0,
+            box_y + pad + row_h + 3.0,
+            300.0,
+            120.0,
+            900,
+            700,
+        );
         assert_eq!(idx, 1);
         assert_eq!(c.selection(), 1);
         assert_eq!(
-            c.click_row(&mut ctx.text, box_x - 2.0, box_y + pad + 3.0, 300.0, 120.0, 900, 700),
+            c.click_row(
+                &mut ctx.text,
+                box_x - 2.0,
+                box_y + pad + 3.0,
+                300.0,
+                120.0,
+                900,
+                700
+            ),
             -1
         );
     }
@@ -2812,10 +3195,13 @@ mod tests {
 
         let narrow_w = code_action_popup_width(&mut ctx.text, &narrow, chrome);
         let wide_w = code_action_popup_width(&mut ctx.text, &wide, chrome);
-        let measured_delta =
-            ctx.text.measure_ui_sized(&wide[0].title, chrome).0 - ctx.text.measure_ui_sized(&narrow[0].title, chrome).0;
+        let measured_delta = ctx.text.measure_ui_sized(&wide[0].title, chrome).0
+            - ctx.text.measure_ui_sized(&narrow[0].title, chrome).0;
 
-        assert!(measured_delta > 10.0, "test titles should differ in rendered width");
+        assert!(
+            measured_delta > 10.0,
+            "test titles should differ in rendered width"
+        );
         assert!(
             wide_w >= narrow_w + measured_delta.min(200.0) - 1.0,
             "code action popup should grow with measured title width: narrow={narrow_w} wide={wide_w}"
@@ -2837,7 +3223,14 @@ mod tests {
                 is_preferred: false,
                 fix_all_mty: false,
             },
-            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: true },
+            CodeAction {
+                title: "Fix all".into(),
+                edit: None,
+                command_edit: None,
+                command: None,
+                is_preferred: false,
+                fix_all_mty: true,
+            },
         ];
         assert_eq!(c.set(actions), 2);
         let min_x = 220.0;
@@ -2858,7 +3251,16 @@ mod tests {
             1
         );
         assert_eq!(
-            c.click_row_inset(&mut ctx.text, min_x - 4.0, g.box_y + g.pad + 3.0, 470.0, 120.0, 520, 360, min_x),
+            c.click_row_inset(
+                &mut ctx.text,
+                min_x - 4.0,
+                g.box_y + g.pad + 3.0,
+                470.0,
+                120.0,
+                520,
+                360,
+                min_x
+            ),
             -1
         );
     }
@@ -2982,7 +3384,16 @@ mod tests {
 
         assert_eq!(g.visible, 0);
         assert_eq!(
-            c.click_row_inset(&mut ctx.text, g.box_x + 8.0, g.box_y + 8.0, 300.0, 18.0, 520, 24, 0.0),
+            c.click_row_inset(
+                &mut ctx.text,
+                g.box_x + 8.0,
+                g.box_y + 8.0,
+                300.0,
+                18.0,
+                520,
+                24,
+                0.0
+            ),
             -1
         );
     }
@@ -3001,12 +3412,18 @@ mod tests {
             return;
         }
 
-        let source = "fn add(a: I32, b: I32) -> I32 {\n  a + b\n}\n\nfn main() {\n  let r = add(1, 2)\n}\n";
+        let source =
+            "fn add(a: I32, b: I32) -> I32 {\n  a + b\n}\n\nfn main() {\n  let r = add(1, 2)\n}\n";
         let path = std::env::temp_dir().join("probe_lang.mty");
         let to = Duration::from_secs(8);
 
         // signatureHelp at the `(` of `add(` on line 5 (char 13).
-        let raw = lsp::request_with_timeout(&path, source, lsp::Req::SignatureHelp { line: 5, col: 13 }, to);
+        let raw = lsp::request_with_timeout(
+            &path,
+            source,
+            lsp::Req::SignatureHelp { line: 5, col: 13 },
+            to,
+        );
         match parse_signature_help(&raw) {
             Some(sig) => {
                 eprintln!("sig: {:?}", sig);
@@ -3016,7 +3433,16 @@ mod tests {
         }
 
         // rename `add` -> `plus` at line 5 col 10.
-        let raw = lsp::request_with_timeout(&path, source, lsp::Req::Rename { line: 5, col: 10, new_name: "plus".into() }, to);
+        let raw = lsp::request_with_timeout(
+            &path,
+            source,
+            lsp::Req::Rename {
+                line: 5,
+                col: 10,
+                new_name: "plus".into(),
+            },
+            to,
+        );
         let we = parse_workspace_edit(&raw);
         if !we.is_empty() {
             eprintln!("rename edits: {}", we.total_edits());

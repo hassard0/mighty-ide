@@ -403,7 +403,11 @@ impl CompletionEngine {
         }
 
         self.active = !self.candidates.is_empty();
-        if let Some(idx) = self.candidates.iter().position(|candidate| candidate.preselect) {
+        if let Some(idx) = self
+            .candidates
+            .iter()
+            .position(|candidate| candidate.preselect)
+        {
             self.sel = idx;
         }
         self.candidates.len()
@@ -524,9 +528,7 @@ impl CompletionEngine {
             && self
                 .candidates
                 .get(self.sel)
-                .is_some_and(|candidate| {
-                    !candidate.snippet && candidate.commit_chars.contains(&ch)
-                })
+                .is_some_and(|candidate| !candidate.snippet && candidate.commit_chars.contains(&ch))
     }
 
     /// Close the dropdown and clear its state.
@@ -1344,7 +1346,10 @@ pub mod lsp {
         }
     }
 
-    fn completion_text_edit_named_range(text_edit: &[u8], field: &[u8]) -> Option<CompletionEditRange> {
+    fn completion_text_edit_named_range(
+        text_edit: &[u8],
+        field: &[u8],
+    ) -> Option<CompletionEditRange> {
         let range_at = top_level_field_value_start(text_edit, field)?;
         let range = value_region(text_edit, range_at)?;
         parse_completion_range(range)
@@ -1360,7 +1365,9 @@ pub mod lsp {
         let end = value_region(range, end_at)?;
         Some(CompletionEditRange {
             start_line: top_level_number_value(start, b"line")?.try_into().ok()?,
-            start_col_utf16: top_level_number_value(start, b"character")?.try_into().ok()?,
+            start_col_utf16: top_level_number_value(start, b"character")?
+                .try_into()
+                .ok()?,
             end_line: top_level_number_value(end, b"line")?.try_into().ok()?,
             end_col_utf16: top_level_number_value(end, b"character")?.try_into().ok()?,
         })
@@ -1386,11 +1393,7 @@ pub mod lsp {
         if bytes.is_empty() {
             return false;
         }
-        let digits = if bytes[0] == b'-' {
-            &bytes[1..]
-        } else {
-            bytes
-        };
+        let digits = if bytes[0] == b'-' { &bytes[1..] } else { bytes };
         !digits.is_empty() && digits.iter().all(|b| b.is_ascii_digit())
     }
 
@@ -1880,12 +1883,15 @@ pub mod lsp {
                 match stdout.read(&mut chunk) {
                     Ok(0) => break, // EOF
                     Ok(n) => {
-                        buf.extend_from_slice(&chunk[..n]);
-                        // Stop once the completion response (id:2) has arrived.
-                        if crate::nav::lsp::has_response_id(&buf, 2) {
+                        if !crate::nav::lsp::append_stream_chunk(
+                            &mut buf,
+                            &chunk[..n],
+                            crate::nav::lsp::MAX_RESPONSE_BYTES,
+                        ) {
                             break;
                         }
-                        if buf.len() > 1024 * 1024 {
+                        // Stop once the completion response (id:2) has arrived.
+                        if crate::nav::lsp::has_response_id(&buf, 2) {
                             break;
                         }
                     }
@@ -2045,8 +2051,8 @@ mod tests {
         let lsp = vec!["count_lsp".to_string(), "counter".to_string()];
         let n = e.request(src, cursor, &lsp);
         assert_eq!(e.prefix_len(), 4); // "coun"
-        // Order: semantic first (count_lsp, counter), then buffer-only
-        // (countdown). `counter` dedupes to the semantic entry.
+                                       // Order: semantic first (count_lsp, counter), then buffer-only
+                                       // (countdown). `counter` dedupes to the semantic entry.
         assert_eq!(n, 3);
         assert!(e.is_active());
         assert_eq!(e.accepted_text(), "count_lsp"); // sel starts at 0
@@ -3169,7 +3175,8 @@ mod tests {
         assert!(initialize.contains(r#""labelDetailsSupport":true"#));
         assert!(initialize.contains(r#""documentationFormat":["markdown","plaintext"]"#));
         assert!(initialize.contains(r#""completionItemKind":{"valueSet":[1,2,3"#));
-        assert!(initialize.contains(r#""completionList":{"itemDefaults":["commitCharacters","editRange"]}"#));
+        assert!(initialize
+            .contains(r#""completionList":{"itemDefaults":["commitCharacters","editRange"]}"#));
     }
 
     #[test]

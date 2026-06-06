@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1193).
+(lessons L1-L1194).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Mighty LSP output caps fail closed**: completion, hover/definition, and
+  language-action clients now discard oversized `mty lsp` response buffers
+  instead of parsing partial response data after crossing their byte budget.
 - **Generic LSP output caps fail closed**: external language-server stdout
   streams now discard oversized response or diagnostic buffers instead of
   parsing partial data after crossing the configured byte budget.
