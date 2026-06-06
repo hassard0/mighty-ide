@@ -6406,7 +6406,10 @@ pub extern "C" fn mui_newfolder_dialog(handle: i64) -> i32 {
         }
         FileDialogPick::Unavailable => {
             println!("mui_newfolder_dialog: native folder dialog unavailable");
-            ctx.push_toast(crate::toast::Kind::Warn, "New folder dialog unavailable");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "New folder dialog unavailable; use typed name",
+            );
             return -1;
         }
     };
@@ -6436,7 +6439,10 @@ pub extern "C" fn mui_newproj_dialog(handle: i64) -> i32 {
         FileDialogPick::Unavailable => {
             trace("new_project_dialog unavailable");
             println!("mui_newproj_dialog: native project folder dialog unavailable");
-            ctx.push_toast(crate::toast::Kind::Warn, "New project dialog unavailable");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "New project dialog unavailable; use typed name",
+            );
             return -1;
         }
     };
@@ -6560,7 +6566,10 @@ pub extern "C" fn mui_newfile_dialog(handle: i64) -> i32 {
         FileDialogPick::Unavailable => {
             trace("new_file_dialog unavailable");
             println!("mui_newfile_dialog: native new-file dialog unavailable");
-            ctx.push_toast(crate::toast::Kind::Warn, "New file dialog unavailable");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "New file dialog unavailable; use typed name",
+            );
             return -1;
         }
     };
@@ -6591,7 +6600,10 @@ pub extern "C" fn mui_newfile_workspace_dialog(handle: i64) -> i32 {
         FileDialogPick::Unavailable => {
             trace("new_workspace_file_dialog unavailable");
             println!("mui_newfile_workspace_dialog: native new-file dialog unavailable");
-            ctx.push_toast(crate::toast::Kind::Warn, "New workspace file dialog unavailable");
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "New workspace file dialog unavailable; use typed name",
+            );
             return -1;
         }
     };
@@ -14457,6 +14469,10 @@ fn next_save_file_pick_from_sequence(sequence: &str) -> FileDialogPick {
 }
 
 fn pick_new_file_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
+    #[cfg(test)]
+    if std::env::var_os("MUI_NEW_FILE_FORCE_UNAVAILABLE").is_some() {
+        return FileDialogPick::Unavailable;
+    }
     if let Ok(seq) = std::env::var("MUI_NEW_FILE_PICK_SEQUENCE") {
         let trimmed = seq.trim();
         if !trimmed.is_empty() {
@@ -14509,6 +14525,10 @@ try {
 }
 
 fn pick_new_folder_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
+    #[cfg(test)]
+    if std::env::var_os("MUI_NEW_FOLDER_FORCE_UNAVAILABLE").is_some() {
+        return FileDialogPick::Unavailable;
+    }
     if let Ok(path) = std::env::var("MUI_NEW_FOLDER_PICK") {
         return dialog_pick_from_raw_path(path);
     }
@@ -14549,6 +14569,10 @@ try {
 }
 
 fn pick_new_project_native(initial_dir: &std::path::Path, owner_hwnd: Option<isize>) -> FileDialogPick {
+    #[cfg(test)]
+    if std::env::var_os("MUI_NEW_PROJECT_FORCE_UNAVAILABLE").is_some() {
+        return FileDialogPick::Unavailable;
+    }
     if let Ok(path) = std::env::var("MUI_NEW_PROJECT_PICK") {
         return dialog_pick_from_raw_path(path);
     }

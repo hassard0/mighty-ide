@@ -5473,6 +5473,25 @@ fn new_project_dialog_cancel_does_not_open_prompt_fallback() {
 }
 
 #[test]
+fn new_project_dialog_unavailable_requests_typed_name_prompt() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_NEW_PROJECT_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_NEW_PROJECT_FORCE_UNAVAILABLE");
+    assert_eq!(crate::mui_newproj_dialog(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "New project dialog unavailable; use typed name"
+    );
+}
+
+#[test]
 fn new_folder_validates_name_clears_stage_and_toasts() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_new_folder_guards");
@@ -5679,6 +5698,25 @@ fn new_folder_dialog_cancel_is_noop() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "New folder cancelled");
+}
+
+#[test]
+fn new_folder_dialog_unavailable_requests_typed_name_prompt() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var("MUI_NEW_FOLDER_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_NEW_FOLDER_FORCE_UNAVAILABLE");
+    assert_eq!(crate::mui_newfolder_dialog(handle), -1);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "New folder dialog unavailable; use typed name"
+    );
 }
 
 #[test]
@@ -6058,6 +6096,48 @@ fn new_file_dialog_cancel_and_existing_are_noops() {
     assert_eq!(toast.message, "Name must not end with a dot or space");
 
     let _ = std::fs::remove_dir_all(&outside_dir);
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn new_file_dialog_unavailable_requests_typed_name_prompt() {
+    use crate::{mui_newfile_dialog, mui_newfile_workspace_dialog, mui_tab_active, mui_tab_count};
+
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    let root = std::env::temp_dir().join(format!(
+        "mui_new_file_dialog_unavailable_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+
+    std::env::set_var("MUI_NEW_FILE_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_NEW_FILE_FORCE_UNAVAILABLE");
+
+    assert_eq!(mui_newfile_dialog(handle), -1);
+    assert_eq!(mui_tab_count(handle), 1);
+    assert_eq!(mui_tab_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "New file dialog unavailable; use typed name");
+
+    ctx.toasts.clear();
+    assert_eq!(mui_newfile_workspace_dialog(handle), -1);
+    assert_eq!(mui_tab_count(handle), 1);
+    assert_eq!(mui_tab_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "New workspace file dialog unavailable; use typed name"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }

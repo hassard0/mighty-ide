@@ -713,8 +713,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Created file")
         || m == "New file cancelled"
         || m == "New workspace file cancelled"
-        || m == "New file dialog unavailable"
-        || m == "New workspace file dialog unavailable"
+        || m.starts_with("New file dialog unavailable")
+        || m.starts_with("New workspace file dialog unavailable")
         || m.starts_with("Choose a file inside the workspace")
         || m.starts_with("File already exists")
         || m.starts_with("File create failed")
@@ -723,7 +723,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     } else if m.starts_with("Created folder")
         || m.starts_with("Folder ready")
         || m == "New folder cancelled"
-        || m == "New folder dialog unavailable"
+        || m.starts_with("New folder dialog unavailable")
         || m.starts_with("Choose a folder inside the workspace")
         || m.starts_with("Folder already exists")
         || m.starts_with("Folder path is not a folder")
@@ -732,7 +732,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::CreateFolder)
     } else if m.starts_with("Created project")
         || m == "New project cancelled"
-        || m == "New project dialog unavailable"
+        || m.starts_with("New project dialog unavailable")
         || m.starts_with("New project failed")
         || m == "Could not create project"
         || m == "New Project needs the Mighty compiler `mty` on PATH"
