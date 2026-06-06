@@ -1399,13 +1399,15 @@ impl PaletteEngine {
                 .unwrap_or_else(|| "tab".to_string());
             return Cow::Owned(close_dirty_tab_desc(&name));
         }
-        if matches!(id, CMD_SAVE | CMD_SAVE_AS) && active_read_only {
+        if matches!(id, CMD_SAVE | CMD_SAVE_AS | CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE)
+            && active_read_only
+        {
             let name = ctx
                 .tabs
                 .get(ctx.tabs.active())
                 .map(|tab| tab.basename())
                 .unwrap_or_else(|| "This preview".to_string());
-            return Cow::Owned(read_only_save_desc(&name));
+            return Cow::Owned(read_only_text_editor_desc(&name));
         }
         if id == CMD_SAVE && !active_read_only {
             if let Some(path) = ctx.tabs.active_path() {
@@ -2682,7 +2684,7 @@ fn close_dirty_tab_desc(name: &str) -> String {
     format!("Review unsaved changes in {name}")
 }
 
-fn read_only_save_desc(name: &str) -> String {
+fn read_only_text_editor_desc(name: &str) -> String {
     format!("{name} is read-only in the text editor")
 }
 
@@ -5704,7 +5706,7 @@ mod tests {
     }
 
     #[test]
-    fn save_descriptions_name_read_only_active_target() {
+    fn file_descriptions_name_read_only_active_target() {
         let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
             return;
         };
@@ -5727,6 +5729,18 @@ mod tests {
         );
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE_AS, "base").as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_RENAME_ACTIVE_FILE, "base")
+                .as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DELETE_ACTIVE_FILE, "base")
+                .as_ref(),
             "asset.bin is read-only in the text editor"
         );
 

@@ -6671,6 +6671,14 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
         );
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.path_stage.clear();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            read_only_active_file_message(ctx),
+        );
+        return 0;
+    }
     let staged = std::mem::take(&mut ctx.path_stage);
     let raw = String::from_utf8_lossy(&staged).into_owned();
     let name = match crate::newproj::validate_name(&raw) {
@@ -7152,6 +7160,10 @@ fn active_file_target_name(ctx: &MuiContext) -> String {
         .unwrap_or_else(|| "(scratch)".to_string())
 }
 
+fn read_only_active_file_message(ctx: &MuiContext) -> String {
+    format!("{} is read-only in the text editor", active_file_target_name(ctx))
+}
+
 fn copy_needs_file_message(ctx: &MuiContext, what: &str) -> String {
     format!("No active file {what} to copy: {}", active_file_target_name(ctx))
 }
@@ -7367,6 +7379,14 @@ pub extern "C" fn mui_file_delete_active_confirm(handle: i64) -> i32 {
         );
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.path_stage.clear();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            read_only_active_file_message(ctx),
+        );
+        return 0;
+    }
     let staged = std::mem::take(&mut ctx.path_stage);
     let confirm = String::from_utf8_lossy(&staged).trim().to_string();
     let name = basename(&path);

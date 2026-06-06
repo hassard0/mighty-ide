@@ -290,8 +290,9 @@ and the final handoff response after packaging.
   directory-backed active targets before dispatch; Show in File Manager also
   reports unavailable platform reveal support before launch
 - Command Palette Rename/Delete rows report stale missing or directory-backed
-  active targets before dispatch, and Delete names dirty duplicate blockers
-  before asking for confirmation
+  active targets before dispatch, runtime Rename/Delete refuse read-only
+  previews, and Delete names dirty duplicate blockers before asking for
+  confirmation
 - Unsaved-changes confirmation stale click, cancel, save, and discard routes
   report when the confirmation has already closed
 - Bottom dock stale close, preset, and resize affordances report when no dock is

@@ -9611,6 +9611,42 @@ fn active_file_path_commands_name_scratch_buffers() {
 }
 
 #[test]
+fn active_file_rename_delete_reject_read_only_previews() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_active_file_read_only_ops_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    let renamed = root.join("renamed.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path.clone());
+    assert!(ctx.tabs.active_read_only());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"renamed.bin");
+    assert_eq!(crate::mui_file_rename_active(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    assert!(path.exists());
+    assert!(!renamed.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
+
+    ctx.path_stage.extend_from_slice(b"asset.bin");
+    assert_eq!(crate::mui_file_delete_active_confirm(handle), 0);
+    assert!(ctx.path_stage.is_empty());
+    assert!(path.exists());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn active_file_reveal_spawn_failure_reports_reason() {
     let _g = crate::settings::TEST_LOCK
         .lock()
