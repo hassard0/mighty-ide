@@ -6080,6 +6080,42 @@ fn active_file_rename_rejects_directory_destination() {
 }
 
 #[test]
+fn active_file_rename_rejects_existing_file_destination() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join("mui_active_file_rename_existing_destination");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let old = root.join("old.mty");
+    let existing = root.join("existing.mty");
+    std::fs::write(&old, "fn old() {}\n").unwrap();
+    std::fs::write(&existing, "fn existing() {}\n").unwrap();
+    ctx.workspace.set_root(root.clone());
+    ctx.tree.set_root(root.clone());
+    ctx.tree.refresh();
+    ctx.tabs.open_path(old.clone());
+    crate::abi::sync_active_path(&mut ctx);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    ctx.path_stage.extend_from_slice(b"existing.mty");
+    assert_eq!(crate::mui_file_rename_active(handle), 0);
+
+    assert!(old.is_file());
+    assert!(existing.is_file());
+    assert_eq!(std::fs::read_to_string(&old).unwrap(), "fn old() {}\n");
+    assert_eq!(
+        std::fs::read_to_string(&existing).unwrap(),
+        "fn existing() {}\n"
+    );
+    assert_eq!(ctx.tabs.active_path().as_deref(), Some(old.as_path()));
+    assert_eq!(ctx.tree.count(), 2);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Rename failed: existing.mty: already exists");
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn active_file_delete_requires_exact_basename_confirmation() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join("mui_active_file_delete");
