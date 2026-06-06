@@ -137,6 +137,11 @@ The macOS and Linux scripts remain ready to build their native archives, but
 their binaries are not clean until a macOS or Linux host produces and launches
 those packages.
 
+Before reporting this final pass, confirm that any macOS or Linux archive absent
+from native-runner evidence is treated as unavailable, not reused. A checked
+script, copied file, cross-host inspection, or failed WSL setup is not a clean
+binary for those platforms.
+
 ## Final Pass Record
 
 For this Windows-hosted pass:

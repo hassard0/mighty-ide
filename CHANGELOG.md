@@ -69,6 +69,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   contents with explicit feedback.
 
 ### Release packaging
+- **Windows-hosted stop pass is locked down**: README and release docs now make
+  the final pass explicit: rebuild and launch only the Windows PE package on
+  this host, record macOS and Linux as `unbuilt` when native runners are not
+  available, and do not reuse stale or copied archives as clean-binary evidence.
 - **Final package docs are source-to-artifact strict**: README and release
   verification docs now state that release documentation must be committed
   before package generation, and any later source or doc change requires

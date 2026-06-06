@@ -49,6 +49,11 @@ macOS and Linux package scripts may be syntax-checked and host-gate-checked from
 Windows, but those checks are script readiness only. They do not create clean
 Mach-O or ELF binaries.
 
+If no macOS runner and no Linux distribution or matching Linux CI runner are
+available during the pass, the only local publishable clean-binary outcome is
+Windows x64. Do not keep stale macOS or Linux archives from earlier runs in
+`dist/` as release evidence for this pass.
+
 ## Final Stop Rule
 
 After the final documentation commit, rebuild the Windows package from that

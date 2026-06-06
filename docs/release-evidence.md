@@ -88,6 +88,13 @@ succeeds, in the external upload note or release handoff. Do not edit the source
 tree after that package run unless the package is rebuilt from the new clean
 commit.
 
+The source-controlled copy of this file deliberately stays a reusable template.
+For the actual release upload, copy the generated values from
+`dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`, `Get-Item`, and `Get-FileHash`
+into the upload note. Keeping generated archive hashes out of the committed
+template avoids a self-referential package where updating the evidence changes
+the archive that the evidence describes.
+
 If this file is bundled inside the archive, keep the exact archive hash and
 size in the external release note or upload record for that run. Do not chase a
 self-referential source edit where changing the packaged evidence file changes
@@ -119,6 +126,12 @@ Release decision: unbuilt - native Linux runner unavailable for this pass
 Script readiness: syntax and wrong-host refusal may be checked from Windows,
 but that is not clean-binary evidence
 ```
+
+If WSL or another Linux environment is unavailable, record Linux as `unbuilt`.
+If WSL is available but lacks the Linux Mighty compiler, Rust toolchain, `file`
+utility, or the packaged launch cannot complete inside that Linux environment,
+record Linux as `hold` only when a native Linux package exists; otherwise leave
+it `unbuilt`.
 
 ## Final Windows Pass Summary
 

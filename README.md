@@ -38,6 +38,17 @@ only locally clean binary is the Windows PE ZIP after `.\package-win.ps1` and a
 packaged launch succeed; macOS and Linux stay `unbuilt` until their native
 runners produce and launch the Mach-O and ELF packages.
 
+This checkout's final stop pass uses the same rule for all platforms:
+
+- Windows x64: publish only after the PowerShell packager rebuilds
+  `dist\mighty-ide-v0.3.0-win64.zip` from the clean committed tree, verifies PE
+  payloads, scans the staged tree and ZIP, writes `PACKAGE-MANIFEST.txt`, and
+  the packaged executable launches from `dist\mighty-ide-win64`.
+- macOS: unbuilt until `./package-macos.sh` completes and launches the app on
+  native macOS or a matching CI runner.
+- Linux x64: unbuilt until `./package-linux.sh` completes and launches the
+  executable on native Linux or a matching CI runner.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`
