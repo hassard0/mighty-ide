@@ -1229,6 +1229,9 @@ impl PaletteEngine {
                 ctx.ghost.is_inflight(),
             );
         }
+        if id == CMD_GHOST_COMPLETION_DISMISS {
+            return dismiss_ghost_contextual_desc(base, ctx.ghost.has_ghost());
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1459,6 +1462,14 @@ fn force_ghost_contextual_desc<'a>(
         Cow::Borrowed("AI completion already running")
     } else {
         Cow::Borrowed(base)
+    }
+}
+
+fn dismiss_ghost_contextual_desc(base: &str, has_ghost: bool) -> Cow<'_, str> {
+    if has_ghost {
+        Cow::Borrowed(base)
+    } else {
+        Cow::Borrowed("No AI ghost completion visible")
     }
 }
 
@@ -2278,6 +2289,18 @@ mod tests {
         );
         assert_eq!(
             force_ghost_contextual_desc("base", true, true, false),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn dismiss_ghost_description_reflects_visible_state() {
+        assert_eq!(
+            dismiss_ghost_contextual_desc("base", false),
+            Cow::Borrowed("No AI ghost completion visible")
+        );
+        assert_eq!(
+            dismiss_ghost_contextual_desc("base", true),
             Cow::Borrowed("base")
         );
     }

@@ -37,6 +37,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Force Ghost Completion now mirrors the inline AI setting, missing
   `ANTHROPIC_API_KEY`, and in-flight request state before dispatching the
   command.
+- **Command Palette ghost dismiss explains empty state**: Dismiss Ghost
+  Completion now reports when no inline AI ghost text is visible before
+  dispatching the no-op command.
 - **Command Palette file-backed commands explain scratch buffers**: Hover,
   Go to Definition, Peek Definition, Signature Help, Rename Symbol, Code
   Actions, Format, Run, Run Test at Cursor, Debug Start, and Run in Browser now
