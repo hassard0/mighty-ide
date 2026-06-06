@@ -21,6 +21,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Inline AI respects read-only previews**: explicit ghost-completion requests
   and passive debounce ticks now clear/reject binary previews before snapshotting
   editor contents for an AI request.
+- **Run and Debug respects read-only previews**: starting a new debug session
+  from a binary/read-only tab now stops before adapter spawn and reports why the
+  command is unavailable.
 
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight

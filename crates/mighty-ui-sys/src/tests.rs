@@ -10683,6 +10683,38 @@ fn debug_start_without_active_file_opens_visible_debug_view() {
 }
 
 #[test]
+fn debug_start_rejects_read_only_binary_preview_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_debug_read_only_target_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(
+        crate::dapabi::mui_dbg_start(handle),
+        crate::dap::DebugState::Idle.as_i32()
+    );
+    assert_eq!(ctx.active_panel, crate::PANEL_DEBUG);
+    assert!(ctx.sidebar_visible);
+    assert_eq!(crate::dapabi::mui_dbg_active(handle), 1);
+    assert_eq!(ctx.dbg.console_count(), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Debug is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn debug_start_spawn_failure_names_target_and_command() {
     let _g = crate::settings::TEST_LOCK
         .lock()

@@ -204,6 +204,14 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
             crate::abi::trace("dbg_action already_running");
         }
         DebugState::Idle | DebugState::Terminated => {
+            if ctx.tabs.active_read_only() {
+                ctx.push_toast(
+                    crate::toast::Kind::Warn,
+                    "Debug is unavailable in read-only previews",
+                );
+                crate::abi::trace("dbg_action start_read_only");
+                return ctx.dbg.state().as_i32();
+            }
             let Some(path) = ctx.tabs.active_path() else {
                 ctx.push_toast(
                     crate::toast::Kind::Warn,
