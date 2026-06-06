@@ -87,8 +87,8 @@ impl Chord {
     /// Parse a `mods:cp` token. Returns `None` on any malformed input.
     fn from_token(s: &str) -> Option<Chord> {
         let (m, c) = s.split_once(':')?;
-        let mods = m.trim().parse::<i32>().ok()?;
-        let cp = c.trim().parse::<i32>().ok()?;
+        let mods = crate::parse_signed_decimal_i32_token(m.trim())?;
+        let cp = crate::parse_signed_decimal_i32_token(c.trim())?;
         Some(Chord::new(cp, mods))
     }
 }
@@ -328,7 +328,7 @@ impl Overrides {
             let Some(id_str) = key.strip_prefix("cmd_") else {
                 continue;
             };
-            let Ok(id) = id_str.trim().parse::<u32>() else {
+            let Some(id) = crate::parse_unsigned_decimal_u32_token(id_str.trim()) else {
                 continue;
             };
             let v = v.trim().trim_matches('"');
@@ -1110,6 +1110,8 @@ mod tests {
         }
         assert_eq!(Chord::from_token("garbage"), None);
         assert_eq!(Chord::from_token("x:y"), None);
+        assert_eq!(Chord::from_token("+4:107"), None);
+        assert_eq!(Chord::from_token("4:+107"), None);
     }
 
     #[test]
@@ -1272,6 +1274,23 @@ mod tests {
         // Tolerant of junk.
         let junk = Overrides::parse("# c\n[overrides]\nbad line\ncmd_x = \"1:2\"\ncmd_24 = \"4:107\"\n");
         assert_eq!(junk.get(CMD_ZEN_MODE), Some(Chord::new('k' as i32, MOD_ALT)));
+    }
+
+    #[test]
+    fn override_parse_rejects_plus_prefixed_numeric_tokens() {
+        let blob = format!(
+            "# c\n[overrides]\ncmd_{} = \"+4:107\"\ncmd_{} = \"4:+106\"\ncmd_+{} = \"4:111\"\ncmd_{} = \"4:112\"\n",
+            CMD_ZEN_MODE,
+            CMD_AGENTS,
+            CMD_OPEN_FOLDER,
+            CMD_OPEN_FOLDER
+        );
+        let parsed = Overrides::parse(&blob);
+
+        assert_eq!(parsed.get(CMD_ZEN_MODE), None);
+        assert_eq!(parsed.get(CMD_AGENTS), None);
+        assert_eq!(parsed.get(CMD_OPEN_FOLDER), Some(Chord::new('p' as i32, MOD_ALT)));
+        assert_eq!(parsed.len(), 1);
     }
 
     #[test]
