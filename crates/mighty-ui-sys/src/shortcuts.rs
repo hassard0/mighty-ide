@@ -351,7 +351,7 @@ pub fn load_overrides() -> Overrides {
     let Some(path) = keybindings_path() else {
         return Overrides::new();
     };
-    match std::fs::read_to_string(&path) {
+    match crate::config::read_config_text(&path) {
         Ok(text) => Overrides::parse(&text),
         Err(_) => Overrides::new(),
     }

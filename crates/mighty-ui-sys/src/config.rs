@@ -17,9 +17,13 @@
 //! [`save_theme`] writes the choice so the picker's selection survives a
 //! restart. Both are best-effort: a missing/corrupt config never fails the IDE.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::theme::ThemeId;
+
+/// Persisted IDE config files are small text files. Treat larger files as
+/// corrupt/unavailable before allocating their contents.
+pub(crate) const MAX_CONFIG_FILE_BYTES: u64 = 1024 * 1024;
 
 /// Directory that holds the config file (created on save if absent).
 pub(crate) fn config_dir() -> Option<PathBuf> {
@@ -48,6 +52,23 @@ pub fn config_path() -> Option<PathBuf> {
     config_dir().map(|d| d.join("config"))
 }
 
+pub(crate) fn read_config_text(path: &Path) -> std::io::Result<String> {
+    let meta = std::fs::metadata(path)?;
+    if !meta.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "config path is not a file",
+        ));
+    }
+    if meta.len() > MAX_CONFIG_FILE_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "config file too large",
+        ));
+    }
+    std::fs::read_to_string(path)
+}
+
 /// Full path to the recent-workspaces file (one absolute folder path per line,
 /// newest first). Kept separate from the `key=value` `config` file so the
 /// open-folder MRU persists independently of theme/editor settings.
@@ -67,7 +88,7 @@ pub fn load_recent_workspaces() -> Vec<PathBuf> {
     let Some(path) = recent_workspaces_path() else {
         return Vec::new();
     };
-    match std::fs::read_to_string(&path) {
+    match read_config_text(&path) {
         Ok(text) => crate::workspace::parse_blob(&text),
         Err(_) => Vec::new(),
     }
@@ -79,7 +100,7 @@ pub fn load_recent_files() -> Vec<PathBuf> {
     let Some(path) = recent_files_path() else {
         return Vec::new();
     };
-    match std::fs::read_to_string(&path) {
+    match read_config_text(&path) {
         Ok(text) => crate::workspace::parse_blob(&text),
         Err(_) => Vec::new(),
     }
@@ -140,7 +161,7 @@ pub fn load_zoom() -> f32 {
     let Some(path) = zoom_path() else {
         return 1.0;
     };
-    match std::fs::read_to_string(&path) {
+    match read_config_text(&path) {
         Ok(text) => parse_zoom_value(&text),
         Err(_) => 1.0,
     }
@@ -213,7 +234,7 @@ fn render_all(theme: ThemeId, settings: &crate::settings::Settings) -> String {
 /// Read the persisted theme from the config file, or `None` if unset/unreadable.
 pub fn load_theme() -> Option<ThemeId> {
     let path = config_path()?;
-    let text = std::fs::read_to_string(&path).ok()?;
+    let text = read_config_text(&path).ok()?;
     parse_theme(&text)
 }
 
@@ -288,6 +309,27 @@ mod tests {
         assert_eq!(parse_zoom_value("+1.2"), 1.0);
         assert_eq!(parse_zoom_value("1.2"), crate::uiscale::clamp_zoom(1.2));
         assert_eq!(parse_zoom_value("1.2x"), 1.0);
+    }
+
+    #[test]
+    fn read_config_text_reads_small_files() {
+        let path = std::env::temp_dir().join("mighty-ide-config-small-read");
+        std::fs::write(&path, "theme=warm\n").unwrap();
+
+        assert_eq!(read_config_text(&path).unwrap(), "theme=warm\n");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn read_config_text_rejects_oversized_files_before_reading() {
+        let path = std::env::temp_dir().join("mighty-ide-config-oversized-read");
+        let file = std::fs::File::create(&path).unwrap();
+        file.set_len(MAX_CONFIG_FILE_BYTES + 1).unwrap();
+
+        assert!(read_config_text(&path).is_err());
+
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

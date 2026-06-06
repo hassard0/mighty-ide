@@ -1790,7 +1790,7 @@ pub fn load_user_snippets() -> Vec<SnippetDef> {
 fn load_user_snippets_from_paths(paths: Vec<std::path::PathBuf>) -> Vec<SnippetDef> {
     let mut out = Vec::new();
     for path in paths {
-        if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(text) = crate::config::read_config_text(&path) {
             out.extend(parse_user_snippets(&text));
         }
     }

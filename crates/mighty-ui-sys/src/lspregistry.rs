@@ -163,7 +163,7 @@ pub fn override_path() -> Option<PathBuf> {
 /// when there is no entry for this language (use the default).
 fn load_override(lang: Language) -> Option<Option<CommandLine>> {
     let path = override_path()?;
-    let text = std::fs::read_to_string(&path).ok()?;
+    let text = crate::config::read_config_text(&path).ok()?;
     parse_overrides(&text)
         .into_iter()
         .find(|(l, _)| *l == lang)

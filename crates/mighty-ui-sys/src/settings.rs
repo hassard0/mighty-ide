@@ -275,7 +275,7 @@ pub fn render(s: &Settings) -> String {
 /// global. Best-effort: leaves the defaults active if the file is absent.
 pub fn load_into_active() {
     if let Some(path) = crate::config::config_path() {
-        if let Ok(text) = std::fs::read_to_string(&path) {
+        if let Ok(text) = crate::config::read_config_text(&path) {
             set_active(parse(&text));
         }
     }

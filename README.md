@@ -429,6 +429,9 @@ source commit and report only the archive produced by that run.
 - Persisted editor settings and zoom values require complete decimal tokens, so
   malformed plus-prefixed `font_size`, `tab_width`, or zoom files cannot
   silently alter startup preferences
+- Persisted config-side text files above 1 MiB are treated as unavailable before
+  reading, covering theme/settings, recents, zoom, keybindings, snippets, and
+  LSP overrides
 - Quick Open go-to-line input and Testing summary counts require complete
   unsigned decimal tokens, so plus-prefixed or overflowing values cannot
   silently drive malformed navigation or test-result metadata
