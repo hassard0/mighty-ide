@@ -164,6 +164,9 @@ fn parse_tz_seconds(tz: &str) -> Option<i64> {
         return None;
     };
     let digits = &t[1..];
+    if !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
     let hh: i64 = digits.get(0..2).and_then(|s| s.parse().ok())?;
     let mm: i64 = digits.get(2..4).and_then(|s| s.parse().ok())?;
     if hh > 23 || mm > 59 {
@@ -406,6 +409,18 @@ filename src/main.rs
     }
 
     #[test]
+    fn author_timezone_tokens_reject_embedded_signs_and_bad_ranges() {
+        assert_eq!(parse_tz_seconds("+0000"), Some(0));
+        assert_eq!(parse_tz_seconds("-0130"), Some(-5400));
+        assert_eq!(parse_tz_seconds("++000"), None);
+        assert_eq!(parse_tz_seconds("-+000"), None);
+        assert_eq!(parse_tz_seconds("+00+0"), None);
+        assert_eq!(parse_tz_seconds("+2360"), None);
+        assert_eq!(parse_tz_seconds("+2400"), None);
+        assert_eq!(parse_tz_seconds("+0000x"), None);
+    }
+
+    #[test]
     fn malformed_author_time_does_not_replace_cached_date() {
         let blob = "\
 4444444444444444444444444444444444444444 1 1 1
@@ -427,6 +442,39 @@ author Emmy Noether
 author-time 9223372036854775808
 author-tz +0000
 summary overflowing repeat
+filename src/main.rs
+\tlet third = true;
+";
+        let lines = parse_porcelain(blob);
+
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].date, "2023-11-14");
+        assert_eq!(lines[1].date, "2023-11-14");
+        assert_eq!(lines[2].date, "2023-11-14");
+    }
+
+    #[test]
+    fn malformed_author_timezone_does_not_replace_cached_date() {
+        let blob = "\
+5555555555555555555555555555555555555555 1 1 1
+author Mary Jackson
+author-time 1700000000
+author-tz +0000
+summary first sighting
+filename src/main.rs
+\tlet first = true;
+5555555555555555555555555555555555555555 2 2 1
+author Mary Jackson
+author-time 1700000000
+author-tz ++500
+summary malformed repeat
+filename src/main.rs
+\tlet second = true;
+5555555555555555555555555555555555555555 3 3 1
+author Mary Jackson
+author-time 1700000000
+author-tz +05+0
+summary malformed minute repeat
 filename src/main.rs
 \tlet third = true;
 ";
