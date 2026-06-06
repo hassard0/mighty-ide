@@ -7282,6 +7282,17 @@ fn active_file_reveal_commands_are_named_for_their_scope() {
 }
 
 #[test]
+fn save_all_without_dirty_tabs_reports_no_unsaved_files() {
+    let mut ctx = ctx_or_skip!();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::mui_save_all(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Info);
+    assert_eq!(toast.message, "No unsaved files");
+}
+
+#[test]
 fn save_all_prompts_for_dirty_untitled_tabs() {
     let _g = crate::settings::TEST_LOCK
         .lock()

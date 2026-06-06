@@ -2610,7 +2610,7 @@ fn command_contextual_desc_with_workspace<'a>(
         CMD_SAVE => Cow::Borrowed("Choose a path before saving this untitled file"),
         CMD_SAVE_AS if active_has_path => Cow::Borrowed("Choose a new path or filename for this file"),
         CMD_SAVE_AS => Cow::Borrowed("Choose where this untitled file should live"),
-        CMD_SAVE_ALL if dirty_count == 0 => Cow::Borrowed("No unsaved tabs need writing"),
+        CMD_SAVE_ALL if dirty_count == 0 => Cow::Borrowed("No unsaved files"),
         CMD_SAVE_ALL if dirty_count == 1 => Cow::Borrowed("Write the one unsaved tab"),
         CMD_SAVE_ALL => Cow::Owned(format!("Write {dirty_count} unsaved tabs")),
         CMD_RELOAD_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before reloading"),
@@ -5726,7 +5726,7 @@ mod tests {
     fn save_all_description_reports_dirty_count() {
         assert_eq!(
             command_contextual_desc(CMD_SAVE_ALL, "base", true, false, false, 0, false, false),
-            Cow::Borrowed("No unsaved tabs need writing")
+            Cow::Borrowed("No unsaved files")
         );
         assert_eq!(
             command_contextual_desc(CMD_SAVE_ALL, "base", true, false, true, 1, false, false),

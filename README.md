@@ -120,6 +120,8 @@ and the final handoff response after packaging.
   the runtime `Save skipped: duplicate edits` guard
 - Command Palette Save All reports dirty duplicate tabs that will be skipped
   before dispatch, including the exact all-skipped runtime summary
+- Command Palette Save All uses the runtime `No unsaved files` no-op language
+  when there is nothing to write
 - Command Palette edit rows, including undo/redo, indentation, line movement,
   duplication, deletion, join-line, and comment toggles, report read-only
   previews as unavailable while navigation and selection remain usable

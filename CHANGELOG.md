@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette matches Save All empty-state wording**: File: Save All now
+  reports `No unsaved files` when there is nothing to write, matching the
+  runtime no-op toast.
 - **Command Palette previews dirty duplicate Save All skips**: File: Save All
   now reports when dirty duplicate file tabs will be skipped before dispatch,
   including the exact `{n} files skipped` summary when every dirty tab conflicts.
