@@ -133,9 +133,9 @@ and the final handoff response after packaging.
   browser-run actions need a saved path
 - Command Palette Run Tests mirrors the test runner's target rules, explaining
   when an untitled tab needs either a saved file or a Mighty workspace target
-- Command Palette Format, Run, Test, Debug, Run in Browser, and New Project
-  rows report broken `MIGHTY_MTY` overrides before dispatch instead of waiting
-  for formatter, scaffold, or spawn failures
+- Command Palette Format, Run, Test, Debug, Run in Browser, Mighty Agents, and
+  New Project rows report broken `MIGHTY_MTY` overrides before dispatch instead
+  of waiting for formatter, topology, scaffold, or spawn failures
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
   read-only previews as unavailable before the command is launched
 - Command Palette Run lifecycle rows mirror Run panel no-op states, including

@@ -1358,7 +1358,7 @@ impl PaletteEngine {
         }
         if matches!(
             id,
-            CMD_AGENTS_REFRESH | CMD_AGENTS_CLEAR_RUN_OUTPUT | CMD_AGENTS_CLOSE
+            CMD_AGENTS | CMD_AGENTS_REFRESH | CMD_AGENTS_CLEAR_RUN_OUTPUT | CMD_AGENTS_CLOSE
         ) {
             return agents_contextual_desc(
                 id,
@@ -1911,6 +1911,12 @@ fn agents_contextual_desc<'a>(
     active: bool,
     run_line_count: usize,
 ) -> Cow<'a, str> {
+    if matches!(id, CMD_AGENTS | CMD_AGENTS_REFRESH) {
+        if let Some(desc) = configured_mty_missing_desc(id) {
+            return Cow::Owned(desc);
+        }
+    }
+
     match id {
         CMD_AGENTS_REFRESH if !active => {
             Cow::Borrowed("Open Mighty Agents and rescan workspace topology")
@@ -2535,6 +2541,8 @@ fn configured_mty_missing_desc(id: u32) -> Option<String> {
             | CMD_RUN_TEST_AT_CURSOR
             | CMD_DEBUG_START_CONTINUE
             | CMD_RUN_IN_BROWSER
+            | CMD_AGENTS
+            | CMD_AGENTS_REFRESH
             | CMD_NEW_PROJECT
     );
     if !needs_mty {
@@ -2561,6 +2569,7 @@ fn configured_mty_missing_desc(id: u32) -> Option<String> {
         CMD_RUN_TESTS | CMD_RUN_TEST_AT_CURSOR => "Tests",
         CMD_DEBUG_START_CONTINUE => "Debug",
         CMD_RUN_IN_BROWSER => "Browser run",
+        CMD_AGENTS | CMD_AGENTS_REFRESH => "Mighty Agents",
         CMD_NEW_PROJECT => "New Project",
         _ => "Command",
     };
@@ -3645,6 +3654,46 @@ mod tests {
             agents_contextual_desc(CMD_AGENTS_REFRESH, "base", true, 0),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn agents_command_descriptions_report_missing_configured_mty() {
+        let _guard = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let old_mty = std::env::var_os("MIGHTY_MTY");
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_agents_missing_mty_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let missing_mty = root.join("missing-mty.exe");
+        std::env::set_var("MIGHTY_MTY", &missing_mty);
+
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS, "base", false, 0).as_ref(),
+            "Mighty Agents unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_REFRESH, "base", true, 0).as_ref(),
+            "Mighty Agents unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_CLEAR_RUN_OUTPUT, "base", true, 0),
+            Cow::Borrowed("Agents run output already empty")
+        );
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_CLOSE, "base", false, 0),
+            Cow::Borrowed("Mighty Agents panel is already closed")
+        );
+
+        if let Some(v) = old_mty {
+            std::env::set_var("MIGHTY_MTY", v);
+        } else {
+            std::env::remove_var("MIGHTY_MTY");
+        }
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
