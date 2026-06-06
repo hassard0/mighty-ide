@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (LSP completion filter text - L1134; LSP completion insert text and snippets - L1133; snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14450,3 +14450,18 @@ or risk inserting raw `${1:...}` markers.
   envelope discipline used elsewhere in the IDE: display fields, edit fields,
   and snippet syntax are distinct protocol concepts and should not be collapsed
   into labels just because the UI row is label-shaped.
+
+## L1134 - LSP Completion Filter Text Is A Matching Key, Not Insert Text
+
+After insert text support landed, semantic completions could still disappear
+when the server supplied an abbreviated `filterText`. In LSP, `filterText`
+controls whether an item matches the user's typed prefix; accepting the row
+should still insert `textEdit.newText`, `insertText`, or the display label.
+
+- **IDE note:** semantic candidates now carry optional filter text through the
+  Rust-side completion engine. Prefix matching accepts either inserted text or
+  filter text, but the scalar accept path still exposes only the inserted text
+  to Mighty.
+- **Language note:** no compiler gap surfaced. This is another case where the
+  shim should keep protocol metadata rich until the last scalar boundary instead
+  of reducing server data to one string too early.

@@ -36,6 +36,16 @@ pub struct Candidate {
     pub snippet: bool,
 }
 
+/// LSP semantic completion text plus the server's optional matching key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SemanticCandidate {
+    /// The text inserted on accept.
+    pub text: String,
+    /// Optional LSP `filterText`, used only to decide whether the row matches the
+    /// current typed prefix.
+    pub filter_text: Option<String>,
+}
+
 /// Whether a char is part of an identifier.
 fn is_ident_char(ch: char) -> bool {
     ch == '_' || ch.is_alphanumeric()
@@ -190,6 +200,24 @@ impl CompletionEngine {
     /// they are merged ahead of the buffer words. Returns the candidate count.
     /// A zero count leaves the engine inactive.
     pub fn request(&mut self, bytes: &[u8], cursor: usize, lsp_labels: &[String]) -> usize {
+        let semantic: Vec<SemanticCandidate> = lsp_labels
+            .iter()
+            .map(|text| SemanticCandidate {
+                text: text.clone(),
+                filter_text: None,
+            })
+            .collect();
+        self.request_semantic(bytes, cursor, &semantic)
+    }
+
+    /// Build the candidate list with full LSP semantic metadata. `filterText`
+    /// participates in prefix matching, but accept still inserts `text`.
+    pub fn request_semantic(
+        &mut self,
+        bytes: &[u8],
+        cursor: usize,
+        semantic: &[SemanticCandidate],
+    ) -> usize {
         let prefix = prefix_at(bytes, cursor);
         self.prefix_len = prefix.chars().count();
         self.candidates.clear();
@@ -204,13 +232,10 @@ impl CompletionEngine {
 
         // 1) Semantic (LSP) candidates first — filter by prefix, drop the exact
         //    prefix, keep their order.
-        for label in lsp_labels {
-            if label.len() > prefix.len()
-                && label.starts_with(&prefix)
-                && seen.insert(label.clone())
-            {
+        for item in semantic {
+            if semantic_candidate_matches_prefix(item, &prefix) && seen.insert(item.text.clone()) {
                 self.candidates.push(Candidate {
-                    text: label.clone(),
+                    text: item.text.clone(),
                     semantic: true,
                     snippet: false,
                 });
@@ -586,6 +611,17 @@ impl CompletionEngine {
     }
 }
 
+fn semantic_candidate_matches_prefix(item: &SemanticCandidate, prefix: &str) -> bool {
+    if item.text == prefix {
+        return false;
+    }
+    item.text.starts_with(prefix)
+        || item
+            .filter_text
+            .as_deref()
+            .is_some_and(|filter| filter.starts_with(prefix))
+}
+
 fn completion_badge_letter_width(text: &mut crate::text::Text, letter: &str, size: f32) -> f32 {
     text.measure_ui_sized(letter, size).0
 }
@@ -744,6 +780,7 @@ pub mod lsp {
     //! step is short-timeout and failure-tolerant — any error returns an empty
     //! label list so the caller falls back to buffer words.
 
+    use super::SemanticCandidate;
     use std::io::{Read, Write};
     use std::path::Path;
     use std::process::{Child, Command, Stdio};
@@ -785,26 +822,39 @@ pub mod lsp {
         crate::nav::path_to_file_uri(path)
     }
 
-    /// Scrape insertable completion text out of a JSON blob. Prefers
+    /// Scrape insertable completion candidates out of a JSON blob. Prefers
     /// `textEdit.newText`, then `insertText`, then `label`, and flattens LSP
     /// snippet-formatted insert text to plain text before it reaches the editor.
+    /// Preserves `filterText` so prefix matching can follow the server's chosen
+    /// key while accept still inserts the selected text.
     /// Handles both `result: [items...]` and `result: { items: [items...] }`,
     /// plus a bare item array for tests.
-    pub fn scrape_labels(json: &str) -> Vec<String> {
-        let mut out: Vec<String> = Vec::new();
+    pub fn scrape_candidates(json: &str) -> Vec<SemanticCandidate> {
+        let mut out: Vec<SemanticCandidate> = Vec::new();
         let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
         let bytes = json.as_bytes();
         for items in completion_items_regions(bytes) {
             for item in split_top_level_objects(items) {
-                let Some(val) = completion_item_insert_text(item) else {
+                let Some(text) = completion_item_insert_text(item) else {
                     continue;
                 };
-                if !val.is_empty() && seen.insert(val.clone()) {
-                    out.push(val);
+                if !text.is_empty() && seen.insert(text.clone()) {
+                    out.push(SemanticCandidate {
+                        text,
+                        filter_text: completion_item_filter_text(item),
+                    });
                 }
             }
         }
         out
+    }
+
+    /// Compatibility wrapper for callers that only need inserted text.
+    pub fn scrape_labels(json: &str) -> Vec<String> {
+        scrape_candidates(json)
+            .into_iter()
+            .map(|candidate| candidate.text)
+            .collect()
     }
 
     fn completion_item_insert_text(item: &[u8]) -> Option<String> {
@@ -817,6 +867,10 @@ pub mod lsp {
         } else {
             Some(value)
         }
+    }
+
+    fn completion_item_filter_text(item: &[u8]) -> Option<String> {
+        top_level_string_value(item, b"filterText").filter(|filter| !filter.is_empty())
     }
 
     fn completion_text_edit_new_text(item: &[u8]) -> Option<String> {
@@ -1445,6 +1499,37 @@ mod tests {
     }
 
     #[test]
+    fn request_semantic_matches_filter_text_but_inserts_text() {
+        let mut e = CompletionEngine::new();
+        let src = b"np";
+        let semantic = vec![SemanticCandidate {
+            text: "numpy".to_string(),
+            filter_text: Some("np".to_string()),
+        }];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 1);
+        assert_eq!(e.prefix_len(), 2);
+        assert_eq!(e.accepted_text(), "numpy");
+    }
+
+    #[test]
+    fn request_semantic_excludes_exact_text_even_when_filter_matches() {
+        let mut e = CompletionEngine::new();
+        let src = b"let";
+        let semantic = vec![SemanticCandidate {
+            text: "let".to_string(),
+            filter_text: Some("let".to_string()),
+        }];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 0);
+        assert!(!e.is_active());
+    }
+
+    #[test]
     fn request_buffer_only_when_no_lsp() {
         let mut e = CompletionEngine::new();
         let src = b"alpha alphabet album al";
@@ -1787,6 +1872,18 @@ mod tests {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"println!","insertText":"println($1)"},{"label":"plain"}]}"#;
         let labels = super::lsp::scrape_labels(json);
         assert_eq!(labels, vec!["println($1)".to_string(), "plain".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_filter_text() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"numpy","insertText":"numpy","filterText":"np"},{"label":"plain"}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].text, "numpy");
+        assert_eq!(candidates[0].filter_text.as_deref(), Some("np"));
+        assert_eq!(candidates[1].text, "plain");
+        assert_eq!(candidates[1].filter_text, None);
     }
 
     #[test]
