@@ -6671,7 +6671,10 @@ pub extern "C" fn mui_file_rename_active(handle: i64) -> i32 {
         return 0;
     }
     if new_path.exists() {
-        ctx.push_toast(crate::toast::Kind::Warn, format!("File already exists: {name}"));
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            format!("Rename failed: {name}: already exists"),
+        );
         return 0;
     }
     match std::fs::rename(&old_path, &new_path) {

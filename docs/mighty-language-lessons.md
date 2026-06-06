@@ -13962,3 +13962,18 @@ and should replace stale open-file, open-folder, or Open Recent feedback.
 - **Language note:** no compiler gap surfaced. Validator-owned message text
   still needs an explicit UI operation owner when it crosses into shared
   notification behavior.
+
+## L1103 - File-operation Conflict Text Must Name The Owning Operation
+
+Rename Active File reused `File already exists: <name>` for destination-name
+collisions. That text is correct for New File, but the toast classifier owns it
+as Create File feedback, so a rename collision could replace or stack with the
+wrong workflow.
+
+- **IDE note:** rename destination conflicts now report
+  `Rename failed: <name>: already exists`, keeping the miss in the Rename
+  operation family alongside stale-source, non-file target, and successful
+  rename feedback.
+- **Language note:** no compiler gap surfaced. Shared filesystem phrasing is
+  tempting, but user-facing feedback should preserve the command boundary when
+  the notification system uses text to infer ownership.

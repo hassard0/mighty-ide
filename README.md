@@ -72,7 +72,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   target-specific feedback as typed Open File
 - Rename Active File preserves tab bindings, reports stale missing sources
   without attempting the move, and rejects directory source or destination
-  paths with explicit `not a file` feedback
+  paths with explicit `not a file` feedback; destination name collisions report
+  as rename failures instead of generic file-creation conflicts
 - Delete Active File requires exact basename confirmation, protects dirty
   buffers, reports stale missing targets without closing the tab, and rejects
   directory targets with explicit `not a file` feedback

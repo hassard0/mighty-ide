@@ -1611,6 +1611,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Already named current.mty");
+
+        q.push_at(
+            Kind::Warn,
+            "Rename failed: next.mty: already exists",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Rename failed: next.mty: already exists");
     }
 
     #[test]

@@ -193,6 +193,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   paths and existing non-folder paths now coalesce with the Open workflow, so
   `No such folder: ...` and `Not a folder: ...` replace older open-file,
   open-folder, or Open Recent toasts instead of lingering beside them.
+- **Rename collisions stay in rename feedback**: destination name conflicts now
+  report `Rename failed: <name>: already exists`, so active-file rename misses
+  replace stale rename results instead of being classified as New File feedback.
 - **Theme preference failures are visible**: Color Theme applies still take
   effect immediately, but failed config writes now report a warning instead of
   implying the selected theme will survive restart.
