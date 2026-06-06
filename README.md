@@ -10,6 +10,22 @@ The entire UI is drawn each frame as a Vello scene — smooth gradients, true ro
 
 Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
+## Documentation Map
+
+- [BUILDING.md](BUILDING.md): toolchain setup, local builds, platform package
+  commands, and final release procedure.
+- [KEYBINDINGS.md](KEYBINDINGS.md): complete editor shortcut reference.
+- [docs/platform-packaging.md](docs/platform-packaging.md): clean-binary
+  rules for Windows, macOS, and Linux release archives.
+- [docs/release-verification.md](docs/release-verification.md): evidence
+  checklist for uploaded artifacts.
+- [docs/release-evidence.md](docs/release-evidence.md): fill-in upload
+  record for each platform.
+- [docs/binary-release-status.md](docs/binary-release-status.md): concise
+  platform decision rules for publish, hold, and unbuilt states.
+- [docs/final-release-handoff.md](docs/final-release-handoff.md): stop-pass
+  handoff fields and native-runner requirements.
+
 ## Release Binaries
 
 Release archives are generated under `dist/` and are not committed to the

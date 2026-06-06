@@ -36,7 +36,7 @@ from another operating system.
 Run these from a clean committed tree:
 
 ```powershell
-.\package-win.ps1
+.\package-win.ps1 -Mty C:\path\to\mty.exe
 Get-FileHash dist\mighty-ide-v0.3.0-win64.zip -Algorithm SHA256
 Get-Item dist\mighty-ide-v0.3.0-win64.zip | Select-Object FullName,Length
 Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
@@ -48,6 +48,10 @@ If `mty` is not on PATH, pass the compiler explicitly:
 ```powershell
 .\package-win.ps1 -Mty C:\path\to\mty.exe
 ```
+
+The handoff package must be generated after the README and release docs are
+committed. The generated `PACKAGE-MANIFEST.txt` source commit must match the
+commit reported in the final response.
 
 The selected compiler must report v0.47.0 or newer. A missing or stale compiler
 is a toolchain failure before packaging, not a clean-binary result.
