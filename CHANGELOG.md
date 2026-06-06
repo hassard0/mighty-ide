@@ -18,6 +18,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Run in Browser respects read-only previews**: direct Web Playground runs now
   reject binary/read-only buffers before opening the panel or spawning a build,
   with a focused toast explaining why the command is unavailable.
+- **Inline AI respects read-only previews**: explicit ghost-completion requests
+  and passive debounce ticks now clear/reject binary previews before snapshotting
+  editor contents for an AI request.
 
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight

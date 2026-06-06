@@ -59,6 +59,10 @@ pub extern "C" fn mui_ghost_enabled(_handle: i64) -> i32 {
 #[no_mangle]
 pub extern "C" fn mui_ghost_arm(handle: i64) {
     if let Some(c) = unsafe { ctx(handle) } {
+        if c.tabs.active_read_only() {
+            c.ghost.dismiss();
+            return;
+        }
         c.ghost.arm();
     }
 }
@@ -70,6 +74,10 @@ pub extern "C" fn mui_ghost_tick(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        c.ghost.dismiss();
+        return 0;
+    }
     // The borrow checker needs the snapshot closure to capture an immutable view
     // distinct from the &mut ghost; take the snapshot eagerly only if armed math
     // would fire is not possible without &self, so snapshot lazily via raw ptr.
@@ -190,6 +198,11 @@ pub extern "C" fn mui_ghost_force(handle: i64) -> i32 {
     let Some(c) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if c.tabs.active_read_only() {
+        c.ghost.dismiss();
+        c.push_toast(Kind::Warn, "Inline AI is unavailable in read-only previews");
+        return 0;
+    }
     if !crate::settings::inline_ai() {
         c.push_toast(Kind::Warn, "AI inline completion is disabled in Settings");
         return 0;
@@ -326,5 +339,61 @@ mod tests {
         );
         assert_eq!(ctx.toasts.toasts()[0].kind, Kind::Warn);
         crate::settings::set_active(crate::settings::Settings::default());
+    }
+
+    #[test]
+    fn force_rejects_read_only_preview_before_ai_configuration() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_ghost_read_only_force_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("asset.bin");
+        std::fs::write(&path, b"\0binary preview").unwrap();
+        ctx.tabs.open_path(path);
+        assert!(ctx.tabs.active_read_only());
+        let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+        assert_eq!(mui_ghost_force(handle), 0);
+        assert!(!ctx.ghost.is_inflight());
+        assert_eq!(ctx.toasts.toasts().len(), 1);
+        assert_eq!(
+            ctx.toasts.toasts()[0].message,
+            "Inline AI is unavailable in read-only previews"
+        );
+        assert_eq!(ctx.toasts.toasts()[0].kind, Kind::Warn);
+
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn passive_requests_clear_when_active_tab_is_read_only() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(640, 480) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_ghost_read_only_tick_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("asset.bin");
+        std::fs::write(&path, b"\0binary preview").unwrap();
+        ctx.tabs.open_path(path);
+        ctx.ghost.seed_demo("stale suggestion", (0, 0));
+        assert!(ctx.ghost.has_ghost());
+        let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+        mui_ghost_arm(handle);
+        assert!(!ctx.ghost.has_ghost());
+        assert_eq!(mui_ghost_tick(handle), 0);
+        assert!(!ctx.ghost.is_inflight());
+        assert!(ctx.toasts.toasts().is_empty());
+
+        let _ = std::fs::remove_dir_all(root);
     }
 }
