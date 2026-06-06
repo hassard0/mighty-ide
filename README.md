@@ -85,6 +85,21 @@ This stop pass keeps the source-controlled README, changelog, and release docs
 as the reusable contract, then records generated Windows ZIP evidence only after
 the final source commit has been packaged.
 
+For this pass, the package outcome is intentionally platform-scoped:
+
+- Windows x64 can be clean and publishable from this Windows checkout only
+  after `package-win.ps1` rebuilds the ZIP from the final commit and the
+  packaged executable launches from `dist\mighty-ide-win64`.
+- macOS is `unbuilt` unless a native macOS host or matching CI runner runs
+  `package-macos.sh` and launches the app during this same pass.
+- Linux x64 is `unbuilt` unless a native Linux host, installed WSL
+  distribution, or matching Linux CI runner runs `package-linux.sh` and
+  launches the executable during this same pass.
+
+Do not reuse archives produced before the final source commit. A platform
+archive is release evidence only when its bundled `PACKAGE-MANIFEST.txt`
+records the same commit as the README and release docs being handed off.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`

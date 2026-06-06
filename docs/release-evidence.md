@@ -185,3 +185,18 @@ Linux decision:
 Do not edit source-controlled files after recording those generated values. If
 a source edit is required, commit it first and rebuild the affected native
 package before publishing.
+
+## Generated Evidence Ownership
+
+The source-controlled evidence file is deliberately reusable. For this pass,
+write generated values only into the package manifest, external upload note, or
+final handoff response:
+
+- source commit from `git rev-parse HEAD`
+- Windows ZIP size from `Get-Item`
+- Windows ZIP SHA-256 from `Get-FileHash`
+- package checks from `PACKAGE-MANIFEST.txt` and the package script output
+- packaged launch result from starting `dist\mighty-ide-win64\mighty-ide.exe`
+
+Do not commit those generated values back into this template after packaging.
+That would change the source commit and require another native package run.

@@ -92,6 +92,20 @@ After those fields are reported, stop. Additional source, README, docs,
 packaging, or feature work belongs to a later pass because it changes the source
 state that the generated archive evidence was tied to.
 
+## This Pass
+
+The final source-controlled README and release docs are the reusable contract
+for this handoff. The generated artifact record is intentionally outside git:
+`PACKAGE-MANIFEST.txt` in the package directory, the archive size, the archive
+SHA-256, and the packaged-launch result.
+
+For a Windows-hosted pass, call Windows x64 `publish` only after the PowerShell
+packager runs from the final clean commit and the packaged app launches from
+`dist\mighty-ide-win64`. Leave macOS and Linux as
+`unbuilt - native runner unavailable for this pass` unless their native package
+scripts completed and launched on matching infrastructure during this same
+pass.
+
 Keep committed release docs free of generated archive hashes. The authoritative
 generated values for a Windows-hosted pass are the post-commit
 `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`, the final ZIP size, the final ZIP

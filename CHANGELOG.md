@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final release docs freeze binary evidence ownership**: README and release
+  docs now spell out that Windows ZIP hashes and launch results are generated
+  after the final source commit, while macOS and Linux stay `unbuilt` without
+  same-pass native runners.
 - **Terminal Clear palette matches closed-panel state**: Command Palette now
   reports `Terminal is already closed` for Clear Buffer when the terminal panel
   is hidden, even if the shim still retains terminal state.

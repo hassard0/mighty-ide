@@ -182,6 +182,12 @@ hash, the Windows ZIP size and SHA-256, the package-script checks that passed,
 and the explicit macOS/Linux `unbuilt` status. Do not do additional feature or
 polish work after that report.
 
+For this final pass, the source-controlled deliverables are the README,
+changelog, package scripts, and release docs. The binary deliverable that can be
+cleanly produced on this host is the Windows x64 ZIP only. macOS and Linux are
+clean release paths, but their binary decisions remain `unbuilt` until native
+runners produce and launch those archives from this same source commit.
+
 Use the final response, the generated Windows `PACKAGE-MANIFEST.txt`, and the
 Windows ZIP hash/size as the artifact-scoped evidence for this pass. Do not
 commit those generated values back into the reusable docs after the package run;
