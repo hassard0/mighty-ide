@@ -110,6 +110,9 @@ and the final handoff response after packaging.
   explicit completion requests report missing configured language servers with
   actionable `lsp.toml` feedback instead of collapsing the state into generic
   empty-result messages or optimistic fallback edits
+- Command Palette language-server rows show missing configured server feedback
+  before dispatch for Hover, Go to Definition, Peek Definition, Signature Help,
+  Rename Symbol, and Code Actions
 - Command Palette Force Ghost Completion mirrors Inline AI runtime availability,
   including disabled settings, missing `ANTHROPIC_API_KEY`, and in-flight
   requests before the command is launched

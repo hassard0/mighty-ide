@@ -17,6 +17,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   now share actionable `lsp.toml` feedback when a configured/default language
   server is unavailable, instead of reporting generic empty results or opening
   optimistic fallback edits.
+- **Command Palette previews missing LSP servers**: language-server command rows
+  now show the same missing `lsp.toml` server reason before dispatch for Hover,
+  Go to Definition, Peek Definition, Signature Help, Rename Symbol, and Code
+  Actions.
 - **Final binary handoff matrix is explicit**: README and release docs now state
   the final Windows-hosted publish decision for each platform: Windows x64 can
   publish only after the PE package rebuild, ZIP scan, manifest, hash, and

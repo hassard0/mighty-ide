@@ -1559,6 +1559,12 @@ impl PaletteEngine {
                 ctx.tabs.has_saved_tabs_to_left(),
             );
         }
+        if active_has_path {
+            let desc = language_server_contextual_desc(id, ctx.language, active_read_only);
+            if !matches!(desc, Cow::Borrowed("")) {
+                return desc;
+            }
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1789,6 +1795,32 @@ fn force_ghost_contextual_desc<'a>(
         Cow::Borrowed("AI completion already running")
     } else {
         Cow::Borrowed(base)
+    }
+}
+
+fn language_server_contextual_desc(
+    id: u32,
+    lang: crate::langdetect::Language,
+    active_read_only: bool,
+) -> Cow<'static, str> {
+    let needs_server = matches!(
+        id,
+        CMD_GOTO_DEFINITION
+            | CMD_PEEK_DEFINITION
+            | CMD_HOVER
+            | CMD_SIGNATURE_HELP
+            | CMD_RENAME_SYMBOL
+            | CMD_CODE_ACTIONS
+    );
+    if !needs_server {
+        return Cow::Borrowed("");
+    }
+    if active_read_only && matches!(id, CMD_RENAME_SYMBOL | CMD_CODE_ACTIONS) {
+        return Cow::Borrowed("");
+    }
+    match crate::lspregistry::unavailable_reason(lang) {
+        Some(reason) => Cow::Owned(reason),
+        None => Cow::Borrowed(""),
     }
 }
 
@@ -2825,6 +2857,76 @@ mod tests {
         assert!(text_x + placeholder_budget <= pill_x - 24.0);
         assert!(text_x + query_budget <= pill_x - 14.0);
         assert_eq!(command_query_text_budget(pill_x, text_x, false), 0.0);
+    }
+
+    #[test]
+    fn language_server_palette_rows_explain_unavailable_servers() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let old_config_dir = std::env::var_os("MUI_CONFIG_DIR");
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_lsp_unavailable_{}",
+            std::process::id()
+        ));
+        let config_dir = root.join("config");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&config_dir).unwrap();
+        std::fs::write(
+            config_dir.join("lsp.toml"),
+            "python = \"definitely-not-a-real-python-lsp-for-mighty-ide-tests\"\n",
+        )
+        .unwrap();
+        std::env::set_var("MUI_CONFIG_DIR", &config_dir);
+
+        let expected = "Python language server unavailable; configure python in lsp.toml";
+        for id in [
+            CMD_GOTO_DEFINITION,
+            CMD_PEEK_DEFINITION,
+            CMD_HOVER,
+            CMD_SIGNATURE_HELP,
+            CMD_RENAME_SYMBOL,
+            CMD_CODE_ACTIONS,
+        ] {
+            assert_eq!(
+                language_server_contextual_desc(
+                    id,
+                    crate::langdetect::Language::Python,
+                    false
+                )
+                .as_ref(),
+                expected
+            );
+        }
+
+        assert_eq!(
+            language_server_contextual_desc(
+                CMD_RENAME_SYMBOL,
+                crate::langdetect::Language::Python,
+                true
+            ),
+            Cow::Borrowed("")
+        );
+        assert_eq!(
+            language_server_contextual_desc(
+                CMD_CODE_ACTIONS,
+                crate::langdetect::Language::Python,
+                true
+            ),
+            Cow::Borrowed("")
+        );
+        assert_eq!(
+            language_server_contextual_desc(
+                CMD_HOVER,
+                crate::langdetect::Language::PlainText,
+                false
+            ),
+            Cow::Borrowed("")
+        );
+
+        match old_config_dir {
+            Some(v) => std::env::set_var("MUI_CONFIG_DIR", v),
+            None => std::env::remove_var("MUI_CONFIG_DIR"),
+        }
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[test]
