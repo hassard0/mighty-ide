@@ -1213,6 +1213,7 @@ impl PaletteEngine {
         let active_can_copy =
             active_has_selection || !model.current_line_text_for_clipboard().is_empty();
         let active_has_path = ctx.tabs.active_has_path();
+        let active_read_only = ctx.tabs.active_read_only();
         let workspace_test_target =
             id == CMD_RUN_TESTS
                 && !active_has_path
@@ -1220,11 +1221,19 @@ impl PaletteEngine {
                     &crate::wsabi::effective_root(ctx),
                 )
                 .is_some();
+        if id == CMD_FORCE_GHOST_COMPLETION && !active_read_only {
+            return force_ghost_contextual_desc(
+                base,
+                crate::settings::inline_ai(),
+                crate::ai::api_key().is_some(),
+                ctx.ghost.is_inflight(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
             active_has_path,
-            ctx.tabs.active_read_only(),
+            active_read_only,
             ctx.tabs.is_dirty(ctx.tabs.active()),
             ctx.tabs.dirty_count(),
             active_has_selection,
@@ -1434,6 +1443,23 @@ fn command_footer_label_advance(text: &mut crate::text::Text, label: &str, size:
 /// Static non-contextual description for command surfaces outside the palette.
 pub fn command_static_desc(id: u32) -> &'static str {
     PaletteEngine::meta(id).1
+}
+
+fn force_ghost_contextual_desc<'a>(
+    base: &'a str,
+    inline_ai_enabled: bool,
+    has_api_key: bool,
+    in_flight: bool,
+) -> Cow<'a, str> {
+    if !inline_ai_enabled {
+        Cow::Borrowed("AI inline completion is disabled in Settings")
+    } else if !has_api_key {
+        Cow::Borrowed("Set ANTHROPIC_API_KEY to enable Inline AI")
+    } else if in_flight {
+        Cow::Borrowed("AI completion already running")
+    } else {
+        Cow::Borrowed(base)
+    }
 }
 
 #[cfg(test)]
@@ -2233,6 +2259,26 @@ mod tests {
                 true,
             ),
             Cow::Borrowed("Run the package's tests (mty test)")
+        );
+    }
+
+    #[test]
+    fn force_ghost_description_reflects_runtime_availability() {
+        assert_eq!(
+            force_ghost_contextual_desc("base", false, false, false),
+            Cow::Borrowed("AI inline completion is disabled in Settings")
+        );
+        assert_eq!(
+            force_ghost_contextual_desc("base", true, false, false),
+            Cow::Borrowed("Set ANTHROPIC_API_KEY to enable Inline AI")
+        );
+        assert_eq!(
+            force_ghost_contextual_desc("base", true, true, true),
+            Cow::Borrowed("AI completion already running")
+        );
+        assert_eq!(
+            force_ghost_contextual_desc("base", true, true, false),
+            Cow::Borrowed("base")
         );
     }
 

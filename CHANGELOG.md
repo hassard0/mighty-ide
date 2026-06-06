@@ -33,6 +33,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Replace, autocomplete, Rename Symbol, Code Actions, Inline Ask, and forced
   ghost completion now surface read-only limitations before a mutation path is
   attempted.
+- **Command Palette forced ghost completion explains runtime availability**:
+  Force Ghost Completion now mirrors the inline AI setting, missing
+  `ANTHROPIC_API_KEY`, and in-flight request state before dispatching the
+  command.
 - **Command Palette file-backed commands explain scratch buffers**: Hover,
   Go to Definition, Peek Definition, Signature Help, Rename Symbol, Code
   Actions, Format, Run, Run Test at Cursor, Debug Start, and Run in Browser now

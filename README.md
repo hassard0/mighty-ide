@@ -66,6 +66,9 @@ This checkout's final stop pass uses the same rule for all platforms:
 - Command Palette language and AI edit rows report read-only previews up front:
   Find remains available while Replace, autocomplete acceptance, Rename Symbol,
   code-action edits, and inline AI edits are unavailable
+- Command Palette Force Ghost Completion mirrors Inline AI runtime availability,
+  including disabled settings, missing `ANTHROPIC_API_KEY`, and in-flight
+  requests before the command is launched
 - Command Palette file-backed commands explain unsaved scratch buffers before
   language lookup, code actions, format, run, test-at-cursor, debug, or
   browser-run actions need a saved path
