@@ -12549,6 +12549,15 @@ fn rename_and_code_action_close_commands_clear_active_state() {
     assert_eq!(ctx.toasts.toasts()[0].message, "No rename input open");
     ctx.toasts.clear();
 
+    assert_eq!(crate::abi::mui_rename_dismiss(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    ctx.rename.open("old_name");
+    assert_eq!(crate::abi::mui_rename_active(handle), 1);
+    assert_eq!(crate::abi::mui_rename_dismiss(handle), 1);
+    assert_eq!(crate::abi::mui_rename_active(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
     crate::abi::mui_rename_push_char(handle, 'x' as i32);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
@@ -23249,6 +23258,31 @@ fn screenshot_autoopen_diff_dismisses_welcome_overlay() {
     assert!(
         block.contains("ctx.welcome.dismiss_empty_auto()"),
         "diff autoopen hook must suppress automatic empty-buffer Welcome so captures show the diff body"
+    );
+}
+
+#[test]
+fn language_probe_uses_silent_transient_cleanup() {
+    let abi = include_str!("abi.rs");
+    let start = abi.find("MUI_LANG_PROBE").expect("language probe hook should exist");
+    let rest = &abi[start..];
+    let end = rest
+        .find("MUI_SIG_AUTOOPEN")
+        .expect("language probe should precede language autoopen hooks");
+    let probe = &rest[..end];
+
+    assert!(
+        probe.contains("mui_codeaction_dismiss(handle);"),
+        "language probe must silently dismiss incidental code-action state"
+    );
+    assert!(
+        probe.contains("mui_rename_dismiss(handle);"),
+        "language probe must silently dismiss incidental rename state"
+    );
+    assert!(
+        !probe.contains("mui_codeaction_cancel(handle);")
+            && !probe.contains("mui_rename_cancel(handle);"),
+        "language probe must not use explicit cancel APIs that emit user-facing feedback"
     );
 }
 

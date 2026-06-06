@@ -1051,11 +1051,11 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
             .unwrap_or((0, 0));
         let ca = mui_codeaction_request(handle, cl, cc);
         println!("lang-probe: codeActions={ca}");
-        mui_codeaction_cancel(handle);
+        mui_codeaction_dismiss(handle);
         // Rename prepare on the same position (don't commit — read-only probe).
         let rp = mui_rename_prepare(handle, cl, cc);
         println!("lang-probe: rename-prepare={rp}");
-        mui_rename_cancel(handle);
+        mui_rename_dismiss(handle);
     }
 
     // Screenshot/render hooks for the deeper language-intelligence features:
@@ -11695,6 +11695,20 @@ pub extern "C" fn mui_rename_cancel(handle: i64) -> i32 {
         1
     } else {
         ctx.push_toast(crate::toast::Kind::Info, "No rename input open");
+        0
+    }
+}
+
+/// Close the rename input for incidental cleanup without user-visible feedback.
+#[no_mangle]
+pub extern "C" fn mui_rename_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.rename.is_active() {
+        ctx.rename.cancel();
+        1
+    } else {
         0
     }
 }

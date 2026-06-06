@@ -14044,3 +14044,19 @@ to close a menu.
   state reset and empty-result reporting, callers should not run an explicit
   close command after a miss; that changes the operation's feedback from
   "nothing found" to "wrong surface state."
+
+## L1108 - Scripted Probes Need Silent Cleanup
+
+The startup language probe exercises hover, definition, signature help, code
+actions, and rename paths to report capability diagnostics. Those checks are
+not user close commands. Reusing explicit cancel ABIs after a scripted probe can
+surface unrelated UI feedback such as `Rename cancelled` or
+`No code action menu open` while the probe is only trying to leave transient
+state clean.
+
+- **IDE note:** `MUI_LANG_PROBE` now calls `mui_codeaction_dismiss` and
+  `mui_rename_dismiss` after its scripted checks. Explicit cancel commands keep
+  their user-visible no-op/cancel feedback.
+- **Language note:** no compiler gap surfaced. Diagnostic hooks should use
+  quiet, idempotent cleanup ABIs so probe output and user-facing UI feedback do
+  not get mixed together.

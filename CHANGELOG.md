@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Language probe cleanup is quiet**: the `MUI_LANG_PROBE` startup diagnostic
+  now silently dismisses incidental code-action and rename surfaces after its
+  scripted checks, avoiding stray close-command toasts such as
+  `Rename cancelled` or `No code action menu open`.
 - **Code-action cleanup no longer stacks menu-closed noise**: Ctrl+. and
   palette code-action request misses now keep the actionable
   `No code actions available ...` feedback without following it with
