@@ -1,8 +1,14 @@
 # Mighty IDE
 
-**A native, GPU-vector-rendered code editor — written in [Mighty](https://github.com/hassard0/Mighty), rendered with [Vello](https://github.com/linebender/vello), dogfooding the language by building its own development environment in it.**
+**A native, GPU-vector-rendered code editor written in [Mighty](https://github.com/hassard0/Mighty), rendered with [Vello](https://github.com/linebender/vello), and dogfooding the language by building its own development environment in it.**
 
-The entire UI is drawn each frame as a Vello scene — smooth gradients, true rounded corners, soft drop shadows, wavy diagnostic underlines, anti-aliased text — at CSS quality. The editor orchestration is Mighty source (`src/main.mty`) calling a Rust rendering/services shim across a scalar `extern c` ABI. First-class Mighty support, extensible to other languages.
+The UI is drawn every frame as a Vello scene: gradients, rounded corners, drop
+shadows, diagnostic underlines, anti-aliased text, panels, command surfaces,
+and editor chrome are all rendered by the app. The editor orchestration lives
+in Mighty source (`src/main.mty`) and calls a Rust rendering/services shim
+through a scalar `extern c` ABI. Mighty is the first-class language target, with
+the editor architecture kept open to other languages through LSP, snippets,
+formatting, run/test/debug adapters, and project tooling.
 
 ![Mighty IDE](screenshots/24-debug.png)
 
@@ -10,69 +16,46 @@ The entire UI is drawn each frame as a Vello scene — smooth gradients, true ro
 
 Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
-## Documentation Map
+## Documentation
 
-- [BUILDING.md](BUILDING.md): toolchain setup, local builds, platform package
-  commands, and final release procedure.
+- [BUILDING.md](BUILDING.md): toolchain setup, local builds, native packaging
+  commands, and final release order.
 - [KEYBINDINGS.md](KEYBINDINGS.md): complete editor shortcut reference.
-- [docs/platform-packaging.md](docs/platform-packaging.md): clean-binary
-  rules for Windows, macOS, and Linux release archives.
-- [docs/release-verification.md](docs/release-verification.md): evidence
-  checklist for uploaded artifacts.
-- [docs/release-evidence.md](docs/release-evidence.md): fill-in upload
-  record for each platform.
+- [CHANGELOG.md](CHANGELOG.md): implementation history and release notes.
+- [docs/platform-packaging.md](docs/platform-packaging.md): clean-binary rules
+  for Windows, macOS, and Linux release packages.
+- [docs/release-verification.md](docs/release-verification.md): per-archive
+  verification checklist.
+- [docs/release-evidence.md](docs/release-evidence.md): upload evidence
+  template for generated hashes, sizes, manifests, and launch results.
 - [docs/binary-release-status.md](docs/binary-release-status.md): concise
-  platform decision rules for publish, hold, and unbuilt states.
-- [docs/final-release-handoff.md](docs/final-release-handoff.md): stop-pass
-  handoff fields and native-runner requirements.
+  publish/hold/unbuilt decision rules.
+- [docs/final-release-handoff.md](docs/final-release-handoff.md): final
+  stop-pass handoff contract.
 
 ## Release Binaries
 
-Release archives are generated under `dist/` and are not committed to the
-repository. A clean release package must be built on the same operating system
+Release archives are generated under `dist/` and are intentionally not
+committed. A clean release package must be built on the same operating system
 that will run it because Mighty IDE ships a native executable plus a native
-`mighty-ui-sys` shim.
+`mighty-ui-sys` dynamic library.
 
-This README is the top-level release handoff for the current stop pass. The
-source-controlled artifacts are this file, `BUILDING.md`, `CHANGELOG.md`, the
-package scripts, and the release documents under `docs/`. The generated
-artifacts are the native package directory, `PACKAGE-MANIFEST.txt`, archive
-size, archive SHA-256, and packaged-launch result produced after the final
-source commit.
+The source-controlled release contract is this README, `BUILDING.md`,
+`KEYBINDINGS.md`, `CHANGELOG.md`, the package scripts, and the release
+documents under `docs/`. Commit those files before packaging. Generated
+evidence belongs to the ignored package directory, `PACKAGE-MANIFEST.txt`, the
+archive size, the archive SHA-256, and the final handoff response.
 
-This README, `BUILDING.md`, `CHANGELOG.md`, the package scripts, and the
-release files under `docs/` are the source-controlled release contract for this
-pass. They are committed before binary packaging so every generated
-`PACKAGE-MANIFEST.txt` can name the exact source commit that defined the user
-documentation, clean-binary rules, and platform decisions.
-
-This stop pass is source-final first, artifact-final second. The committed
-source tree contains the README, build notes, changelog, package scripts, and
-release docs. The generated release evidence for this pass is created only
-after that commit by the native package script, the packaged launch, and the
-final handoff values. From this Windows host, the final local clean-binary
-claim can cover only the Windows PE archive; macOS and Linux must stay
-`unbuilt` until their own native package scripts build, scan, manifest, and
-launch matching Mach-O or ELF packages from the same source commit.
-
-Final stop-pass rule: finish the source, README, and docs; commit them; rebuild
-the Windows package from that exact commit; record the Windows ZIP size and
-SHA-256; verify that the packaged Windows executable launches; record macOS and
-Linux as `unbuilt` unless native runners completed the same pass; and stop. Any
-source change after packaging makes the archive stale and requires a new native
-package run.
-
-The README and release docs are the source-controlled contract. Generated
-archive hashes, ZIP or tarball sizes, timestamps, and native payload hashes
-belong to `PACKAGE-MANIFEST.txt`, the release upload note, and the final
-handoff response after the platform package script runs from the committed
-tree.
+From a Windows-hosted stop pass, only the Windows PE package can be proven clean
+locally. macOS and Linux remain `unbuilt` until native macOS and Linux hosts or
+matching CI runners run their own package scripts, scan the archives, write
+manifests, and launch the packaged apps from the same source commit.
 
 | Platform | Package command | Archive | Clean-binary requirement |
 |----------|-----------------|---------|--------------------------|
-| Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`, no sidecars, no `.dylib` or `.so` payloads, packaged launch from `dist\mighty-ide-win64` |
-| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and Mach-O `.dylib`, no sidecars, no `.exe`, `.dll`, or `.so` payloads, packaged app launch |
-| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and ELF `.so`, no sidecars, no `.exe`, `.dll`, or `.dylib` payloads, packaged launch |
+| Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; no sidecars; no `.dylib` or `.so`; launch from `dist\mighty-ide-win64` |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and Mach-O `.dylib`; no sidecars; no `.exe`, `.dll`, or `.so`; launch from the app bundle |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and ELF `.so`; no sidecars; no `.exe`, `.dll`, or `.dylib`; launch from the package directory |
 
 Before packaging, make the Mighty compiler explicit. The packagers require
 `mty --version` to report v0.47.0 or newer and fail before build work starts if
@@ -83,67 +66,22 @@ the selected compiler is missing or stale. On Windows, set `MIGHTY_MTY` or pass
 .\package-win.ps1 -Mty C:\path\to\mty.exe
 ```
 
-If this final pass is run from Windows without a native macOS runner, native
-Linux runner, or installed WSL distribution, only the Windows ZIP can receive
-local clean-binary evidence. The macOS and Linux scripts remain source release
-paths, but their platform decisions must stay `unbuilt` until matching native
-runners build, scan, manifest, hash, and launch those archives.
-
 The package scripts remove the previous same-version archive before building,
 write `PACKAGE-MANIFEST.txt` with source commit and native payload hashes, scan
 the finished archive for build byproducts and foreign native files, and bundle
 the README, build notes, keybindings, changelog, release verification docs, and
 samples. Do not publish placeholder archives or rename a package from another
-OS; record unavailable native runners as `unbuilt`.
+OS.
 
-Final handoff output for a Windows-hosted pass must contain the committed
-source hash, Windows archive path, ZIP size, ZIP SHA-256, package-script checks,
-packaged launch result, and explicit `unbuilt` decisions for macOS and Linux
-unless matching native runners produced those archives during the same pass.
-After those fields are recorded, stop; further implementation work starts a new
-source state and requires a new package run.
+Final stop-pass order:
 
-This stop pass keeps the source-controlled README, changelog, and release docs
-as the reusable contract, then records generated Windows ZIP evidence only after
-the final source commit has been packaged.
-
-For this Windows-hosted finalization, "ensure clean binaries for Windows,
-macOS, and Linux" means producing clean binary evidence where the host can do
-so and recording honest release decisions everywhere else. Windows x64 is the
-only locally publishable binary on this host after the PowerShell packager and
-packaged launch pass. macOS and Linux are clean release paths, but their binary
-decisions remain `unbuilt - native runner unavailable for this pass` unless
-their native package scripts complete and launch on matching infrastructure
-during this same pass.
-
-For this pass, the package outcome is intentionally platform-scoped:
-
-- Windows x64 can be clean and publishable from this Windows checkout only
-  after `package-win.ps1` rebuilds the ZIP from the final commit and the
-  packaged executable launches from `dist\mighty-ide-win64`.
-- macOS is `unbuilt` unless a native macOS host or matching CI runner runs
-  `package-macos.sh` and launches the app during this same pass.
-- Linux x64 is `unbuilt` unless a native Linux host, installed WSL
-  distribution, or matching Linux CI runner runs `package-linux.sh` and
-  launches the executable during this same pass.
-
-Do not reuse archives produced before the final source commit. A platform
-archive is release evidence only when its bundled `PACKAGE-MANIFEST.txt`
-records the same commit as the README and release docs being handed off.
-If `PACKAGE-MANIFEST.txt` names any earlier commit, delete the archive and
-staged package directory and rerun the native package script from the clean
-final commit before publishing.
-
-For this Windows-hosted pass, the expected final binary decisions are:
-
-- Windows x64: publish only after the local PowerShell package run rebuilds,
-  scans, manifests, hashes, and launches the PE package from the final commit.
-- macOS: `unbuilt - native macOS runner unavailable for this pass` unless a
-  macOS runner completes `./package-macos.sh` and launches the app bundle from
-  the same commit.
-- Linux x64: `unbuilt - native Linux runner unavailable for this pass` unless a
-  Linux runner completes `./package-linux.sh` and launches the executable from
-  the same commit.
+1. Commit README, docs, changelog, package scripts, and source.
+2. Rebuild the Windows package from that exact commit.
+3. Record the Windows ZIP size and SHA-256.
+4. Launch the packaged Windows executable from `dist\mighty-ide-win64`.
+5. Record macOS and Linux as `unbuilt - native runner unavailable for this
+   pass` unless their native package runs completed during this same pass.
+6. Stop. Any source change after packaging makes the archive stale.
 
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
