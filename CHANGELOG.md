@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1163).
+(lessons L1-L1164).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Compiler-report zero locations stay non-clickable**: `mty check`
+  diagnostics and streamed Run output now reject `line:0` or `column:0`
+  location records instead of clamping them into real top-left editor targets.
 - **Prepare-rename coordinates reject numeric prefixes**: `prepareRename`
   result `start.line` and `start.character` now require complete integer
   tokens before positioning the symbol rename prompt, so malformed fractional

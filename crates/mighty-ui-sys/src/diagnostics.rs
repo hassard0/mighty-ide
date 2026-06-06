@@ -156,6 +156,9 @@ fn parse_location(line: &str) -> Option<(u32, u32)> {
     }
     let col: u32 = parts[parts.len() - 1].trim().parse().ok()?;
     let line_no: u32 = parts[parts.len() - 2].trim().parse().ok()?;
+    if line_no == 0 || col == 0 {
+        return None;
+    }
     Some((line_no, col))
 }
 
@@ -337,6 +340,19 @@ mod tests {
         assert_eq!(diags[0].line, 0);
         assert_eq!(diags[0].col_start, 0);
         assert_eq!(diags[0].message, "mystery error with no location");
+    }
+
+    #[test]
+    fn zero_location_does_not_attach_to_diagnostic() {
+        let raw = "\
+[MT2001] Error: invalid reported location
+   ╭─[/tmp/bad.mty:0:0]
+";
+        let diags = parse_check_output(raw);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].message, "invalid reported location");
+        assert_eq!(diags[0].line, 0);
+        assert_eq!(diags[0].col_start, 0);
     }
 
     #[test]

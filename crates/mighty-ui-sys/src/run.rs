@@ -522,6 +522,9 @@ fn parse_location(line: &str) -> Option<(String, u32, u32)> {
     }
     let col: u32 = parts[parts.len() - 1].trim().parse().ok()?;
     let line_no: u32 = parts[parts.len() - 2].trim().parse().ok()?;
+    if line_no == 0 || col == 0 {
+        return None;
+    }
     // The path is everything before those last two fields, rejoined on ':'.
     let path = parts[..parts.len() - 2].join(":");
     let path = path.trim().trim_start_matches(['\u{256d}', '\u{2500}', '-', ' ']).to_string();
@@ -590,6 +593,15 @@ mod tests {
         r.feed("Compiling demo.mty ...\nHello, world!\n");
         assert!(!r.line(0).unwrap().clickable);
         assert!(!r.line(1).unwrap().clickable);
+    }
+
+    #[test]
+    fn zero_locations_are_not_clickable() {
+        let mut r = RunPanel::new();
+        r.feed("   \u{256d}\u{2500}[C:/proj/src/main.mty:0:0]\n");
+        let l = r.line(0).unwrap();
+        assert!(!l.clickable);
+        assert_eq!(l.file, "");
     }
 
     #[test]
