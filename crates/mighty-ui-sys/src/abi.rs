@@ -8081,14 +8081,16 @@ pub extern "C" fn mui_sidebar_draw(handle: i64) {
         }
         let name_x = content_x;
         let git = git_status_for(&name);
-        let shown = fit_explorer_name(&mut ctx.text, &name, name_x, sx, sw, chrome, git.is_some());
+        let git_label = git.map(|(label, _)| label);
+        let shown = fit_explorer_name(&mut ctx.text, &name, name_x, sx, sw, chrome, git_label);
         let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
         if !shown.is_empty() {
             ctx.text.queue_ui_sized(name_x, txt_y, &shown, fg, chrome, clip);
         }
         // Git status letter, right-aligned (mockup `.row .git`): M/A/U.
         if let Some((gl, gc)) = git {
-            ctx.text.queue_ui_sized(sx + sw - 22.0, txt_y, gl, gc, chrome - 2.0, clip);
+            let badge_x = explorer_git_badge_x(&mut ctx.text, gl, sx, sw, chrome - 2.0);
+            ctx.text.queue_ui_sized(badge_x, txt_y, gl, gc, chrome - 2.0, clip);
         }
     }
 }
@@ -8108,10 +8110,35 @@ pub(crate) fn fit_explorer_name(
     sx: f32,
     sw: f32,
     chrome: f32,
-    has_git_badge: bool,
+    git_badge: Option<&str>,
 ) -> String {
-    let right = if has_git_badge { sx + sw - 30.0 } else { sx + sw - 14.0 };
+    let right = explorer_name_right_edge(text, sx, sw, chrome, git_badge);
     fit_status_tail(text, name, (right - name_x).max(0.0), chrome)
+}
+
+pub(crate) fn explorer_git_badge_x(
+    text: &mut crate::text::Text,
+    badge: &str,
+    sx: f32,
+    sw: f32,
+    chrome: f32,
+) -> f32 {
+    let (badge_w, _) = text.measure_ui_sized(badge, chrome);
+    (sx + sw - 14.0 - badge_w).max(sx)
+}
+
+fn explorer_name_right_edge(
+    text: &mut crate::text::Text,
+    sx: f32,
+    sw: f32,
+    chrome: f32,
+    git_badge: Option<&str>,
+) -> f32 {
+    if let Some(badge) = git_badge {
+        explorer_git_badge_x(text, badge, sx, sw, chrome - 2.0) - 8.0
+    } else {
+        sx + sw - 14.0
+    }
 }
 
 pub(crate) fn fit_explorer_header(

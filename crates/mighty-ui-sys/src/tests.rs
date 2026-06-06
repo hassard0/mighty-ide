@@ -10073,15 +10073,16 @@ fn explorer_row_name_fits_before_git_badge() {
         sx,
         sw,
         chrome,
-        true,
+        Some("U"),
     );
     let (shown_w, _) = ctx.text.measure_ui_sized(&shown, chrome);
+    let badge_x = crate::abi::explorer_git_badge_x(&mut ctx.text, "U", sx, sw, chrome - 2.0);
     let (badge_w, _) = ctx.text.measure_ui_sized("U", chrome - 2.0);
     assert!(
-        name_x + shown_w + 8.0 <= sx + sw - 22.0,
+        name_x + shown_w + 8.0 <= badge_x,
         "explorer name should leave a gap before the git badge: {shown}"
     );
-    assert!(sx + sw - 22.0 + badge_w <= sx + sw - 8.0);
+    assert!(badge_x + badge_w <= sx + sw - 14.0 + 0.5);
 
     let long = crate::abi::fit_explorer_name(
         &mut ctx.text,
@@ -10090,10 +10091,10 @@ fn explorer_row_name_fits_before_git_badge() {
         sx,
         sw,
         chrome,
-        true,
+        Some("U"),
     );
     let (long_w, _) = ctx.text.measure_ui_sized(&long, chrome);
-    assert!(name_x + long_w + 8.0 <= sx + sw - 22.0);
+    assert!(name_x + long_w + 8.0 <= badge_x);
     assert!(long.starts_with('\u{2026}'));
 }
 

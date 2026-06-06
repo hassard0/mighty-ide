@@ -1667,8 +1667,9 @@ status badges were drawn at the right edge. Long proportional-font filenames
 could crowd the `M`/`A`/`U` badge area in compact sidebars.
 
 - **IDE note:** Explorer row labels now measure the UI font and fit into the
-  real pixel gap before the git badge. Long names tail-ellipsize, preserving the
-  useful file ending while keeping badges readable.
+  real pixel gap before the measured git badge. Long names tail-ellipsize,
+  preserving the useful file ending while keeping badges readable, and the badge
+  draw position shares the same measured geometry as the text budget.
 - **Language note:** no new Mighty gap surfaced. This remains shim-owned layout
   work caused by scalar draw calls and no Mighty-side measured text primitive.
 

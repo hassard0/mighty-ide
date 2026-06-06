@@ -72,6 +72,10 @@ driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 - **Save All palette copy matches untitled-buffer behavior**: Command Palette
   metadata now says Save All will prompt for destinations for dirty untitled
   tabs, instead of implying those buffers are skipped until a separate Save As.
+- **Explorer row labels reserve measured git badges**: file-tree label fitting
+  now measures the synthetic git badge text and draws the badge at the same
+  measured right edge used for filename truncation, keeping compact sidebars
+  from crowding `M`/`A`/`U` markers.
 - **Imported snippets resolve random and UUID variables**: VS Code snippets using
   `$RANDOM`, `$RANDOM_HEX`, or `$UUID` now expand formatted values instead of
   leaving marker text in the editor, with tests pinning digit, hex, and UUID v4
