@@ -629,7 +629,9 @@ Stop-pass checklist:
    payloads and no compiler/linker sidecars.
 5. Launch `dist\mighty-ide-win64\mighty-ide.exe` with
    `dist\mighty-ide-win64` as the working directory.
-6. Record the ZIP size and SHA-256 in the final handoff, then stop. macOS and
+6. Confirm `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt` names the same source
+   commit as the final documentation commit being handed off.
+7. Record the ZIP size and SHA-256 in the final handoff, then stop. macOS and
    Linux remain `unbuilt` until their own native runners produce and smoke-test
    Mach-O and ELF archives.
 

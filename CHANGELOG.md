@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final package evidence checks the source commit**: release templates now
+  require `PACKAGE-MANIFEST.txt` to name the same committed README, changelog,
+  build notes, and release docs used for the handoff before a package can be
+  treated as publishable.
 - **Language actions surface missing LSP servers**: Hover, Go to Definition,
   Signature Help, Rename Symbol, Code Actions, and explicit completion requests
   now share actionable `lsp.toml` feedback when a configured/default language

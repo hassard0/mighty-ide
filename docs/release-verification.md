@@ -32,6 +32,7 @@ Native payloads:
 Sidecar scan:
 Foreign-payload scan:
 PACKAGE-MANIFEST.txt:
+Manifest/source commit match:
 Packaged launch:
 Release decision:
 ```
@@ -109,6 +110,9 @@ For every uploaded archive:
   platform, version, native payload hashes, native payload sizes, and
   clean-binary checks, plus the source commit, generated timestamp, and archive
   name.
+- `PACKAGE-MANIFEST.txt` names the same source commit as the committed README,
+  changelog, build notes, package scripts, and release docs used for the
+  handoff.
 - The package directory contains no compiler/linker sidecars:
   `.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`,
   `.debug`, `.map`, or `.dSYM`.

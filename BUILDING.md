@@ -118,9 +118,11 @@ Use this order for a publishable pass:
    `.\package-win.ps1`, `./package-macos.sh`, or `./package-linux.sh`.
 3. Confirm the script wrote `PACKAGE-MANIFEST.txt` in the package root and that
    the manifest lists the expected native family: PE, Mach-O, or ELF.
-4. Launch the packaged app from inside the assembled package directory or app
+4. Confirm `PACKAGE-MANIFEST.txt` names the same source commit as the committed
+   README, changelog, build notes, and release docs being handed off.
+5. Launch the packaged app from inside the assembled package directory or app
    bundle, not from `target/`.
-5. Record archive size, SHA-256, native payload family, sidecar/foreign-payload
+6. Record archive size, SHA-256, native payload family, sidecar/foreign-payload
    scan result, manifest summary, and packaged launch result.
 
 If a native macOS or Linux host is not available, leave that platform unbuilt
