@@ -48,6 +48,7 @@ pub struct Gpu {
     pub queue: wgpu::Queue,
     pub target: RenderTarget,
     pub format: wgpu::TextureFormat,
+    alpha_mode: wgpu::CompositeAlphaMode,
     /// **Logical** surface width/height (physical ÷ ui_scale). All layout / draw
     /// / click math reads these so it stays in one (logical) coordinate space; the
     /// rect projection uniform is built from these too, so logical coords fill the
@@ -139,6 +140,13 @@ fn pick_surface_format(formats: &[wgpu::TextureFormat]) -> wgpu::TextureFormat {
         .unwrap_or_else(|| formats.first().copied().unwrap_or(wgpu::TextureFormat::Bgra8Unorm))
 }
 
+fn pick_alpha_mode(alpha_modes: &[wgpu::CompositeAlphaMode]) -> wgpu::CompositeAlphaMode {
+    alpha_modes
+        .first()
+        .copied()
+        .unwrap_or(wgpu::CompositeAlphaMode::Auto)
+}
+
 impl Gpu {
     /// Construct GPU state backed by a real window surface.
     pub fn new_windowed(window: Arc<Window>) -> Result<Self, String> {
@@ -172,6 +180,7 @@ impl Gpu {
 
         let caps = surface.get_capabilities(&adapter);
         let format = pick_surface_format(&caps.formats);
+        let alpha_mode = pick_alpha_mode(&caps.alpha_modes);
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format,
@@ -179,7 +188,7 @@ impl Gpu {
             width: phys_width,
             height: phys_height,
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: caps.alpha_modes[0],
+            alpha_mode,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -194,6 +203,7 @@ impl Gpu {
             queue,
             target: RenderTarget::Surface(surface),
             format,
+            alpha_mode,
             width,
             height,
             phys_width,
@@ -261,6 +271,7 @@ impl Gpu {
             queue,
             target: RenderTarget::Offscreen { texture, view },
             format,
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
             width,
             height,
             // Offscreen (screenshot / headless tests) never scales: physical ==
@@ -328,7 +339,7 @@ impl Gpu {
                     width: phys_width,
                     height: phys_height,
                     present_mode: wgpu::PresentMode::Fifo,
-                    alpha_mode: wgpu::CompositeAlphaMode::Auto,
+                    alpha_mode: self.alpha_mode,
                     view_formats: vec![],
                     desired_maximum_frame_latency: 2,
                 };
@@ -883,7 +894,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
 
 #[cfg(test)]
 mod tests {
-    use super::pick_surface_format;
+    use super::{pick_alpha_mode, pick_surface_format};
+    use wgpu::CompositeAlphaMode::*;
     use wgpu::TextureFormat::*;
 
     /// The windowed surface format must be a Vello-blittable UNORM format — an
@@ -910,5 +922,16 @@ mod tests {
     fn picker_falls_back_without_panicking() {
         assert_eq!(pick_surface_format(&[Bgra8UnormSrgb]), Bgra8UnormSrgb);
         assert_eq!(pick_surface_format(&[]), Bgra8Unorm);
+    }
+
+    #[test]
+    fn alpha_mode_preserves_adapter_choice() {
+        assert_eq!(pick_alpha_mode(&[Opaque, PreMultiplied, Auto]), Opaque);
+        assert_eq!(pick_alpha_mode(&[PreMultiplied, Auto]), PreMultiplied);
+    }
+
+    #[test]
+    fn alpha_mode_falls_back_when_caps_are_empty() {
+        assert_eq!(pick_alpha_mode(&[]), Auto);
     }
 }
