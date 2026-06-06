@@ -4,14 +4,18 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1121).
+(lessons L1-L1122).
 
 ## v0.3.0
 
 A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
-driven by `src/main.mty`. ~2,012 shim tests; clean `clippy -D warnings`.
+driven by `src/main.mty`. ~2,016 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Editor preflight no-ops keep scoped feedback lanes**: empty copy/cut
+  targets, word-delete no-ops, cursor-boundary movement, and select-word
+  failures now replace stale feedback in their owning lanes instead of stacking
+  beside nearby command messages.
 - **Final release docs define the stop-pass binary handoff**: README, build
   notes, and release evidence docs now state the exact Windows-hosted final
   sequence, keeping generated ZIP hashes out of source control while recording

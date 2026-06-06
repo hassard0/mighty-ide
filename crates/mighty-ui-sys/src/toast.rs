@@ -564,6 +564,7 @@ enum OperationKey {
     Reveal,
     Copy,
     Edit,
+    Cursor,
     Test,
     Run,
     WebRun,
@@ -830,7 +831,9 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No active file directory to copy"
         || m.starts_with("No active file directory to copy:")
         || m == "No text to copy"
+        || m == "No selection or line text to copy"
         || m == "Nothing to cut"
+        || m == "No selection or line text to cut"
         || m.starts_with("Could not copy text")
         || m.starts_with("Could not cut text")
         || m == "Cut selection"
@@ -846,8 +849,18 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Line is already at the top"
         || m == "Line is already at the bottom"
         || m == "No next line to join"
+        || m == "No previous word to delete"
+        || m == "No next word to delete"
     {
         Some(OperationKey::Edit)
+    } else if m == "Already at previous word boundary"
+        || m == "Already at next word boundary"
+        || m == "Cursor is already at document start"
+        || m == "Cursor is already at document end"
+        || m == "Cursor is already at line start"
+        || m == "Cursor is already at line end"
+    {
+        Some(OperationKey::Cursor)
     } else if is_test_result_message(m)
         || m.starts_with("Tests unavailable:")
         || m == "Open a Mighty file or folder before running tests"
@@ -956,7 +969,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Redo is unavailable in read-only previews"
     {
         Some(OperationKey::History)
-    } else if m == "No word or next occurrence for multi-cursor"
+    } else if m == "No word at cursor"
+        || m == "No word or next occurrence for multi-cursor"
         || m == "No line above for another caret"
         || m == "No line below for another caret"
     {
@@ -1794,6 +1808,25 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Copy target missing: main.mty");
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Info,
+            "No selection or line text to copy",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "No selection or line text to copy"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "No selection or line text to cut",
+            t0 + Duration::from_millis(600),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No selection or line text to cut");
     }
 
     #[test]
@@ -2941,6 +2974,103 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No next line to join");
+
+        q.push_at(
+            Kind::Info,
+            "No previous word to delete",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No previous word to delete");
+
+        q.push_at(
+            Kind::Info,
+            "No next word to delete",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No next word to delete");
+    }
+
+    #[test]
+    fn newer_cursor_motion_feedback_replaces_stale_cursor_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "Already at previous word boundary", t0);
+        q.push_at(
+            Kind::Info,
+            "Already at next word boundary",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Already at next word boundary");
+
+        q.push_at(
+            Kind::Info,
+            "Cursor is already at document start",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Cursor is already at document start"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "Cursor is already at document end",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Cursor is already at document end");
+
+        q.push_at(
+            Kind::Info,
+            "Cursor is already at line start",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Cursor is already at line start");
+
+        q.push_at(
+            Kind::Info,
+            "Cursor is already at line end",
+            t0 + Duration::from_millis(500),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Cursor is already at line end");
+    }
+
+    #[test]
+    fn cursor_motion_and_navigation_feedback_keep_separate_toasts() {
+        let mut q = ToastQueue::new();
+        let t0 = Instant::now();
+
+        q.push_at(Kind::Info, "No Quick Open panel open", t0);
+        q.push_at(
+            Kind::Info,
+            "Cursor is already at document start",
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(q.toasts()[0].message, "No Quick Open panel open");
+        assert_eq!(
+            q.toasts()[1].message,
+            "Cursor is already at document start"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "Search panel closed",
+            t0 + Duration::from_millis(200),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Cursor is already at document start"
+        );
+        assert_eq!(q.toasts()[1].message, "Search panel closed");
     }
 
     #[test]
@@ -3476,7 +3606,18 @@ mod tests {
         let mut q = ToastQueue::new();
         let t0 = Instant::now();
 
-        q.push_at(Kind::Info, "No word or next occurrence for multi-cursor", t0);
+        q.push_at(Kind::Info, "No word at cursor", t0);
+        q.push_at(
+            Kind::Info,
+            "No word or next occurrence for multi-cursor",
+            t0 + Duration::from_millis(50),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "No word or next occurrence for multi-cursor"
+        );
+
         q.push_at(
             Kind::Info,
             "No line above for another caret",
