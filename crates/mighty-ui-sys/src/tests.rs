@@ -13203,12 +13203,12 @@ fn editor_undo_redo_report_read_only_preview() {
     assert_eq!(mui_ed_undo(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Undo is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     assert_eq!(mui_ed_redo(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Redo is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -17792,7 +17792,7 @@ fn in_file_replace_reports_read_only_preview() {
     assert_eq!(mui_replace_all(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Replace is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }

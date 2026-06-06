@@ -16252,7 +16252,10 @@ pub extern "C" fn mui_ed_undo(handle: i64) -> i32 {
         return 0;
     };
     if ctx.tabs.active_read_only() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Undo is unavailable in read-only previews");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            ctx.read_only_active_file_message(),
+        );
         return 0;
     }
     let active = ctx.tabs.active();
@@ -16282,7 +16285,10 @@ pub extern "C" fn mui_ed_redo(handle: i64) -> i32 {
         return 0;
     };
     if ctx.tabs.active_read_only() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Redo is unavailable in read-only previews");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            ctx.read_only_active_file_message(),
+        );
         return 0;
     }
     let active = ctx.tabs.active();
@@ -17196,7 +17202,10 @@ pub extern "C" fn mui_replace_next(handle: i64) -> i32 {
         return 0;
     }
     if ctx.tabs.active_read_only() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Replace is unavailable in read-only previews");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            ctx.read_only_active_file_message(),
+        );
         return 0;
     }
     let repl = ctx.replace_bar.repl_string();
@@ -17226,7 +17235,10 @@ pub extern "C" fn mui_replace_all(handle: i64) -> i32 {
         return 0;
     }
     if ctx.tabs.active_read_only() {
-        ctx.push_toast(crate::toast::Kind::Warn, "Replace is unavailable in read-only previews");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            ctx.read_only_active_file_message(),
+        );
         return 0;
     }
     let repl = ctx.replace_bar.repl_string();
