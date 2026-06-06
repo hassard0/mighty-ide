@@ -18071,6 +18071,51 @@ fn paste_preflight_tracks_clipboard_editability_and_read_only() {
 }
 
 #[test]
+fn clipboard_read_cap_accepts_exact_limit_and_rejects_oversized_text() {
+    let exact = vec![b'x'; crate::abi::MAX_CLIPBOARD_READ_BYTES];
+    let oversized = vec![b'x'; crate::abi::MAX_CLIPBOARD_READ_BYTES + 1];
+
+    assert_eq!(
+        crate::abi::clipboard_text_from_bytes(exact)
+            .expect("exact cap should be accepted")
+            .len(),
+        crate::abi::MAX_CLIPBOARD_READ_BYTES
+    );
+    let err = crate::abi::clipboard_text_from_bytes(oversized).unwrap_err();
+    assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(err.to_string(), "clipboard text too large");
+}
+
+#[test]
+fn editor_paste_rejects_oversized_clipboard_text_before_editing() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("before");
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    std::env::set_var(
+        "MUI_CLIPBOARD_TEXT",
+        "x".repeat(crate::abi::MAX_CLIPBOARD_READ_BYTES + 1),
+    );
+    let _env = EnvRemoveGuard("MUI_CLIPBOARD_TEXT");
+
+    assert_eq!(crate::mui_ed_can_paste(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_ed_paste(h), 0);
+    assert_eq!(ctx.tabs.active_model().as_text(), "before");
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(
+        toast.message,
+        "Clipboard paste failed: clipboard text too large"
+    );
+}
+
+#[test]
 fn delete_preflights_track_boundaries_selection_and_read_only() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();

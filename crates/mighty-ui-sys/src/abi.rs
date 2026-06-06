@@ -7106,6 +7106,8 @@ pub(crate) fn platform_clipboard_read_command() -> Option<(String, Vec<String>)>
     }
 }
 
+pub(crate) const MAX_CLIPBOARD_READ_BYTES: usize = 4 * 1024 * 1024;
+
 fn write_clipboard_text(text: &str) -> std::io::Result<()> {
     use std::io::Write;
 
@@ -7151,7 +7153,7 @@ fn clipboard_write_failure_message(action: &str, e: &std::io::Error) -> String {
 
 pub(crate) fn read_clipboard_text() -> std::io::Result<String> {
     if let Ok(text) = std::env::var("MUI_CLIPBOARD_TEXT") {
-        return Ok(text);
+        return clipboard_text_from_bytes(text.into_bytes());
     }
     if let Ok(reason) = std::env::var("MUI_CLIPBOARD_READ_FORCE_FAIL") {
         let reason = if reason.trim().is_empty() {
@@ -7167,9 +7169,57 @@ pub(crate) fn read_clipboard_text() -> std::io::Result<String> {
             "clipboard command unavailable",
         ));
     };
-    let output = std::process::Command::new(program).args(args).output()?;
-    if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    read_clipboard_command_output(&program, &args)
+}
+
+pub(crate) fn clipboard_text_from_bytes(bytes: Vec<u8>) -> std::io::Result<String> {
+    if bytes.len() > MAX_CLIPBOARD_READ_BYTES {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "clipboard text too large",
+        ))
+    } else {
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    }
+}
+
+fn read_clipboard_command_output(program: &str, args: &[String]) -> std::io::Result<String> {
+    use std::io::Read;
+
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()?;
+    let mut stdout = child.stdout.take().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::Other, "clipboard read pipe unavailable")
+    })?;
+    let mut bytes = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match stdout.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if bytes.len().saturating_add(n) > MAX_CLIPBOARD_READ_BYTES {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "clipboard text too large",
+                    ));
+                }
+                bytes.extend_from_slice(&chunk[..n]);
+            }
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(e);
+            }
+        }
+    }
+    let status = child.wait()?;
+    if status.success() {
+        clipboard_text_from_bytes(bytes)
     } else {
         Err(std::io::Error::new(std::io::ErrorKind::Other, "clipboard read failed"))
     }
