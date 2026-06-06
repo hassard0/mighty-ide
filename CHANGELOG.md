@@ -21,13 +21,16 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Inline AI respects read-only previews**: explicit ghost-completion requests
   and passive debounce ticks now clear/reject binary previews before snapshotting
   editor contents for an AI request.
-- **Run and Debug respects read-only previews**: starting a new debug session
-  from a binary/read-only tab now stops before adapter spawn and reports why the
-  command is unavailable.
+- **Run and Debug respect read-only previews**: starting a Run process or a new
+  debug session from a binary/read-only tab now stops before adapter spawn and
+  reports why the command is unavailable.
 - **Run Tests respects read-only previews**: Run Tests and Run Test at Cursor
   now reject binary/read-only buffers before starting `mty test`, keeping the
   Testing panel visible with direct feedback instead of treating a preview as a
   runnable source file.
+- **Mighty Agents respects read-only previews**: Agents Run now rejects
+  binary/read-only buffers before starting `mty run`, so preview tabs cannot
+  launch agent programs accidentally.
 
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight

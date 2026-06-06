@@ -1174,6 +1174,14 @@ pub extern "C" fn mui_agents_run(handle: i64) -> i32 {
         );
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        crate::abi::trace("agents_run read_only_preview");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Agents Run is unavailable in read-only previews",
+        );
+        return 0;
+    }
     let mut topo = std::mem::take(&mut ctx.agents);
     let ok = topo.run_start(&path);
     ctx.agents = topo;

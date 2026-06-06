@@ -2732,6 +2732,35 @@ fn run_start_without_file_reports_visible_feedback() {
 }
 
 #[test]
+fn run_start_rejects_read_only_binary_preview_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_run_read_only_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    ctx.term_open = true;
+    ctx.web.open();
+    ctx.problems.set_open(true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::featureabi::mui_run_start(handle), 0);
+    assert!(ctx.run.is_active());
+    assert!(!ctx.run.is_running());
+    assert_eq!(ctx.run.line_count(), 0);
+    assert!(!ctx.term_open);
+    assert!(!ctx.web.is_active());
+    assert!(!ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Run is unavailable in read-only previews");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn run_start_spawn_failure_names_target_and_command() {
     let _g = crate::settings::TEST_LOCK
         .lock()
@@ -3695,6 +3724,38 @@ fn agents_run_without_file_reports_visible_feedback() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(toast.message, "Save (scratch) before running Agents");
+}
+
+#[test]
+fn agents_run_rejects_read_only_binary_preview_before_spawn() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_agents_read_only_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+    ctx.sidebar_visible = false;
+    ctx.active_panel = crate::PANEL_EXPLORER;
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::agentsabi::mui_agents_run(handle), 0);
+    assert!(!ctx.agents.run_running());
+    assert_eq!(ctx.agents.run_line_count(), 0);
+    assert_eq!(ctx.active_panel, crate::PANEL_EXPLORER);
+    assert!(!ctx.sidebar_visible);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Agents Run is unavailable in read-only previews"
+    );
+
+    let _ = std::fs::remove_dir_all(root);
 }
 
 #[test]

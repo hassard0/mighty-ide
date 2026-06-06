@@ -218,6 +218,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 
 ### Run · Test · Debug
 - Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics
+- Run refuses binary/read-only previews before starting `mty run`, matching the
+  rest of the file-backed process commands
 - Run output stale header, row click, and scroll routes report when the panel
   has already closed and cannot activate retained hidden output
 - Stale Run output diagnostic rows keep naming the missing source file on
@@ -283,6 +285,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Recent file and folder persistence warnings coalesce with other Open Recent
   feedback instead of stacking beside stale recent-row messages
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
+- Agents Run rejects binary/read-only previews before starting `mty run`, so
+  preview tabs cannot launch agent programs accidentally
 - Mighty Agents stale header, topology-row, scroll, and node-open routes report
   when the panel has already closed and cannot activate retained hidden topology
 - Agents topology jumps reject directory targets from stale scan results instead

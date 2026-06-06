@@ -177,6 +177,15 @@ pub extern "C" fn mui_run_start(handle: i64) -> i32 {
     ctx.term_open = false;
     ctx.web.close();
     ctx.problems.set_open(false);
+    if ctx.tabs.active_read_only() {
+        ctx.run.open();
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Run is unavailable in read-only previews",
+        );
+        crate::abi::trace("run_start read_only_preview");
+        return 0;
+    }
     if let Some(reason) = stale_run_target_reason(&path) {
         ctx.run.fail_before_start(&path, format!("failed to start: {reason}"));
         let toast_reason = compact_run_start_reason(ctx);
