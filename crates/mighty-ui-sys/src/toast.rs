@@ -936,6 +936,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         Some(OperationKey::MultiCursor)
     } else if m == "No completions available"
         || m.starts_with("No completions available at ")
+        || is_lsp_completion_notice(m)
         || m == "No autocomplete suggestions open"
         || m == "No autocomplete suggestion selected"
         || m == "Autocomplete suggestion already inserted"
@@ -1117,6 +1118,15 @@ fn is_mighty_diagnostic_message(message: &str) -> bool {
     code.len() == 4
         && code.chars().all(|ch| ch.is_ascii_digit())
         && chars.next() == Some(':')
+}
+
+fn is_lsp_completion_notice(message: &str) -> bool {
+    if message.ends_with(" language server did not return completions") {
+        return true;
+    }
+    message
+        .strip_suffix(" in lsp.toml")
+        .is_some_and(|head| head.contains(" language server unavailable; configure "))
 }
 
 fn is_name_input_message(message: &str) -> bool {
@@ -3163,6 +3173,28 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No completions available at main.mty:4:2");
+
+        q.push_at(
+            Kind::Warn,
+            "Rust language server unavailable; configure rust in lsp.toml",
+            t0 + Duration::from_millis(75),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Rust language server unavailable; configure rust in lsp.toml"
+        );
+
+        q.push_at(
+            Kind::Info,
+            "Python language server did not return completions",
+            t0 + Duration::from_millis(90),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Python language server did not return completions"
+        );
 
         q.push_at(
             Kind::Warn,

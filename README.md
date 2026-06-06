@@ -125,6 +125,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
 - Empty explicit autocomplete requests also report when a configured language
   server is unavailable, while passive typing completion still falls back
   quietly to buffer words
+- Language-server availability and empty-response notices coalesce with
+  autocomplete feedback instead of stacking stale completion toasts
 - Autocomplete accept misses report visible feedback when no suggestion is open
   instead of silently doing nothing
 - Autocomplete stale click, move, and accept routes report visible feedback when

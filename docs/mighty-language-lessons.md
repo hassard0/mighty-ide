@@ -13855,3 +13855,17 @@ validation from unrelated dialogs.
 - **Language note:** no compiler gap surfaced. Shared prompt text should be
   classified by the concrete surface that owns the prompt, even when the message
   sounds generic.
+
+## L1095 - LSP Completion Notices Belong To Code Intelligence
+
+Explicit autocomplete can report that a configured language server is
+unavailable or returned no completion payload. Those notices should replace the
+stale completion toast that led to the request; otherwise one autocomplete
+gesture can leave multiple cards that all describe the same failed lookup.
+
+- **IDE note:** language-server unavailable and empty-completion notices now
+  coalesce with the Code Intelligence operation family alongside ordinary
+  autocomplete, hover, definition, signature-help, and rename feedback.
+- **Language note:** no compiler gap surfaced. Toolchain availability messages
+  should be classified by the feature path that surfaced them, not by the
+  external tool they mention.

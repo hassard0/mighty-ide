@@ -92,6 +92,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **LSP completion notices replace stale autocomplete feedback**: explicit
+  autocomplete notices for unavailable language servers or empty LSP completion
+  responses now coalesce with other code-intelligence feedback instead of
+  stacking beside stale completion toasts.
 - **Explicit autocomplete reports unavailable LSPs**: empty explicit completion
   requests now append language-server availability details when a configured
   server is missing, while passive typing completion still falls back quietly to
