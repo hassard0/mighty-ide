@@ -5023,6 +5023,24 @@ fn reload_active_from_disk(ctx: &mut MuiContext, allow_dirty: bool) -> i32 {
         );
         return -1;
     }
+    if let Ok(meta) = std::fs::metadata(&path) {
+        if meta.is_file() && meta.len() > crate::tabs::MAX_OPEN_FILE_BYTES {
+            ctx.tabs.reload_active_oversized(meta.len());
+            let _ = ctx
+                .tabs
+                .reload_all_clean_path_oversized_except(&path, meta.len(), active);
+            sync_active_path(ctx);
+            ensure_tab_visible(ctx, active);
+            let name = basename(&path);
+            let message = if allow_dirty && was_dirty {
+                format!("Reverted {name}")
+            } else {
+                format!("Reloaded {name}")
+            };
+            ctx.push_toast(crate::toast::Kind::Info, message);
+            return active as i32;
+        }
+    }
     let bytes = match std::fs::read(&path) {
         Ok(bytes) => bytes,
         Err(e) => {

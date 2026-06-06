@@ -120,7 +120,8 @@ source commit and report only the archive produced by that run.
 - New File rejects existing directory targets with explicit `not a file`
   feedback instead of reporting them as ordinary existing files
 - Opening a file above 16 MiB produces a lightweight read-only large-file
-  preview instead of allocating the full payload into the text editor
+  preview instead of allocating the full payload into the text editor; Reload
+  and Revert use the same limit
 - Undo / redo (Ctrl+Z / Ctrl+Y), clipboard copy/cut/paste (Ctrl+C/X/V), select all (Ctrl+A), select current line (Ctrl+L), typing-run coalescing
 - Copy now has a pure editor preflight that reports whether the active
   selection or current line is copyable without touching the OS clipboard,

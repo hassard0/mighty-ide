@@ -634,6 +634,12 @@ impl TabStore {
         self.reload_index(i, bytes, false);
     }
 
+    /// Replace the active tab with an oversized-file placeholder.
+    pub fn reload_active_oversized(&mut self, bytes_len: u64) {
+        let i = self.active.min(self.tabs.len().saturating_sub(1));
+        self.reload_index_oversized(i, bytes_len, false);
+    }
+
     /// Replace the active tab from disk while keeping its undo checkpoint stack.
     /// Used for formatter-style transformations where the reload is the edit.
     pub fn reload_active_preserving_history(&mut self, bytes: &[u8]) {
@@ -683,6 +689,42 @@ impl TabStore {
         (refreshed, dirty_skipped)
     }
 
+    /// Replace every clean open file-backed tab matching `path` with an
+    /// oversized-file placeholder, excluding `except_idx`.
+    pub fn reload_all_clean_path_oversized_except(
+        &mut self,
+        path: &Path,
+        bytes_len: u64,
+        except_idx: usize,
+    ) -> (usize, usize) {
+        let mut refreshed = 0usize;
+        let mut dirty_skipped = 0usize;
+        let matching: Vec<usize> = self
+            .tabs
+            .iter()
+            .enumerate()
+            .filter_map(|(idx, tab)| {
+                (idx != except_idx)
+                    .then(|| {
+                        tab.path
+                            .as_deref()
+                            .is_some_and(|p| tab_paths_equal(p, path))
+                            .then_some(idx)
+                    })
+                    .flatten()
+            })
+            .collect();
+        for idx in matching {
+            if self.is_dirty(idx) {
+                dirty_skipped += 1;
+            } else {
+                self.reload_index_oversized(idx, bytes_len, false);
+                refreshed += 1;
+            }
+        }
+        (refreshed, dirty_skipped)
+    }
+
     fn reload_index(&mut self, i: usize, bytes: &[u8], preserve_history: bool) {
         let (model, fold, read_only) = model_for_bytes(self.tabs[i].path.as_deref(), bytes);
         self.tabs[i].model = model;
@@ -698,6 +740,20 @@ impl TabStore {
         }
         self.tabs[i].redo.clear();
         // A fresh buffer: recompute folds and drop any stale folded state.
+        self.tabs[i].fold = fold;
+    }
+
+    fn reload_index_oversized(&mut self, i: usize, bytes_len: u64, preserve_history: bool) {
+        let (model, fold, bytes) =
+            model_for_oversized_file(self.tabs[i].path.as_deref(), bytes_len);
+        self.tabs[i].model = model;
+        self.tabs[i].bytes = bytes;
+        self.tabs[i].dirty = false;
+        self.tabs[i].read_only = true;
+        if !preserve_history {
+            self.tabs[i].undo.clear();
+        }
+        self.tabs[i].redo.clear();
         self.tabs[i].fold = fold;
     }
 
@@ -1292,6 +1348,60 @@ mod tests {
         assert!(tab.bytes.len() < 1024);
         assert!(!tab.is_dirty());
         assert!(s.active_read_only());
+
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn reload_active_oversized_replaces_existing_tab_with_read_only_preview() {
+        let p = write_tmp("tabs_reload_oversized_asset.log", b"small\n");
+
+        let mut s = TabStore::new();
+        let idx = s.open_path(p.clone());
+        s.get_mut(idx)
+            .unwrap()
+            .undo
+            .push(TextModel::from_bytes(b"old"));
+        s.reload_active_oversized(MAX_OPEN_FILE_BYTES + 1);
+
+        let tab = s.get(idx).unwrap();
+        assert!(tab.read_only);
+        assert!(tab.model.as_text().contains("Large file preview"));
+        assert!(tab
+            .model
+            .as_text()
+            .contains("tabs_reload_oversized_asset.log"));
+        assert!(tab.bytes.len() < 1024);
+        assert!(tab.undo.is_empty());
+        assert!(tab.redo.is_empty());
+        assert!(!tab.is_dirty());
+
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn reload_all_clean_path_oversized_refreshes_clean_matching_tabs() {
+        let p = write_tmp("tabs_reload_all_oversized.txt", b"small\n");
+
+        let mut s = TabStore::new();
+        let first = s.open_path(p.clone());
+        let second = s.duplicate_active();
+        s.switch(first);
+        s.reload_active_oversized(MAX_OPEN_FILE_BYTES + 1);
+        let (refreshed, dirty_skipped) =
+            s.reload_all_clean_path_oversized_except(&p, MAX_OPEN_FILE_BYTES + 1, first);
+
+        assert_eq!(second, 1);
+        assert_eq!(refreshed, 1);
+        assert_eq!(dirty_skipped, 0);
+        assert!(s.get(first).unwrap().read_only);
+        assert!(s.get(second).unwrap().read_only);
+        assert!(s
+            .get(second)
+            .unwrap()
+            .model
+            .as_text()
+            .contains("Large file preview"));
 
         let _ = std::fs::remove_file(&p);
     }
