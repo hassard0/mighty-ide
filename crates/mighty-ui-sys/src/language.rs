@@ -1950,7 +1950,7 @@ pub mod lsp {
     }
 
     pub(super) fn initialize_msg() -> String {
-        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"rename":{"prepareSupport":true},"documentSymbol":{"hierarchicalDocumentSymbolSupport":true,"symbolKind":{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]}}}}}}"#.to_string()
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"signatureHelp":{"signatureInformation":{"documentationFormat":["markdown","plaintext"],"parameterInformation":{"labelOffsetSupport":true}}},"rename":{"prepareSupport":true},"codeAction":{"codeActionLiteralSupport":{"codeActionKind":{"valueSet":["quickfix","refactor","refactor.rewrite","source","source.fixAll","source.organizeImports"]}},"isPreferredSupport":true,"disabledSupport":true},"documentSymbol":{"hierarchicalDocumentSymbolSupport":true,"symbolKind":{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]}}}}}}"#.to_string()
     }
 }
 
@@ -1980,6 +1980,24 @@ mod tests {
 
         assert!(msg.contains(r#""rename":{"prepareSupport":true}"#));
         assert!(!msg.contains(r#""honorsChangeAnnotations""#));
+    }
+
+    #[test]
+    fn lsp_initialize_advertises_signature_help_metadata() {
+        let msg = lsp::initialize_msg();
+
+        assert!(msg.contains(r#""signatureHelp":{"signatureInformation":{"documentationFormat":["markdown","plaintext"],"parameterInformation":{"labelOffsetSupport":true}}}"#));
+        assert!(!msg.contains(r#""contextSupport""#));
+    }
+
+    #[test]
+    fn lsp_initialize_advertises_code_action_metadata() {
+        let msg = lsp::initialize_msg();
+
+        assert!(msg.contains(r#""codeActionLiteralSupport":{"codeActionKind":{"valueSet":["quickfix","refactor","refactor.rewrite","source","source.fixAll","source.organizeImports"]}}"#));
+        assert!(msg.contains(r#""isPreferredSupport":true"#));
+        assert!(msg.contains(r#""disabledSupport":true"#));
+        assert!(!msg.contains(r#""resolveSupport""#));
     }
 
     #[test]
