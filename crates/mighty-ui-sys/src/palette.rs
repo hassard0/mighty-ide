@@ -1391,6 +1391,14 @@ impl PaletteEngine {
                 return Cow::Owned(reload_dirty_target_desc(&path));
             }
         }
+        if id == CMD_CLOSE_TAB && ctx.tabs.is_dirty(ctx.tabs.active()) {
+            let name = ctx
+                .tabs
+                .get(ctx.tabs.active())
+                .map(|tab| tab.basename())
+                .unwrap_or_else(|| "tab".to_string());
+            return Cow::Owned(close_dirty_tab_desc(&name));
+        }
         if matches!(id, CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE) {
             if let Some(path) = ctx.tabs.active_path() {
                 if let Some(desc) = reload_revert_stale_target_desc(id, &path) {
@@ -2636,6 +2644,10 @@ fn reload_dirty_target_desc(path: &std::path::Path) -> String {
         "Save or discard changes before reloading: {}",
         palette_basename(path)
     )
+}
+
+fn close_dirty_tab_desc(name: &str) -> String {
+    format!("Review unsaved changes in {name}")
 }
 
 fn palette_basename(path: &std::path::Path) -> String {
@@ -5551,6 +5563,18 @@ mod tests {
         assert_eq!(
             reload_dirty_target_desc(std::path::Path::new("src/reload_me.mty")),
             "Save or discard changes before reloading: reload_me.mty"
+        );
+    }
+
+    #[test]
+    fn close_dirty_tab_description_names_target() {
+        assert_eq!(
+            close_dirty_tab_desc("dirty.mty"),
+            "Review unsaved changes in dirty.mty"
+        );
+        assert_eq!(
+            close_dirty_tab_desc("(scratch)"),
+            "Review unsaved changes in (scratch)"
         );
     }
 
