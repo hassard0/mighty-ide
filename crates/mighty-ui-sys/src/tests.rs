@@ -13153,12 +13153,14 @@ fn editor_motion_and_selection_work_in_read_only_previews() {
 fn editor_mutating_commands_report_read_only_preview() {
     use crate::{
         mui_ed_backspace, mui_ed_backspace_multi, mui_ed_delete, mui_ed_delete_current_line,
-        mui_ed_delete_multi, mui_ed_complete_accept, mui_ed_cut, mui_ed_delete_word_left_multi,
+        mui_ed_backspace_smart, mui_ed_delete_multi, mui_ed_complete_accept, mui_ed_cut,
+        mui_ed_delete_word_left_multi,
         mui_ed_delete_word_right_multi, mui_ed_delete_word_left, mui_ed_delete_word_right,
         mui_ed_duplicate, mui_ed_insert_char,
-        mui_ed_indent, mui_ed_insert_char_multi, mui_ed_insert_smart_multi, mui_ed_join_line,
-        mui_ed_move_lines_down, mui_ed_move_lines_up, mui_ed_newline, mui_ed_newline_indent,
-        mui_ed_newline_indent_multi, mui_ed_outdent, mui_ed_paste, mui_ed_toggle_comment,
+        mui_ed_indent, mui_ed_insert_char_multi, mui_ed_insert_smart, mui_ed_insert_smart_multi,
+        mui_ed_join_line, mui_ed_move_lines_down, mui_ed_move_lines_up, mui_ed_newline,
+        mui_ed_newline_indent, mui_ed_newline_indent_multi, mui_ed_outdent, mui_ed_paste,
+        mui_ed_toggle_comment,
     };
 
     let mut ctx = ctx_or_skip!();
@@ -13185,6 +13187,7 @@ fn editor_mutating_commands_report_read_only_preview() {
         mui_ed_backspace_multi,
         mui_ed_delete,
         mui_ed_delete_multi,
+        mui_ed_backspace_smart,
         mui_ed_newline,
         mui_ed_newline_indent,
         mui_ed_newline_indent_multi,
@@ -13215,6 +13218,7 @@ fn editor_mutating_commands_report_read_only_preview() {
     for edit in [
         mui_ed_insert_char as extern "C" fn(i64, i32) -> i32,
         mui_ed_insert_char_multi,
+        mui_ed_insert_smart,
         mui_ed_insert_smart_multi,
     ] {
         assert_eq!(edit(h, 'x' as i32), 0);

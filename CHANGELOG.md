@@ -18,6 +18,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Read-only previews remain inspectable**: cursor motion, scrolling,
   selection, select-all, and multi-caret motion now work in binary previews
   while mutating edit commands remain blocked with explicit feedback.
+- **Smart edit ABIs report read-only previews directly**: bracket/quote
+  smart-insert and pair-backspace entry points now reject binary previews
+  themselves instead of depending on a fallback edit route for the warning.
 - **Run in Browser respects read-only previews**: direct Web Playground runs now
   reject binary/read-only buffers before opening the panel or spawning a build,
   with a focused toast explaining why the command is unavailable.

@@ -12937,18 +12937,6 @@ pub extern "C" fn mui_history_probe(handle: i64) {
 
 use crate::editor::TextModel;
 
-/// The active tab's editable model (mutable). `None` on a null handle.
-#[inline]
-unsafe fn model_mut<'a>(handle: i64) -> Option<&'a mut TextModel> {
-    ctx(handle).and_then(|c| {
-        if c.tabs.active_read_only() {
-            None
-        } else {
-            Some(c.tabs.active_model_mut())
-        }
-    })
-}
-
 /// The active tab's model for cursor/selection-only commands.
 /// Read-only previews still need to be inspectable and copyable.
 #[inline]
@@ -16360,10 +16348,14 @@ pub extern "C" fn mui_ed_newline_indent(handle: i64) -> i32 {
 /// back to a plain `mui_ed_insert_char`.
 #[no_mangle]
 pub extern "C" fn mui_ed_insert_smart(handle: i64, cp: i32) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
-            return i32::from(m.insert_char_smart(ch));
-        }
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_edit(ctx);
+    }
+    if let Some(ch) = u32::try_from(cp).ok().and_then(char::from_u32) {
+        return i32::from(ctx.tabs.active_model_mut().insert_char_smart(ch));
     }
     0
 }
@@ -16372,10 +16364,13 @@ pub extern "C" fn mui_ed_insert_smart(handle: i64, cp: i32) -> i32 {
 /// `1` if a pair was removed, `0` to fall back to a plain `mui_ed_backspace`.
 #[no_mangle]
 pub extern "C" fn mui_ed_backspace_smart(handle: i64) -> i32 {
-    if let Some(m) = unsafe { model_mut(handle) } {
-        return i32::from(m.backspace_smart());
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.tabs.active_read_only() {
+        return reject_read_only_edit(ctx);
     }
-    0
+    i32::from(ctx.tabs.active_model_mut().backspace_smart())
 }
 
 // ---- Feature 4: bracket match (renderer highlights both brackets) ----
