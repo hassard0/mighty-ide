@@ -131,6 +131,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Terminal, Settings, Color Theme, Keyboard Shortcuts, and Markdown Preview rows
   now say when they will focus or leave an already-open surface instead of
   describing only the cold-open path.
+- **Command Palette dedicated close rows explain hidden surfaces**: Welcome Close
+  and Git Hide Blame now mirror runtime feedback when Welcome is already closed
+  or the blame gutter is already hidden.
 - **Command Palette tab-management rows explain no-op states**: Move Active Tab
   Left/Right, Sort Open Tabs, Close Saved Tabs, Close Duplicate Tabs, Reload,
   and Revert now mirror tab runtime no-op feedback before dispatch.

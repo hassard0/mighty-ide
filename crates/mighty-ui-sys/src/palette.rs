@@ -1284,6 +1284,19 @@ impl PaletteEngine {
                 ctx.web.line_count(),
             );
         }
+        if matches!(id, CMD_GIT_HIDE_BLAME | CMD_WELCOME_CLOSE) {
+            let welcome_visible = ctx.welcome.force_open
+                || (!active_has_path
+                    && model.line_count() <= 1
+                    && model.line_len(0) == 0
+                    && !ctx.welcome.hides_empty_auto());
+            return close_action_contextual_desc(
+                id,
+                base,
+                ctx.blame.is_active(),
+                welcome_visible,
+            );
+        }
         if matches!(id, CMD_RUN_STOP | CMD_RUN_CLEAR_OUTPUT | CMD_RUN_CLOSE) {
             return run_contextual_desc(
                 id,
@@ -2022,6 +2035,19 @@ fn open_surface_contextual_desc<'a>(
             Cow::Borrowed("Keyboard Shortcuts is already open")
         }
         CMD_MARKDOWN_PREVIEW if markdown_open => Cow::Borrowed("Markdown preview is already open"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn close_action_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    blame_active: bool,
+    welcome_visible: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_GIT_HIDE_BLAME if !blame_active => Cow::Borrowed("Blame is already hidden"),
+        CMD_WELCOME_CLOSE if !welcome_visible => Cow::Borrowed("Welcome is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -3706,6 +3732,26 @@ mod tests {
 
         assert_eq!(
             open_surface_desc_for_flags(CMD_VIEW_WEB_PLAYGROUND, [false; 15]),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn close_action_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            close_action_contextual_desc(CMD_GIT_HIDE_BLAME, "base", false, true),
+            Cow::Borrowed("Blame is already hidden")
+        );
+        assert_eq!(
+            close_action_contextual_desc(CMD_WELCOME_CLOSE, "base", true, false),
+            Cow::Borrowed("Welcome is already closed")
+        );
+        assert_eq!(
+            close_action_contextual_desc(CMD_GIT_HIDE_BLAME, "base", true, false),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            close_action_contextual_desc(CMD_WELCOME_CLOSE, "base", false, true),
             Cow::Borrowed("base")
         );
     }

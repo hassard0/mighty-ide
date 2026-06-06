@@ -140,6 +140,8 @@ source state and requires a new package run.
 - Command Palette open/focus rows for View panels, Terminal, Settings, Color
   Theme, Keyboard Shortcuts, and Markdown Preview describe already-open
   surfaces before dispatch
+- Command Palette dedicated close rows for Welcome and Git Blame mirror
+  already-closed/hidden runtime feedback before dispatch
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
   toasts instead of stacking generic `Copied` notifications
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
