@@ -1003,10 +1003,10 @@ impl PaletteEngine {
         use crate::icons;
         // (icon path, description, fill?)
         match id {
-            CMD_NEW_FILE => (icons::NEW_FILE, "Choose a folder and filename before creating the tab", false),
+            CMD_NEW_FILE => (icons::NEW_FILE, "Use the native picker; typed name if unavailable", false),
             CMD_NEW_UNTITLED_FILE => (icons::NEW_FILE, "Start a temporary editor tab with no disk path", false),
-            CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Use the native picker, starting near the workspace", false),
-            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Choose or create a folder with the native picker", false),
+            CMD_NEW_WORKSPACE_FILE => (icons::NEW_FILE, "Create under the workspace; typed name if picker is unavailable", false),
+            CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Use the native folder picker; typed name if unavailable", false),
             CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file with the native picker", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),
@@ -1202,7 +1202,7 @@ impl PaletteEngine {
             CMD_FOLD_TOGGLE => (icons::CHEVRON, "Fold or unfold the block at the cursor", false),
             CMD_FOLD_ALL => (icons::CHEVRON_DOWN, "Fold every foldable block in the document", false),
             CMD_UNFOLD_ALL => (icons::CHEVRON_DOWN, "Unfold every block in the document", false),
-            CMD_NEW_PROJECT => (icons::NEW_FOLDER, "Scaffold a new Mighty project (mty new)", false),
+            CMD_NEW_PROJECT => (icons::NEW_FOLDER, "Choose a project folder; typed name if picker is unavailable", false),
             _ => (icons::CHEVRON, "", false),
         }
     }
@@ -2923,6 +2923,26 @@ mod tests {
                 .expect("dialog command should exist");
             assert_eq!(command.label, expected);
         }
+    }
+
+    #[test]
+    fn new_item_command_descriptions_name_typed_name_fallback() {
+        assert_eq!(
+            command_static_desc(CMD_NEW_FILE),
+            "Use the native picker; typed name if unavailable"
+        );
+        assert_eq!(
+            command_static_desc(CMD_NEW_WORKSPACE_FILE),
+            "Create under the workspace; typed name if picker is unavailable"
+        );
+        assert_eq!(
+            command_static_desc(CMD_NEW_FOLDER),
+            "Use the native folder picker; typed name if unavailable"
+        );
+        assert_eq!(
+            command_static_desc(CMD_NEW_PROJECT),
+            "Choose a project folder; typed name if picker is unavailable"
+        );
     }
 
     #[test]

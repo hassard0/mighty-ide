@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette new-item rows name typed-name fallback**: New File, New
+  File in Workspace, New Folder, and New Project descriptions now match the
+  runtime unavailable-picker behavior by naming the typed-name recovery path.
 - **New item picker fallback toasts name typed-name recovery**: New File, New
   File in Workspace, New Folder, and New Project now report that the typed-name
   prompt is available when native pickers cannot run, while cancellations
