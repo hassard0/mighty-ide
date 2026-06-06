@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Navigation palette mirrors cursor edge states**: Command Palette now reports
+  document, line, and word-boundary no-ops for cursor movement, plus empty or
+  already-selected targets for Select All and Select Line, before dispatch.
 - **Indent and line-range edit palette names live targets**: Command Palette
   now distinguishes Tab insertion from selected-line indentation, reports
   Shift+Tab no-op states when there is no indentation to remove, and names the

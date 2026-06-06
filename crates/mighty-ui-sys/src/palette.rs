@@ -1384,6 +1384,40 @@ impl PaletteEngine {
         }
         if matches!(
             id,
+            CMD_SELECT_ALL
+                | CMD_SELECT_LINE
+                | CMD_MOVE_WORD_LEFT
+                | CMD_MOVE_WORD_RIGHT
+                | CMD_MOVE_DOCUMENT_START
+                | CMD_MOVE_DOCUMENT_END
+                | CMD_MOVE_LINE_START
+                | CMD_MOVE_LINE_END
+        ) {
+            let changes_state = match id {
+                CMD_MOVE_WORD_LEFT => editor_probe_changes_state(model, |m| {
+                    m.move_word_multi(false, false);
+                }),
+                CMD_MOVE_WORD_RIGHT => editor_probe_changes_state(model, |m| {
+                    m.move_word_multi(true, false);
+                }),
+                CMD_MOVE_DOCUMENT_START => editor_probe_changes_state(model, |m| {
+                    m.move_document_start_multi(false);
+                }),
+                CMD_MOVE_DOCUMENT_END => editor_probe_changes_state(model, |m| {
+                    m.move_document_end_multi(false);
+                }),
+                CMD_MOVE_LINE_START => editor_probe_changes_state(model, |m| {
+                    m.home_smart_multi(false);
+                }),
+                CMD_MOVE_LINE_END => editor_probe_changes_state(model, |m| {
+                    m.move_ext_multi(crate::editor::DIR_END, false);
+                }),
+                _ => true,
+            };
+            return navigation_contextual_desc(id, base, model, changes_state);
+        }
+        if matches!(
+            id,
             CMD_SELECT_WORD
                 | CMD_ADD_CARET_NEXT_OCCURRENCE
                 | CMD_ADD_CARET_ABOVE
@@ -2554,6 +2588,77 @@ fn line_range_edit_contextual_desc<'a>(
             Cow::Borrowed("Duplicate selected line range")
         }
         CMD_DUPLICATE_LINE_SELECTION => Cow::Borrowed("Duplicate the current line"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn editor_probe_changes_state(
+    model: &crate::editor::TextModel,
+    f: impl FnOnce(&mut crate::editor::TextModel),
+) -> bool {
+    let before = (
+        model.cursor_line(),
+        model.cursor_col(),
+        model.caret_count(),
+        model.has_selection(),
+        model.selection_range(),
+    );
+    let mut probe = model.clone();
+    f(&mut probe);
+    let after = (
+        probe.cursor_line(),
+        probe.cursor_col(),
+        probe.caret_count(),
+        probe.has_selection(),
+        probe.selection_range(),
+    );
+    before != after
+}
+
+fn document_is_empty(model: &crate::editor::TextModel) -> bool {
+    model.line_count() <= 1 && model.line(0).is_empty()
+}
+
+fn current_line_is_empty(model: &crate::editor::TextModel) -> bool {
+    model.line(model.cursor_line()).is_empty()
+}
+
+fn whole_document_selected(model: &crate::editor::TextModel) -> bool {
+    let last_line = model.line_count().saturating_sub(1);
+    let last_col = model.line_len(last_line);
+    model.selection_range() == Some(((0, 0), (last_line, last_col)))
+}
+
+fn current_line_selected(model: &crate::editor::TextModel) -> bool {
+    let line = model.cursor_line();
+    model.selection_range() == Some(((line, 0), (line, model.line_len(line))))
+}
+
+fn navigation_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    model: &crate::editor::TextModel,
+    changes_state: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_SELECT_ALL if document_is_empty(model) => Cow::Borrowed("Document is empty"),
+        CMD_SELECT_ALL if whole_document_selected(model) => {
+            Cow::Borrowed("Entire document is already selected")
+        }
+        CMD_SELECT_LINE if current_line_is_empty(model) => Cow::Borrowed("Current line is empty"),
+        CMD_SELECT_LINE if current_line_selected(model) => {
+            Cow::Borrowed("Current line is already selected")
+        }
+        CMD_MOVE_WORD_LEFT if !changes_state => Cow::Borrowed("Already at previous word boundary"),
+        CMD_MOVE_WORD_RIGHT if !changes_state => Cow::Borrowed("Already at next word boundary"),
+        CMD_MOVE_DOCUMENT_START if !changes_state => {
+            Cow::Borrowed("Cursor is already at document start")
+        }
+        CMD_MOVE_DOCUMENT_END if !changes_state => {
+            Cow::Borrowed("Cursor is already at document end")
+        }
+        CMD_MOVE_LINE_START if !changes_state => Cow::Borrowed("Cursor is already at line start"),
+        CMD_MOVE_LINE_END if !changes_state => Cow::Borrowed("Cursor is already at line end"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -5842,6 +5947,132 @@ mod tests {
             "Duplicate selected line range"
         );
         assert_eq!(ctx.tabs.active_model().as_text(), "plain\n  indented");
+    }
+
+    #[test]
+    fn navigation_command_descriptions_reflect_runtime_state() {
+        let mut model = crate::editor::TextModel::new();
+        assert_eq!(
+            navigation_contextual_desc(CMD_SELECT_ALL, "base", &model, true),
+            Cow::Borrowed("Document is empty")
+        );
+        assert_eq!(
+            navigation_contextual_desc(CMD_SELECT_LINE, "base", &model, true),
+            Cow::Borrowed("Current line is empty")
+        );
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_DOCUMENT_START, "base", &model, false),
+            Cow::Borrowed("Cursor is already at document start")
+        );
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_LINE_END, "base", &model, false),
+            Cow::Borrowed("Cursor is already at line end")
+        );
+
+        model.set_text_preserving_cursor("alpha beta\ngamma");
+        model.select_all();
+        assert_eq!(
+            navigation_contextual_desc(CMD_SELECT_ALL, "base", &model, true),
+            Cow::Borrowed("Entire document is already selected")
+        );
+
+        model.move_to(0, 3);
+        model.select_line();
+        assert_eq!(
+            navigation_contextual_desc(CMD_SELECT_LINE, "base", &model, true),
+            Cow::Borrowed("Current line is already selected")
+        );
+
+        model.move_to(0, 0);
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_WORD_LEFT, "base", &model, false),
+            Cow::Borrowed("Already at previous word boundary")
+        );
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_DOCUMENT_START, "base", &model, false),
+            Cow::Borrowed("Cursor is already at document start")
+        );
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_WORD_RIGHT, "base", &model, true),
+            Cow::Borrowed("base")
+        );
+
+        model.move_to(1, 5);
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_WORD_RIGHT, "base", &model, false),
+            Cow::Borrowed("Already at next word boundary")
+        );
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_DOCUMENT_END, "base", &model, false),
+            Cow::Borrowed("Cursor is already at document end")
+        );
+        assert_eq!(
+            navigation_contextual_desc(CMD_MOVE_LINE_END, "base", &model, false),
+            Cow::Borrowed("Cursor is already at line end")
+        );
+    }
+
+    #[test]
+    fn navigation_palette_descriptions_probe_active_editor_state() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("alpha beta\ngamma");
+        ctx.tabs.active_model_mut().move_to(0, 0);
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_MOVE_WORD_LEFT, "base").as_ref(),
+            "Already at previous word boundary"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_MOVE_DOCUMENT_START, "base")
+                .as_ref(),
+            "Cursor is already at document start"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_MOVE_LINE_START, "base").as_ref(),
+            "Cursor is already at line start"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_MOVE_WORD_RIGHT, "base").as_ref(),
+            "base"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "alpha beta\ngamma");
+
+        ctx.tabs.active_model_mut().move_to(1, 5);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_MOVE_WORD_RIGHT, "base")
+                .as_ref(),
+            "Already at next word boundary"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_MOVE_DOCUMENT_END, "base")
+                .as_ref(),
+            "Cursor is already at document end"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_MOVE_LINE_END, "base").as_ref(),
+            "Cursor is already at line end"
+        );
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("");
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SELECT_ALL, "base").as_ref(),
+            "Document is empty"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SELECT_LINE, "base").as_ref(),
+            "Current line is empty"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "");
     }
 
     #[test]
