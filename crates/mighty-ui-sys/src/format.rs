@@ -7,8 +7,16 @@
 //! the live buffer to disk first, then calls [`run_fmt`] to rewrite it, then
 //! reloads the formatted file into the Mighty buffer.
 
+use std::io::Read;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, ExitStatus, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
+
+pub(crate) const MAX_FMT_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
 /// Outcome of a format attempt. The IDE maps these to status-bar messages and a
 /// distinct ABI return code (see [`crate::mui_format_current`]).
@@ -56,36 +64,157 @@ pub fn run_fmt(path: &Path) -> FmtOutcome {
         return FmtOutcome::NotApplicable;
     }
     let mty = mty_path();
-    match Command::new(&mty).arg("fmt").arg(path).output() {
-        Ok(out) => {
-            if out.status.success() {
+    let mut cmd = Command::new(&mty);
+    cmd.arg("fmt").arg(path);
+    match run_fmt_command(cmd) {
+        Ok(Some((status, _stdout, stderr_bytes))) => {
+            if status.success() {
                 FmtOutcome::Formatted
             } else {
-                let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+                let stderr = String::from_utf8_lossy(&stderr_bytes).trim().to_string();
                 let reason = if stderr.is_empty() {
-                    out.status.to_string()
+                    status.to_string()
                 } else {
-                    format!("{}: {stderr}", out.status)
+                    format!("{}: {stderr}", status)
                 };
                 eprintln!(
                     "format: `{mty} fmt {}` exited {}: {}",
                     path.display(),
-                    out.status,
+                    status,
                     stderr
                 );
                 FmtOutcome::Failed(reason)
             }
         }
-        Err(e) => {
-            eprintln!("format: failed to run `{mty} fmt`: {e}");
-            FmtOutcome::Failed(e.to_string())
+        Ok(None) => {
+            eprintln!("format: `{mty} fmt {}` output too large", path.display());
+            FmtOutcome::Failed("formatter output too large".to_string())
+        }
+        Err(reason) => {
+            eprintln!("format: failed to run `{mty} fmt`: {reason}");
+            FmtOutcome::Failed(reason)
         }
     }
+}
+
+fn run_fmt_command(mut cmd: Command) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, String> {
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "stdout pipe unavailable".to_string()
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "stderr pipe unavailable".to_string()
+    })?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = std::thread::spawn(move || {
+        read_fmt_stream_capped(stdout, MAX_FMT_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        read_fmt_stream_capped(stderr, MAX_FMT_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    let status = loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Ok(None);
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(e.to_string());
+            }
+        }
+    };
+
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if exceeded.load(Ordering::Relaxed) {
+        return Ok(None);
+    }
+    Ok(Some((status, stdout, stderr)))
+}
+
+fn append_fmt_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if buf.len().saturating_add(chunk.len()) > cap {
+        buf.clear();
+        return false;
+    }
+    buf.extend_from_slice(chunk);
+    true
+}
+
+fn read_fmt_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_fmt_output_with_cap(&mut buf, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    buf
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fmt_output_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"fmt");
+
+        assert!(append_fmt_output_with_cap(&mut buf, b"!", 4));
+        assert_eq!(buf, b"fmt!");
+    }
+
+    #[test]
+    fn fmt_output_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"fmt:");
+
+        assert!(!append_fmt_output_with_cap(&mut buf, b"overflow", 8));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn fmt_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_fmt_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
+    }
 
     /// `true` if an `mty` binary is reachable (so we can skip the live test when
     /// the compiler is absent, e.g. CI without `mty`).
