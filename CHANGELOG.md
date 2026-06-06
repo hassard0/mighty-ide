@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Tab navigation palette names single-tab no-ops**: Command Palette now
+  reports `Only one tab open` for Next Tab and Previous Tab before dispatch
+  when cycling tabs cannot change the active editor.
 - **Undo and redo palette mirrors empty stacks**: Command Palette now reports
   `Nothing to undo` and `Nothing to redo` before dispatch when the active tab's
   edit stacks are empty, while preserving read-only preview feedback.

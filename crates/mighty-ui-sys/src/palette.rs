@@ -1879,7 +1879,9 @@ impl PaletteEngine {
         }
         if matches!(
             id,
-            CMD_MOVE_ACTIVE_TAB_LEFT
+            CMD_NEXT_TAB
+                | CMD_PREV_TAB
+                | CMD_MOVE_ACTIVE_TAB_LEFT
                 | CMD_MOVE_ACTIVE_TAB_RIGHT
                 | CMD_SORT_TABS_BY_NAME
                 | CMD_CLOSE_DUPLICATE_TABS
@@ -3031,6 +3033,8 @@ fn tab_management_contextual_desc<'a>(
     has_saved_tabs_left: bool,
 ) -> Cow<'a, str> {
     match id {
+        CMD_NEXT_TAB if active_first && active_last => Cow::Borrowed("Only one tab open"),
+        CMD_PREV_TAB if active_first && active_last => Cow::Borrowed("Only one tab open"),
         CMD_MOVE_ACTIVE_TAB_LEFT if active_first => Cow::Borrowed("Tab is already first"),
         CMD_MOVE_ACTIVE_TAB_RIGHT if active_last => Cow::Borrowed("Tab is already last"),
         CMD_SORT_TABS_BY_NAME if tabs_sorted => Cow::Borrowed("Tabs already sorted"),
@@ -6870,6 +6874,8 @@ mod tests {
     #[test]
     fn tab_management_command_descriptions_reflect_runtime_state() {
         let cases = [
+            (CMD_NEXT_TAB, "Only one tab open"),
+            (CMD_PREV_TAB, "Only one tab open"),
             (CMD_MOVE_ACTIVE_TAB_LEFT, "Tab is already first"),
             (CMD_MOVE_ACTIVE_TAB_RIGHT, "Tab is already last"),
             (CMD_SORT_TABS_BY_NAME, "Tabs already sorted"),
@@ -6888,6 +6894,36 @@ mod tests {
             );
         }
 
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_NEXT_TAB,
+                "base",
+                true,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            tab_management_contextual_desc(
+                CMD_PREV_TAB,
+                "base",
+                false,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
         assert_eq!(
             tab_management_contextual_desc(
                 CMD_MOVE_ACTIVE_TAB_LEFT,
@@ -7007,6 +7043,42 @@ mod tests {
                 true
             ),
             Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn tab_navigation_palette_descriptions_probe_open_tab_count() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+
+        assert_eq!(ctx.tabs.count(), 1);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_NEXT_TAB, "Switch to next")
+                .as_ref(),
+            "Only one tab open"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_PREV_TAB, "Switch to previous")
+                .as_ref(),
+            "Only one tab open"
+        );
+
+        ctx.tabs.new_untitled();
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_NEXT_TAB, "Switch to next")
+                .as_ref(),
+            "Switch to next"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_PREV_TAB, "Switch to previous")
+                .as_ref(),
+            "Switch to previous"
         );
     }
 
