@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1166).
+(lessons L1-L1167).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Inline diff hunk headers validate range counts**: malformed unified-diff
+  ranges such as negative starts, bad counts, or extra count fields are skipped
+  instead of creating bogus line numbers or patchable hunk actions.
 - **DAP framing rejects malformed content lengths**: debugger message reads now
   require a positive unsigned decimal `Content-Length`, so malformed headers
   cannot be treated as empty frames or silently desynchronize debug protocol IO.

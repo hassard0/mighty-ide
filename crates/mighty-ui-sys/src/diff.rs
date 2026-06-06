@@ -65,10 +65,12 @@ pub fn parse_unified(blob: &str) -> Vec<DiffLine> {
     for raw in blob.lines() {
         if let Some(rest) = raw.strip_prefix("@@") {
             // Hunk header: "@@ -a,b +c,d @@ optional section heading".
-            if let Some((a, c)) = parse_hunk_header(rest) {
-                old_no = a;
-                new_no = c;
-            }
+            let Some((a, c)) = parse_hunk_header(rest) else {
+                in_hunk = false;
+                continue;
+            };
+            old_no = a;
+            new_no = c;
             in_hunk = true;
             hunk += 1;
             out.push(DiffLine {
@@ -261,9 +263,28 @@ fn parse_hunk_header(rest: &str) -> Option<(i32, i32)> {
     let mut parts = inner.split_whitespace();
     let minus = parts.next()?; // "-a,b"
     let plus = parts.next()?; // "+c,d"
-    let old_start = minus.strip_prefix('-')?.split(',').next()?.parse().ok()?;
-    let new_start = plus.strip_prefix('+')?.split(',').next()?.parse().ok()?;
+    let old_start = parse_hunk_range(minus.strip_prefix('-')?)?;
+    let new_start = parse_hunk_range(plus.strip_prefix('+')?)?;
     Some((old_start, new_start))
+}
+
+fn parse_hunk_range(range: &str) -> Option<i32> {
+    let mut parts = range.split(',');
+    let start = parse_hunk_uint(parts.next()?)?;
+    if let Some(count) = parts.next() {
+        parse_hunk_uint(count)?;
+    }
+    if parts.next().is_some() {
+        return None;
+    }
+    Some(start)
+}
+
+fn parse_hunk_uint(raw: &str) -> Option<i32> {
+    if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    raw.parse().ok()
 }
 
 // ---------------------------------------------------------------------------
@@ -495,6 +516,35 @@ diff --git a/x b/x
         assert_eq!(lines[1].old_no, 1);
         assert_eq!(lines[2].kind, LineKind::Add);
         assert_eq!(lines[2].new_no, 1);
+    }
+
+    #[test]
+    fn malformed_hunk_headers_are_skipped() {
+        let blob = "\
+--- a/f
++++ b/f
+@@ --1 +1 @@
+-bad negative start
++bad negative start
+@@ -1,bad +1 @@
+-bad count
++bad count
+@@ -1,1 +1,1,extra @@
+-bad extra count
++bad extra count
+@@ -2,1 +2,1 @@
+-old
++new
+";
+        let lines = parse_unified(blob);
+        assert_eq!(lines.iter().filter(|l| l.kind == LineKind::Hunk).count(), 1);
+        assert_eq!(lines[0].text, "@@ -2,1 +2,1 @@");
+        assert_eq!(lines[1].old_no, 2);
+        assert_eq!(lines[2].new_no, 2);
+        assert_eq!(
+            reconstruct_hunk_patch("f", &lines, 0).unwrap(),
+            "--- a/f\n+++ b/f\n@@ -2,1 +2,1 @@\n-old\n+new\n"
+        );
     }
 
     #[test]
