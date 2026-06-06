@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1170).
+(lessons L1-L1171).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **LSP diagnostic coordinates reject overflow**: publish-diagnostics ranges now
+  reject unsigned overflow and values outside the signed editor diagnostic
+  coordinate type instead of saturating or wrapping into bogus Problems rows.
 - **LSP payload integers reject overflow**: signature-help indexes,
   parameter-offset labels, and workspace-edit ranges now reject unsigned values
   that do not fit the shim's coordinate type instead of saturating to extreme

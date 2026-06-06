@@ -695,15 +695,15 @@ fn parse_diag_array(arr: &[u8]) -> Vec<Diag> {
 fn parse_one_diag(obj: &[u8]) -> Option<Diag> {
     let range = top_level_object_field(obj, b"range")?;
     let start = top_level_object_field(range, b"start")?;
-    let line = top_level_uint_field(start, b"line")? as i32;
-    let col = top_level_uint_field(start, b"character")? as i32;
+    let line = i32::try_from(top_level_uint_field(start, b"line")?).ok()?;
+    let col = i32::try_from(top_level_uint_field(start, b"character")?).ok()?;
     // optional end character on the same start line for a wider underline.
     let col_end = top_level_object_field(range, b"end")
         .and_then(|end| {
-            let el = top_level_uint_field(end, b"line")?;
-            let ec = top_level_uint_field(end, b"character")?;
-            if el as i32 == line && (ec as i32) > col {
-                Some(ec as i32)
+            let el = i32::try_from(top_level_uint_field(end, b"line")?).ok()?;
+            let ec = i32::try_from(top_level_uint_field(end, b"character")?).ok()?;
+            if el == line && ec > col {
+                Some(ec)
             } else {
                 None
             }
@@ -781,9 +781,8 @@ fn top_level_uint_field(obj: &[u8], field: &[u8]) -> Option<u32> {
     let start = j;
     let mut value: u32 = 0;
     while j < obj.len() && obj[j].is_ascii_digit() {
-        value = value
-            .saturating_mul(10)
-            .saturating_add((obj[j] - b'0') as u32);
+        value = value.checked_mul(10)?;
+        value = value.checked_add((obj[j] - b'0') as u32)?;
         j += 1;
     }
     if j == start {
@@ -1166,6 +1165,17 @@ mod tests {
     #[test]
     fn diagnostics_reject_fractional_range_positions() {
         let stream = r#"{"params":{"diagnostics":[{"range":{"start":{"line":6.5,"character":7},"end":{"line":6,"character":12}},"severity":1,"message":"bad"},{"range":{"start":{"line":8,"character":2},"end":{"line":8,"character":5}},"severity":2,"message":"good"}]}}"#;
+        let diags = parse_publish_diagnostics(stream);
+
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].line, 8);
+        assert_eq!(diags[0].col_start, 2);
+        assert_eq!(diags[0].message, "good");
+    }
+
+    #[test]
+    fn diagnostics_reject_overflow_range_positions() {
+        let stream = r#"{"params":{"diagnostics":[{"range":{"start":{"line":999999999999999999999999999999,"character":7},"end":{"line":6,"character":12}},"severity":1,"message":"bad overflow"},{"range":{"start":{"line":2147483648,"character":7},"end":{"line":2147483648,"character":12}},"severity":1,"message":"bad wrap"},{"range":{"start":{"line":8,"character":2},"end":{"line":8,"character":5}},"severity":2,"message":"good"}]}}"#;
         let diags = parse_publish_diagnostics(stream);
 
         assert_eq!(diags.len(), 1);
