@@ -984,6 +984,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Search results already empty"
         || m == "Enter text to search"
         || m == "No project search results"
+        || m == "No previous location"
         || m == "Outline panel closed"
         || m == "Outline panel is already closed"
         || m == "Explorer panel closed"
@@ -3617,6 +3618,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No project search results");
+
+        q.push_at(
+            Kind::Info,
+            "No previous location",
+            t0 + Duration::from_millis(498),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No previous location");
 
         q.push_at(
             Kind::Info,

@@ -13882,3 +13882,15 @@ code-intelligence toasts visible after an inline rename cancel or stale submit.
   no-active-file guards remain in the file Rename operation family.
 - **Language note:** no compiler gap surfaced. Shared verbs in UI strings need
   the owning interaction surface to classify them correctly.
+
+## L1097 - Empty Jump Back Is Navigation Feedback
+
+Jump Back is part of the code-navigation loop. When there is no prior location,
+the `No previous location` guard should replace the stale navigation toast that
+led to the command, rather than appearing as a separate generic notification.
+
+- **IDE note:** `No previous location` now coalesces with the Navigation
+  operation family alongside Go to Line, Quick Open, Search, breadcrumbs,
+  Outline, Problems, and Explorer navigation feedback.
+- **Language note:** no compiler gap surfaced. History-empty guard messages
+  should still inherit the surface that owns the history.

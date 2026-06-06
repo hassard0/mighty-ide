@@ -40,6 +40,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   their overlay has already closed
 - Command palette (Ctrl+Shift+P), fuzzy-filtered
 - Go-to-line (Ctrl+G), go-to-definition (F12, cross-file), jump-back (Ctrl+−)
+- Jump Back empty-history feedback coalesces with other navigation toasts
+  instead of stacking stale code-navigation messages
 - **Peek definition (Alt+F12)** — inline framed definition preview
 - **Sticky scroll** — pinned enclosing scopes
 - **Outline, Problems, and an interactive breadcrumb** code-nav bar; Problems

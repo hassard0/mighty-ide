@@ -61,6 +61,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   packaged launch result.
 
 ### Tabs and panes
+- **Jump Back empty-history feedback is navigation feedback**: `No previous
+  location` now replaces stale navigation/search toasts instead of stacking as a
+  generic notification after a code-navigation gesture.
 - **Stale pane retarget feedback replaces layout toasts**: `No pane at that
   position` now coalesces with split-pane and layout feedback instead of
   stacking beside stale pane-focus or split messages.
