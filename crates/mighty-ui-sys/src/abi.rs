@@ -11124,14 +11124,7 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
             return 0;
         }
         // prepareRename returns a range; re-derive the symbol from its start.
-        if let Some((sl, sc)) = parse_prepare_rename_start(&raw) {
-            let sc = if ctx.language == Language::Mighty {
-                sc
-            } else {
-                source_utf16_col_to_char(&source, sl, sc)
-            };
-            symbol = identifier_at(&source, sl, sc);
-        }
+        symbol = symbol_from_prepare_rename_start(&source, ctx.language, &raw, &symbol);
     }
     if symbol.is_empty() || is_non_renamable_identifier(&symbol) {
         println!("rename: line={line} col={col} no-symbol");
@@ -11144,6 +11137,28 @@ pub extern "C" fn mui_rename_prepare(handle: i64, line: i32, col: i32) -> i32 {
     ctx.rename.open(&symbol);
     println!("rename: prepare symbol=\"{symbol}\"");
     1
+}
+
+fn symbol_from_prepare_rename_start(
+    source: &str,
+    lang: Language,
+    raw: &str,
+    fallback: &str,
+) -> String {
+    let Some((sl, sc)) = parse_prepare_rename_start(raw) else {
+        return fallback.to_string();
+    };
+    let sc = if lang == Language::Mighty {
+        sc
+    } else {
+        source_utf16_col_to_char(source, sl, sc)
+    };
+    let symbol = identifier_at(source, sl, sc);
+    if symbol.is_empty() {
+        fallback.to_string()
+    } else {
+        symbol
+    }
 }
 
 fn prepare_rename_explicitly_rejected(json: &str) -> bool {
@@ -11413,6 +11428,26 @@ mod rename_prepare_tests {
         let char_col = source_utf16_col_to_char(src, line, utf16_col);
         assert_eq!(char_col, 1);
         assert_eq!(identifier_at(src, line, char_col), "target");
+    }
+
+    #[test]
+    fn prepare_rename_symbol_uses_valid_server_range() {
+        let src = "let local = remote\n";
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":0,"character":12},"end":{"line":0,"character":18}},"id":3}"#;
+        assert_eq!(
+            symbol_from_prepare_rename_start(src, Language::Mighty, raw, "local"),
+            "remote"
+        );
+    }
+
+    #[test]
+    fn prepare_rename_symbol_keeps_fallback_when_server_range_is_unusable() {
+        let src = "let local = remote\n";
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":9,"character":0},"end":{"line":9,"character":6}},"id":3}"#;
+        assert_eq!(
+            symbol_from_prepare_rename_start(src, Language::Mighty, raw, "local"),
+            "local"
+        );
     }
 
     #[test]

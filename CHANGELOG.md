@@ -95,6 +95,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Symbol rename tolerates unusable prepare ranges**: when a language server
+  accepts prepare-rename but returns a range that does not resolve to a local
+  identifier, the IDE keeps the cursor-derived symbol instead of erasing it and
+  reporting a no-target miss.
 - **Symbol rename stale input feedback is code-intelligence feedback**:
   `Rename cancelled` and `No rename input open` now replace stale F2
   rename/code-intelligence toasts instead of grouping with active-file rename

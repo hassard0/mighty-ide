@@ -13920,3 +13920,17 @@ stale save warning that led to it.
 - **Language note:** no compiler gap surfaced. When scalar ABI fallbacks drop
   payload detail, the shim-side classifier should preserve the operation's
   semantic lane.
+
+## L1100 - Prepare Rename Ranges Should Not Erase Local Targets
+
+`prepareRename` can accept a rename while returning a range that the local text
+model cannot map back to an identifier, especially across mixed encodings or
+stale server state. That server range should refine the cursor target only when
+it produces a usable symbol.
+
+- **IDE note:** symbol rename now keeps the cursor-derived identifier when the
+  server's prepare-rename range is unusable, while still honoring valid server
+  ranges.
+- **Language note:** no compiler gap surfaced. External-tool refinements should
+  be allowed to improve a local decision, but not erase a valid local fallback
+  unless they explicitly reject the operation.
