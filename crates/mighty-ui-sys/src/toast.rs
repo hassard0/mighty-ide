@@ -685,6 +685,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Open folder cancelled"
         || m == "Open file dialog unavailable"
         || m == "Open folder dialog unavailable"
+        || m.starts_with("Recent files not saved")
+        || m.starts_with("Recent folders not saved")
         || m == "Enter a folder path"
         || m.starts_with("Open failed")
         || m == "No file path entered"
@@ -1954,6 +1956,27 @@ mod tests {
         assert_eq!(
             q.toasts()[0].message,
             "Recent folder is not a folder: not-a-folder"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Recent files not saved; Open Recent may reset after restart",
+            t0 + Duration::from_millis(489),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Recent files not saved; Open Recent may reset after restart"
+        );
+        q.push_at(
+            Kind::Warn,
+            "Recent folders not saved; Open Recent may reset after restart",
+            t0 + Duration::from_millis(489),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Recent folders not saved; Open Recent may reset after restart"
         );
 
         q.push_at(

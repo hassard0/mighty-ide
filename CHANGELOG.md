@@ -186,6 +186,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Recent history persistence failures are visible**: Recent file and recent
   folder updates now warn when the Open Recent MRU cannot be written, so the
   session state does not masquerade as restart-safe history.
+- **Recent persistence warnings replace Open Recent feedback**: those
+  file/folder persistence warnings now coalesce with stale recent-row and other
+  Open Recent toasts instead of stacking as unrelated warnings.
 - **Theme preference failures are visible**: Color Theme applies still take
   effect immediately, but failed config writes now report a warning instead of
   implying the selected theme will survive restart.

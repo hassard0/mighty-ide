@@ -13934,3 +13934,17 @@ it produces a usable symbol.
 - **Language note:** no compiler gap surfaced. External-tool refinements should
   be allowed to improve a local decision, but not erase a valid local fallback
   unless they explicitly reject the operation.
+
+## L1101 - Persistence Warnings Belong To Their Workflow
+
+Recent-file and recent-folder persistence failures happen while the user is
+working with Open Recent. Treating those warnings as generic notifications makes
+them stack beside stale recent-row feedback even though they describe the same
+workflow.
+
+- **IDE note:** recent file/folder persistence warnings now coalesce with the
+  Open operation family, replacing stale Open Recent feedback instead of
+  lingering as independent warnings.
+- **Language note:** no compiler gap surfaced. Configuration persistence errors
+  should inherit the UI surface that triggered them, not only the storage layer
+  that reported them.

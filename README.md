@@ -275,6 +275,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   feedback instead of reporting them as ordinary missing folders, while
   already-rendered Welcome folder rows still report the precise stale target
   before their hit snapshot is cleared
+- Recent file and folder persistence warnings coalesce with other Open Recent
+  feedback instead of stacking beside stale recent-row messages
 - **Mighty Agents panel (Alt+G)** — static agent-system topology, run, and live `mty inspect` when the Mighty runtime control socket is available
 - Mighty Agents stale header, topology-row, scroll, and node-open routes report
   when the panel has already closed and cannot activate retained hidden topology
