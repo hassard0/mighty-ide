@@ -19,7 +19,7 @@
 
 use std::io::Read;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
@@ -231,16 +231,17 @@ pub fn apply_hunk(root: &Path, patch: &str, reverse: bool) -> (bool, String) {
     if let Some(mut sin) = child.stdin.take() {
         let _ = sin.write_all(patch.as_bytes());
     }
-    match child.wait_with_output() {
-        Ok(o) => {
-            let mut msg = String::from_utf8_lossy(&o.stdout).into_owned();
-            let err = String::from_utf8_lossy(&o.stderr);
+    match wait_child_output_capped(child) {
+        Ok(Some((status, stdout, stderr))) => {
+            let mut msg = String::from_utf8_lossy(&stdout).into_owned();
+            let err = String::from_utf8_lossy(&stderr);
             if !err.trim().is_empty() {
                 msg.push_str(&err);
             }
-            (o.status.success(), msg.trim().to_string())
+            (status.success(), msg.trim().to_string())
         }
-        Err(e) => (false, format!("git apply errored: {e}")),
+        Ok(None) => (false, "git apply output too large".to_string()),
+        Err(()) => (false, "git apply errored".to_string()),
     }
 }
 
@@ -424,11 +425,18 @@ pub fn run_diff(root: &Path, path: &str, staged: bool) -> String {
 }
 
 fn run_diff_command(mut cmd: Command) -> Result<Option<Vec<u8>>, ()> {
-    let mut child = cmd
+    let child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|_| ())?;
+    wait_child_output_capped(child)
+        .map(|result| result.and_then(|(status, stdout, _)| status.success().then_some(stdout)))
+}
+
+fn wait_child_output_capped(
+    mut child: std::process::Child,
+) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, ()> {
     let stdout = child.stdout.take().ok_or_else(|| {
         let _ = child.kill();
         let _ = child.wait();
@@ -469,11 +477,11 @@ fn run_diff_command(mut cmd: Command) -> Result<Option<Vec<u8>>, ()> {
     };
 
     let stdout = stdout_reader.join().unwrap_or_default();
-    let _ = stderr_reader.join();
-    if exceeded.load(Ordering::Relaxed) || !status.success() {
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if exceeded.load(Ordering::Relaxed) {
         return Ok(None);
     }
-    Ok(Some(stdout))
+    Ok(Some((status, stdout, stderr)))
 }
 
 fn append_diff_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
@@ -551,6 +559,27 @@ index 83db48f..f735c2d 100644
 
         assert!(out.is_empty());
         assert!(exceeded.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn apply_hunk_failure_preserves_git_stderr() {
+        if Command::new("git").arg("--version").output().is_err() {
+            eprintln!("apply_hunk_failure_preserves_git_stderr: git not found - skipping");
+            return;
+        }
+        let tmp = std::env::temp_dir().join(format!(
+            "mui_apply_hunk_failure_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        Command::new("git").arg("-C").arg(&tmp).arg("init").output().unwrap();
+
+        let (ok, msg) = apply_hunk(&tmp, "not a patch\n", false);
+
+        assert!(!ok);
+        assert!(!msg.is_empty(), "failed git apply should keep stderr");
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]
