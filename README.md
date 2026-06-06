@@ -186,6 +186,9 @@ and the final handoff response after packaging.
 - Command Palette open/focus rows for View panels, Terminal, Settings, Color
   Theme, Keyboard Shortcuts, and Markdown Preview describe already-open
   surfaces before dispatch
+- Command Palette Markdown preview rows report non-Markdown active buffers
+  before dispatch, matching the runtime preview guard even when a preview pane
+  is already open
 - Command Palette Git Blame toggle rows mirror active and scratch-buffer
   runtime feedback before dispatch, including stale missing or directory-backed
   active targets

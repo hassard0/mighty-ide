@@ -1277,12 +1277,18 @@ impl PaletteEngine {
                 crate::layout::dock_preset_index(),
             );
         }
+        if id == CMD_MARKDOWN_PREVIEW {
+            return markdown_preview_contextual_desc(
+                base,
+                ctx.language,
+                ctx.md_preview.is_open() || ctx.md_pane.is_some(),
+            );
+        }
         if matches!(
             id,
             CMD_TOGGLE_TERMINAL
                 | CMD_COLOR_THEME
                 | CMD_SETTINGS
-                | CMD_MARKDOWN_PREVIEW
                 | CMD_KEYBOARD_SHORTCUTS
                 | CMD_VIEW_EXPLORER
                 | CMD_VIEW_SEARCH
@@ -2179,6 +2185,20 @@ fn keyboard_shortcuts_contextual_desc<'a>(
             Cow::Borrowed("Keyboard Shortcuts already use defaults")
         }
         _ => Cow::Borrowed(base),
+    }
+}
+
+fn markdown_preview_contextual_desc<'a>(
+    base: &'a str,
+    language: crate::langdetect::Language,
+    markdown_open: bool,
+) -> Cow<'a, str> {
+    if language != crate::langdetect::Language::Markdown {
+        Cow::Borrowed("Markdown preview is available for Markdown files")
+    } else if markdown_open {
+        Cow::Borrowed("Markdown preview is already open")
+    } else {
+        Cow::Borrowed(base)
     }
 }
 
@@ -4570,15 +4590,28 @@ mod tests {
             Cow::Borrowed("Keyboard Shortcuts is already open")
         );
 
-        let mut flags = [false; 15];
-        flags[14] = true;
-        assert_eq!(
-            open_surface_desc_for_flags(CMD_MARKDOWN_PREVIEW, flags),
-            Cow::Borrowed("Markdown preview is already open")
-        );
-
         assert_eq!(
             open_surface_desc_for_flags(CMD_VIEW_WEB_PLAYGROUND, [false; 15]),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn markdown_preview_command_description_matches_runtime_state() {
+        assert_eq!(
+            markdown_preview_contextual_desc("base", crate::langdetect::Language::Mighty, false),
+            Cow::Borrowed("Markdown preview is available for Markdown files")
+        );
+        assert_eq!(
+            markdown_preview_contextual_desc("base", crate::langdetect::Language::Mighty, true),
+            Cow::Borrowed("Markdown preview is available for Markdown files")
+        );
+        assert_eq!(
+            markdown_preview_contextual_desc("base", crate::langdetect::Language::Markdown, true),
+            Cow::Borrowed("Markdown preview is already open")
+        );
+        assert_eq!(
+            markdown_preview_contextual_desc("base", crate::langdetect::Language::Markdown, false),
             Cow::Borrowed("base")
         );
     }

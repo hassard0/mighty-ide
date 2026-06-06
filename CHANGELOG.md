@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews Markdown preview blockers**: Markdown: Open Preview
+  now reports non-Markdown active buffers before dispatch, matching the runtime
+  preview guard even when a preview pane is already open.
 - **Direct inline diff rejects stale active targets**: opening a diff for the
   active file now reports missing or directory-backed targets before invoking
   git, matching stale Source Control row handling.
