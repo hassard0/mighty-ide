@@ -1309,12 +1309,22 @@ impl PaletteEngine {
                 ctx.outline.count(),
             );
         }
-        if matches!(id, CMD_DEBUG_STOP | CMD_DEBUG_CLEAR_SESSION | CMD_DEBUG_CLOSE) {
+        if matches!(
+            id,
+            CMD_DEBUG_STOP
+                | CMD_DEBUG_PAUSE
+                | CMD_DEBUG_RESTART
+                | CMD_DEBUG_CLEAR_BREAKPOINTS
+                | CMD_DEBUG_CLEAR_SESSION
+                | CMD_DEBUG_CLOSE
+        ) {
             return debug_contextual_desc(
                 id,
                 base,
                 ctx.active_panel == crate::PANEL_DEBUG || ctx.dbg.is_open(),
                 ctx.dbg.state(),
+                ctx.dbg.has_program(),
+                ctx.dbg.total_breakpoint_count(),
                 ctx.dbg.session_is_empty(),
             );
         }
@@ -1805,6 +1815,8 @@ fn debug_contextual_desc<'a>(
     base: &'a str,
     active: bool,
     state: crate::dap::DebugState,
+    has_program: bool,
+    breakpoint_count: usize,
     session_empty: bool,
 ) -> Cow<'a, str> {
     match id {
@@ -1815,6 +1827,13 @@ fn debug_contextual_desc<'a>(
             ) =>
         {
             Cow::Borrowed("No debug session to stop")
+        }
+        CMD_DEBUG_PAUSE if !matches!(state, crate::dap::DebugState::Running) => {
+            Cow::Borrowed("Pause is available while running")
+        }
+        CMD_DEBUG_RESTART if !has_program => Cow::Borrowed("No debug target to restart"),
+        CMD_DEBUG_CLEAR_BREAKPOINTS if breakpoint_count == 0 => {
+            Cow::Borrowed("No breakpoints to clear")
         }
         CMD_DEBUG_CLEAR_SESSION if session_empty => Cow::Borrowed("Debug session already empty"),
         CMD_DEBUG_CLOSE if !active => Cow::Borrowed("Run and Debug panel is already closed"),
@@ -3033,9 +3052,47 @@ mod tests {
                 "base",
                 true,
                 crate::dap::DebugState::Idle,
+                false,
+                0,
                 true
             ),
             Cow::Borrowed("No debug session to stop")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_PAUSE,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                false,
+                0,
+                true
+            ),
+            Cow::Borrowed("Pause is available while running")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_RESTART,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                false,
+                0,
+                true
+            ),
+            Cow::Borrowed("No debug target to restart")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_CLEAR_BREAKPOINTS,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                false,
+                0,
+                true
+            ),
+            Cow::Borrowed("No breakpoints to clear")
         );
         assert_eq!(
             debug_contextual_desc(
@@ -3043,6 +3100,8 @@ mod tests {
                 "base",
                 true,
                 crate::dap::DebugState::Idle,
+                false,
+                0,
                 true
             ),
             Cow::Borrowed("Debug session already empty")
@@ -3053,6 +3112,8 @@ mod tests {
                 "base",
                 false,
                 crate::dap::DebugState::Stopped,
+                true,
+                1,
                 false
             ),
             Cow::Borrowed("Run and Debug panel is already closed")
@@ -3063,7 +3124,45 @@ mod tests {
                 "base",
                 true,
                 crate::dap::DebugState::Stopped,
+                true,
+                1,
                 false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_PAUSE,
+                "base",
+                true,
+                crate::dap::DebugState::Running,
+                true,
+                1,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_RESTART,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                true,
+                0,
+                true
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_CLEAR_BREAKPOINTS,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                false,
+                1,
+                true
             ),
             Cow::Borrowed("base")
         );
@@ -3073,6 +3172,8 @@ mod tests {
                 "base",
                 true,
                 crate::dap::DebugState::Stopped,
+                true,
+                1,
                 false
             ),
             Cow::Borrowed("base")
@@ -3083,6 +3184,8 @@ mod tests {
                 "base",
                 true,
                 crate::dap::DebugState::Idle,
+                false,
+                0,
                 true
             ),
             Cow::Borrowed("base")
