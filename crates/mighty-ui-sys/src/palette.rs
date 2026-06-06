@@ -1318,6 +1318,20 @@ impl PaletteEngine {
                 ctx.dbg.session_is_empty(),
             );
         }
+        if matches!(id, CMD_GIT_CLEAR_COMMIT_MESSAGE | CMD_GIT_CLOSE_SOURCE_CONTROL) {
+            return source_control_contextual_desc(
+                id,
+                base,
+                ctx.active_panel == crate::PANEL_SCM,
+                ctx.scm.message.is_empty(),
+            );
+        }
+        if id == CMD_EXPLORER_CLOSE {
+            return explorer_contextual_desc(
+                base,
+                ctx.sidebar_visible && ctx.active_panel == crate::PANEL_EXPLORER,
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1699,6 +1713,31 @@ fn debug_contextual_desc<'a>(
         CMD_DEBUG_CLEAR_SESSION if session_empty => Cow::Borrowed("Debug session already empty"),
         CMD_DEBUG_CLOSE if !active => Cow::Borrowed("Run and Debug panel is already closed"),
         _ => Cow::Borrowed(base),
+    }
+}
+
+fn source_control_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    message_empty: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_GIT_CLEAR_COMMIT_MESSAGE if message_empty => {
+            Cow::Borrowed("Source Control message already empty")
+        }
+        CMD_GIT_CLOSE_SOURCE_CONTROL if !active => {
+            Cow::Borrowed("Source Control panel is already closed")
+        }
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn explorer_contextual_desc(base: &str, active: bool) -> Cow<'_, str> {
+    if active {
+        Cow::Borrowed(base)
+    } else {
+        Cow::Borrowed("Explorer panel is already closed")
     }
 }
 
@@ -2796,6 +2835,35 @@ mod tests {
             ),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn source_control_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            source_control_contextual_desc(CMD_GIT_CLEAR_COMMIT_MESSAGE, "base", true, true),
+            Cow::Borrowed("Source Control message already empty")
+        );
+        assert_eq!(
+            source_control_contextual_desc(CMD_GIT_CLOSE_SOURCE_CONTROL, "base", false, false),
+            Cow::Borrowed("Source Control panel is already closed")
+        );
+        assert_eq!(
+            source_control_contextual_desc(CMD_GIT_CLEAR_COMMIT_MESSAGE, "base", false, false),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            source_control_contextual_desc(CMD_GIT_CLOSE_SOURCE_CONTROL, "base", true, true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn explorer_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            explorer_contextual_desc("base", false),
+            Cow::Borrowed("Explorer panel is already closed")
+        );
+        assert_eq!(explorer_contextual_desc("base", true), Cow::Borrowed("base"));
     }
 
     #[test]

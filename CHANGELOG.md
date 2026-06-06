@@ -87,6 +87,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command Palette Debug lifecycle rows explain no-op states**: Debug Stop,
   Clear Session, and Close Panel now mirror Run and Debug runtime feedback for
   idle sessions, empty session state, and closed panels.
+- **Command Palette Source Control and Explorer lifecycle rows explain no-op
+  states**: Source Control Clear Commit Message, Source Control Close Panel, and
+  Explorer Close Panel now mirror runtime feedback for empty message drafts and
+  closed panels.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.
