@@ -68,6 +68,8 @@ This checkout's final stop pass uses the same rule for all platforms:
   code-action edits, and inline AI edits are unavailable
 - Command Palette file-backed commands explain unsaved scratch buffers before
   language lookup, format, run, test-at-cursor, or debug actions need a saved path
+- Command Palette Run Tests mirrors the test runner's target rules, explaining
+  when an untitled tab needs either a saved file or a Mighty workspace target
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
   read-only previews as unavailable before the command is launched
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste

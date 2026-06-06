@@ -37,6 +37,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Go to Definition, Peek Definition, Signature Help, Rename Symbol, Format, Run,
   Run Test at Cursor, and Debug Start now tell users to save untitled buffers
   before those file-backed operations.
+- **Command Palette Run Tests mirrors workspace target state**: Run Tests now
+  tells untitled buffers to save or open a Mighty folder only when neither an
+  active file nor discoverable workspace test target exists, matching the test
+  runner's launch rules.
 - **Command Palette launch commands explain read-only previews**: Format, Run,
   Run Tests, Run Test at Cursor, Debug Start, and Run in Browser now show
   read-only preview limitations directly in the palette instead of waiting for

@@ -1212,15 +1212,24 @@ impl PaletteEngine {
         let active_has_selection = model.has_selection();
         let active_can_copy =
             active_has_selection || !model.current_line_text_for_clipboard().is_empty();
-        command_contextual_desc(
+        let active_has_path = ctx.tabs.active_has_path();
+        let workspace_test_target =
+            id == CMD_RUN_TESTS
+                && !active_has_path
+                && crate::testabi::workspace_test_target_for_root(
+                    &crate::wsabi::effective_root(ctx),
+                )
+                .is_some();
+        command_contextual_desc_with_workspace(
             id,
             base,
-            ctx.tabs.active_has_path(),
+            active_has_path,
             ctx.tabs.active_read_only(),
             ctx.tabs.is_dirty(ctx.tabs.active()),
             ctx.tabs.dirty_count(),
             active_has_selection,
             active_can_copy,
+            workspace_test_target,
         )
     }
 
@@ -1427,6 +1436,7 @@ pub fn command_static_desc(id: u32) -> &'static str {
     PaletteEngine::meta(id).1
 }
 
+#[cfg(test)]
 fn command_contextual_desc<'a>(
     id: u32,
     base: &'a str,
@@ -1436,6 +1446,30 @@ fn command_contextual_desc<'a>(
     dirty_count: usize,
     active_has_selection: bool,
     active_can_copy: bool,
+) -> Cow<'a, str> {
+    command_contextual_desc_with_workspace(
+        id,
+        base,
+        active_has_path,
+        active_read_only,
+        active_dirty,
+        dirty_count,
+        active_has_selection,
+        active_can_copy,
+        false,
+    )
+}
+
+fn command_contextual_desc_with_workspace<'a>(
+    id: u32,
+    base: &'a str,
+    active_has_path: bool,
+    active_read_only: bool,
+    active_dirty: bool,
+    dirty_count: usize,
+    active_has_selection: bool,
+    active_can_copy: bool,
+    workspace_test_target: bool,
 ) -> Cow<'a, str> {
     if active_read_only {
         return match id {
@@ -1497,6 +1531,9 @@ fn command_contextual_desc<'a>(
         CMD_RENAME_SYMBOL if !active_has_path => Cow::Borrowed("Save this untitled file before symbol rename"),
         CMD_FORMAT_DOCUMENT if !active_has_path => Cow::Borrowed("Save this untitled file before formatting"),
         CMD_RUN_FILE if !active_has_path => Cow::Borrowed("Save this untitled file before running"),
+        CMD_RUN_TESTS if !active_has_path && !workspace_test_target => {
+            Cow::Borrowed("Save this untitled file or open a Mighty folder before running tests")
+        }
         CMD_RUN_TEST_AT_CURSOR if !active_has_path => Cow::Borrowed("Save this untitled file before running test at cursor"),
         CMD_DEBUG_START_CONTINUE if !active_has_path => Cow::Borrowed("Save this untitled file before starting debug"),
         CMD_RENAME_ACTIVE_FILE if active_has_path => Cow::Borrowed("Rename the active file on disk"),
@@ -2161,6 +2198,38 @@ mod tests {
                 "command {id} should explain unsaved scratch state"
             );
         }
+    }
+
+    #[test]
+    fn run_tests_description_reflects_workspace_target_state() {
+        assert_eq!(
+            command_contextual_desc_with_workspace(
+                CMD_RUN_TESTS,
+                "Run the package's tests (mty test)",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false,
+                false,
+            ),
+            Cow::Borrowed("Save this untitled file or open a Mighty folder before running tests")
+        );
+        assert_eq!(
+            command_contextual_desc_with_workspace(
+                CMD_RUN_TESTS,
+                "Run the package's tests (mty test)",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false,
+                true,
+            ),
+            Cow::Borrowed("Run the package's tests (mty test)")
+        );
     }
 
     #[test]
