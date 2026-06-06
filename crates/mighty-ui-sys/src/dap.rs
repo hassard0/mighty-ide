@@ -1308,7 +1308,7 @@ fn write_msg<W: Write>(w: &mut W, json: &str) -> std::io::Result<()> {
 /// Read one `Content-Length`-framed DAP message from `reader`. Returns the JSON
 /// body, or `None` on EOF.
 fn read_msg<R: BufRead>(reader: &mut R) -> std::io::Result<Option<String>> {
-    let mut content_length = 0usize;
+    let mut content_length = None;
     loop {
         let mut line = String::new();
         let n = reader.read_line(&mut line)?;
@@ -1319,15 +1319,36 @@ fn read_msg<R: BufRead>(reader: &mut R) -> std::io::Result<Option<String>> {
             break;
         }
         if let Some(rest) = line.strip_prefix("Content-Length:") {
-            content_length = rest.trim().parse().unwrap_or(0);
+            let len = parse_content_length(rest).ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "dap: malformed Content-Length header",
+                )
+            })?;
+            content_length = Some(len);
         }
     }
-    if content_length == 0 {
-        return Ok(Some(String::new()));
-    }
+    let content_length = content_length.ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "dap: missing Content-Length header",
+        )
+    })?;
     let mut buf = vec![0u8; content_length];
     reader.read_exact(&mut buf)?;
     Ok(Some(String::from_utf8_lossy(&buf).into_owned()))
+}
+
+fn parse_content_length(raw: &str) -> Option<usize> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() || !trimmed.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let len = trimmed.parse().ok()?;
+    if len == 0 {
+        return None;
+    }
+    Some(len)
 }
 
 /// The worker: drives the handshake then multiplexes outbound commands against
@@ -1613,6 +1634,30 @@ mod tests {
         let framed = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
         let env = parse_envelope(&framed).unwrap();
         assert_eq!(env.event.as_deref(), Some("initialized"));
+    }
+
+    #[test]
+    fn read_msg_reads_framed_body() {
+        let body = r#"{"seq":1,"type":"event","event":"initialized"}"#;
+        let framed = format!("Content-Length: {}\r\n\r\n{}", body.len(), body);
+        let mut reader = std::io::Cursor::new(framed.into_bytes());
+
+        assert_eq!(read_msg(&mut reader).unwrap(), Some(body.to_string()));
+    }
+
+    #[test]
+    fn read_msg_rejects_malformed_content_length() {
+        for header in [
+            "Content-Length: 0\r\n\r\n",
+            "Content-Length: -1\r\n\r\n{}",
+            "Content-Length: 4.5\r\n\r\n{}",
+            "Content-Length: 1e2\r\n\r\n{}",
+            "Content-Type: application/json\r\n\r\n{}",
+        ] {
+            let mut reader = std::io::Cursor::new(header.as_bytes());
+            let err = read_msg(&mut reader).unwrap_err();
+            assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        }
     }
 
     #[test]
