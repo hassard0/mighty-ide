@@ -14333,3 +14333,21 @@ look partially broken even when tab stops and date variables worked.
 - **Language note:** no compiler gap surfaced. Non-deterministic imported
   snippet variables still need deterministic shape tests so compatibility can
   improve without turning the test suite flaky.
+
+## L1127 - Release Docs Need Native Binary Boundaries
+
+A final release pass can accidentally sound broader than the host can prove:
+from Windows, it is possible to rebuild, scan, manifest, hash, and launch the
+PE package, but it is not possible to prove clean Mach-O or ELF binaries
+without matching native runners. Treating script readiness as binary evidence
+would make the handoff look cleaner than the artifacts really are.
+
+- **IDE note:** the README, changelog, and release evidence docs now state that
+  Windows x64 can be published from this host only after a fresh package and
+  launch, while macOS and Linux remain `unbuilt - native runner unavailable for
+  this pass` unless their own native package runs complete from the same source
+  commit.
+- **Language note:** no compiler gap surfaced. Release documentation needs the
+  same precision as runtime diagnostics: name exactly what was proven, name
+  what was not built, and avoid implying cross-platform evidence that the
+  current host cannot produce.

@@ -148,6 +148,11 @@ Use `unbuilt - native runner unavailable for this pass` for macOS or Linux when
 their native package scripts were not run on matching infrastructure. Do not
 continue feature work after reporting these fields.
 
+For this pass, a checked script or reviewed host gate is not a clean binary for
+macOS or Linux. Those platforms stay `unbuilt` until their own native package
+run writes a manifest, scans the tarball, and launches the packaged executable
+from the same final source commit.
+
 Generated archive hashes, package timestamps, payload hashes, and launch results
 are intentionally not committed into this reusable status file. Record them in
 the ignored package manifest, external upload note, and final handoff response

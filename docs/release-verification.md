@@ -54,10 +54,10 @@ Record unavailable platforms as:
 
 ```text
 Platform: macOS
-Release decision: unbuilt - native macOS runner unavailable
+Release decision: unbuilt - native macOS runner unavailable for this pass
 
 Platform: Linux x64
-Release decision: unbuilt - native Linux runner unavailable
+Release decision: unbuilt - native Linux runner unavailable for this pass
 ```
 
 ## Final Pass Evidence
@@ -77,11 +77,11 @@ Release decision: publish
 
 Platform: macOS
 Archive: dist/mighty-ide-v0.3.0-macos.tar.gz
-Release decision: unbuilt - native macOS runner unavailable
+Release decision: unbuilt - native macOS runner unavailable for this pass
 
 Platform: Linux x64
 Archive: dist/mighty-ide-v0.3.0-linux-x64.tar.gz
-Release decision: unbuilt - native Linux runner unavailable
+Release decision: unbuilt - native Linux runner unavailable for this pass
 ```
 
 ## Final Handoff Status

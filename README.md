@@ -107,6 +107,15 @@ This stop pass keeps the source-controlled README, changelog, and release docs
 as the reusable contract, then records generated Windows ZIP evidence only after
 the final source commit has been packaged.
 
+For this Windows-hosted finalization, "ensure clean binaries for Windows,
+macOS, and Linux" means producing clean binary evidence where the host can do
+so and recording honest release decisions everywhere else. Windows x64 is the
+only locally publishable binary on this host after the PowerShell packager and
+packaged launch pass. macOS and Linux are clean release paths, but their binary
+decisions remain `unbuilt - native runner unavailable for this pass` unless
+their native package scripts complete and launch on matching infrastructure
+during this same pass.
+
 For this pass, the package outcome is intentionally platform-scoped:
 
 - Windows x64 can be clean and publishable from this Windows checkout only
