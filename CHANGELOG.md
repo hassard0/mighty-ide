@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Indent and line-range edit palette names live targets**: Command Palette
+  now distinguishes Tab insertion from selected-line indentation, reports
+  Shift+Tab no-op states when there is no indentation to remove, and names the
+  current-line versus selected-range targets for comment toggles and duplicate.
 - **Final stop-pass binary matrix is documented**: README and release docs now
   state that this Windows-hosted pass can publish only the locally rebuilt PE
   ZIP, while macOS and Linux remain `unbuilt` until native runners produce and

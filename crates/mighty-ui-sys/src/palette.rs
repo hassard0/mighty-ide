@@ -1368,6 +1368,22 @@ impl PaletteEngine {
         }
         if matches!(
             id,
+            CMD_INDENT_LINE_SELECTION
+                | CMD_OUTDENT_LINE_SELECTION
+                | CMD_TOGGLE_LINE_COMMENT
+                | CMD_DUPLICATE_LINE_SELECTION
+        ) && !active_read_only
+        {
+            let can_outdent = if id == CMD_OUTDENT_LINE_SELECTION {
+                let mut probe = model.clone();
+                probe.outdent_lines()
+            } else {
+                true
+            };
+            return line_range_edit_contextual_desc(id, base, active_has_selection, can_outdent);
+        }
+        if matches!(
+            id,
             CMD_SELECT_WORD
                 | CMD_ADD_CARET_NEXT_OCCURRENCE
                 | CMD_ADD_CARET_ABOVE
@@ -2512,6 +2528,32 @@ fn line_edit_contextual_desc<'a>(
             Cow::Borrowed("Current line is already empty")
         }
         CMD_JOIN_LINE if cursor_line + 1 >= line_count => Cow::Borrowed("No next line to join"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn line_range_edit_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    has_selection: bool,
+    can_outdent: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_INDENT_LINE_SELECTION if has_selection => Cow::Borrowed("Indent selected line range"),
+        CMD_INDENT_LINE_SELECTION => Cow::Borrowed("Insert configured indentation at cursor"),
+        CMD_OUTDENT_LINE_SELECTION if !can_outdent => Cow::Borrowed("No indentation to outdent"),
+        CMD_OUTDENT_LINE_SELECTION if has_selection => {
+            Cow::Borrowed("Outdent selected line range")
+        }
+        CMD_OUTDENT_LINE_SELECTION => Cow::Borrowed("Outdent the current line"),
+        CMD_TOGGLE_LINE_COMMENT if has_selection => {
+            Cow::Borrowed("Toggle comments for selected lines")
+        }
+        CMD_TOGGLE_LINE_COMMENT => Cow::Borrowed("Toggle comment on current line"),
+        CMD_DUPLICATE_LINE_SELECTION if has_selection => {
+            Cow::Borrowed("Duplicate selected line range")
+        }
+        CMD_DUPLICATE_LINE_SELECTION => Cow::Borrowed("Duplicate the current line"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -5686,6 +5728,120 @@ mod tests {
             engine.contextual_desc(&ctx, CMD_DELETE_LINE, "base").as_ref(),
             "base"
         );
+    }
+
+    #[test]
+    fn line_range_edit_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_INDENT_LINE_SELECTION, "base", false, true),
+            Cow::Borrowed("Insert configured indentation at cursor")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_INDENT_LINE_SELECTION, "base", true, true),
+            Cow::Borrowed("Indent selected line range")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_OUTDENT_LINE_SELECTION, "base", false, false),
+            Cow::Borrowed("No indentation to outdent")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_OUTDENT_LINE_SELECTION, "base", false, true),
+            Cow::Borrowed("Outdent the current line")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_OUTDENT_LINE_SELECTION, "base", true, true),
+            Cow::Borrowed("Outdent selected line range")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_TOGGLE_LINE_COMMENT, "base", false, true),
+            Cow::Borrowed("Toggle comment on current line")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_TOGGLE_LINE_COMMENT, "base", true, true),
+            Cow::Borrowed("Toggle comments for selected lines")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_DUPLICATE_LINE_SELECTION, "base", false, true),
+            Cow::Borrowed("Duplicate the current line")
+        );
+        assert_eq!(
+            line_range_edit_contextual_desc(CMD_DUPLICATE_LINE_SELECTION, "base", true, true),
+            Cow::Borrowed("Duplicate selected line range")
+        );
+    }
+
+    #[test]
+    fn line_range_edit_palette_descriptions_probe_active_editor_state() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("plain\n  indented");
+        ctx.tabs.active_model_mut().move_to(0, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_INDENT_LINE_SELECTION, "base")
+                .as_ref(),
+            "Insert configured indentation at cursor"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_OUTDENT_LINE_SELECTION, "base")
+                .as_ref(),
+            "No indentation to outdent"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_TOGGLE_LINE_COMMENT, "base")
+                .as_ref(),
+            "Toggle comment on current line"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DUPLICATE_LINE_SELECTION, "base")
+                .as_ref(),
+            "Duplicate the current line"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "plain\n  indented");
+
+        ctx.tabs.active_model_mut().move_to(1, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_OUTDENT_LINE_SELECTION, "base")
+                .as_ref(),
+            "Outdent the current line"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "plain\n  indented");
+
+        ctx.tabs.active_model_mut().set_selection((0, 0), (1, 4));
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_INDENT_LINE_SELECTION, "base")
+                .as_ref(),
+            "Indent selected line range"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_OUTDENT_LINE_SELECTION, "base")
+                .as_ref(),
+            "Outdent selected line range"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_TOGGLE_LINE_COMMENT, "base")
+                .as_ref(),
+            "Toggle comments for selected lines"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DUPLICATE_LINE_SELECTION, "base")
+                .as_ref(),
+            "Duplicate selected line range"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "plain\n  indented");
     }
 
     #[test]
