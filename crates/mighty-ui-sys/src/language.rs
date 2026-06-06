@@ -1950,7 +1950,7 @@ pub mod lsp {
     }
 
     pub(super) fn initialize_msg() -> String {
-        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"rename":{"prepareSupport":true}}}}}"#.to_string()
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"rename":{"prepareSupport":true},"documentSymbol":{"hierarchicalDocumentSymbolSupport":true,"symbolKind":{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26]}}}}}}"#.to_string()
     }
 }
 
@@ -1980,6 +1980,14 @@ mod tests {
 
         assert!(msg.contains(r#""rename":{"prepareSupport":true}"#));
         assert!(!msg.contains(r#""honorsChangeAnnotations""#));
+    }
+
+    #[test]
+    fn lsp_initialize_advertises_document_symbol_shape() {
+        let msg = lsp::initialize_msg();
+
+        assert!(msg.contains(r#""documentSymbol":{"hierarchicalDocumentSymbolSupport":true,"symbolKind":{"valueSet":[1,2,3"#));
+        assert!(!msg.contains(r#""labelSupport""#));
     }
 
     #[test]
