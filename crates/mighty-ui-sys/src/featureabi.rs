@@ -1268,6 +1268,42 @@ fn blame_target_label(relpath: &str) -> &str {
         .unwrap_or(relpath)
 }
 
+fn blame_stale_target_message(path: &std::path::Path, err: Option<&std::io::Error>) -> String {
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| path.to_str().unwrap_or("file"));
+    if path.exists() && !path.is_file() {
+        return format!("Blame failed: {name}: not a file");
+    }
+    match err {
+        Some(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            format!("Blame target missing: {name}")
+        }
+        Some(e) => format!("Blame failed: {name}: {e}"),
+        None => format!("Blame target missing: {name}"),
+    }
+}
+
+fn reject_stale_blame_target(ctx: &mut MuiContext, path: &std::path::Path) -> bool {
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => false,
+        Ok(_) => {
+            ctx.push_toast(crate::toast::Kind::Error, blame_stale_target_message(path, None));
+            true
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            ctx.push_toast(crate::toast::Kind::Warn, blame_stale_target_message(path, Some(&e)));
+            true
+        }
+        Err(e) => {
+            ctx.push_toast(crate::toast::Kind::Error, blame_stale_target_message(path, Some(&e)));
+            true
+        }
+    }
+}
+
 /// Toggle the git blame gutter for the active file (`git blame --porcelain`).
 /// Returns `1` if now active, `0` if toggled off / unavailable. Toasts on error.
 #[no_mangle]
@@ -1287,6 +1323,11 @@ pub extern "C" fn mui_blame_toggle(handle: i64) -> i32 {
         );
         return 0;
     };
+    if let Some(path) = ctx.tabs.active_path() {
+        if reject_stale_blame_target(ctx, &path) {
+            return 0;
+        }
+    }
     let now = ctx.blame.toggle(&root, &rel);
     if now {
         if ctx.blame.line_count() == 0 {

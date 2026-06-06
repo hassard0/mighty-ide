@@ -1236,6 +1236,13 @@ impl PaletteEngine {
             return autocomplete_contextual_desc(base, ctx.language);
         }
         if id == CMD_GIT_TOGGLE_BLAME {
+            if !ctx.blame.is_active() {
+                if let Some(path) = ctx.tabs.active_path() {
+                    if let Some(desc) = blame_stale_target_desc(&path) {
+                        return Cow::Owned(desc);
+                    }
+                }
+            }
             return blame_toggle_contextual_desc(base, ctx.blame.is_active(), active_has_path);
         }
         if matches!(id, CMD_FOLD_TOGGLE | CMD_FOLD_ALL | CMD_UNFOLD_ALL) {
@@ -2617,6 +2624,18 @@ fn active_file_edit_stale_target_desc(id: u32, path: &std::path::Path) -> Option
             Err(e) => Some(format!("Delete failed: {name}: {e}")),
         },
         _ => None,
+    }
+}
+
+fn blame_stale_target_desc(path: &std::path::Path) -> Option<String> {
+    let name = palette_basename(path);
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => None,
+        Ok(_) => Some(format!("Blame failed: {name}: not a file")),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Some(format!("Blame target missing: {name}"))
+        }
+        Err(e) => Some(format!("Blame failed: {name}: {e}")),
     }
 }
 
@@ -5304,6 +5323,35 @@ mod tests {
             active_file_edit_stale_target_desc(CMD_REVEAL_ACTIVE_FILE, &missing),
             None
         );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn blame_descriptions_report_stale_targets() {
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_blame_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let missing = root.join("gone.mty");
+        assert_eq!(
+            blame_stale_target_desc(&missing),
+            Some("Blame target missing: gone.mty".to_string())
+        );
+
+        let blocked = root.join("blocked.mty");
+        std::fs::create_dir_all(&blocked).unwrap();
+        assert_eq!(
+            blame_stale_target_desc(&blocked),
+            Some("Blame failed: blocked.mty: not a file".to_string())
+        );
+
+        let file = root.join("ok.mty");
+        std::fs::write(&file, "ok").unwrap();
+        assert_eq!(blame_stale_target_desc(&file), None);
 
         let _ = std::fs::remove_dir_all(&root);
     }

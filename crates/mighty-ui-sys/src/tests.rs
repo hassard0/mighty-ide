@@ -11919,6 +11919,38 @@ fn blame_unavailable_feedback_names_active_file() {
 }
 
 #[test]
+fn blame_rejects_stale_active_targets_before_git() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_blame_stale_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.workspace.set_root(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let missing = root.join("gone.mty");
+    std::fs::write(&missing, "fn main() {}\n").unwrap();
+    ctx.tabs.open_path(missing.clone());
+    std::fs::remove_file(&missing).unwrap();
+    assert_eq!(crate::featureabi::mui_blame_toggle(handle), 0);
+    assert_eq!(crate::featureabi::mui_blame_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Blame target missing: gone.mty");
+
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir_all(&blocked).unwrap();
+    ctx.tabs.open_path(blocked.clone());
+    assert_eq!(crate::featureabi::mui_blame_toggle(handle), 0);
+    assert_eq!(crate::featureabi::mui_blame_active(handle), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Blame failed: blocked.mty: not a file");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn status_problems_chip_hit_tracks_rendered_branch_width() {
     use crate::ffi::MuiEvent;
     use crate::{mui_status_problems_chip_at_click, mui_status_render};

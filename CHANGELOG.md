@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Git Blame rejects stale active targets early**: Toggle Blame now reports
+  missing or directory-backed active files before invoking git, and the command
+  palette mirrors that feedback before dispatch.
 - **Command Palette previews stale rename/delete targets**: Rename Active File
   and Delete Active File now report missing or directory-backed active paths
   before dispatch, and Delete names dirty duplicate blockers before asking for

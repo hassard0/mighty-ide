@@ -184,7 +184,8 @@ and the final handoff response after packaging.
   Theme, Keyboard Shortcuts, and Markdown Preview describe already-open
   surfaces before dispatch
 - Command Palette Git Blame toggle rows mirror active and scratch-buffer
-  runtime feedback before dispatch
+  runtime feedback before dispatch, including stale missing or directory-backed
+  active targets
 - Command Palette folding rows mirror no-op states for missing foldable blocks,
   already-folded documents, and documents with nothing folded
 - Command Palette dedicated close rows for Welcome and Git Blame mirror
