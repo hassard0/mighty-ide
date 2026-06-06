@@ -2470,7 +2470,10 @@ fn command_contextual_desc_with_workspace<'a>(
         };
     }
 
-    if active_has_path || (id == CMD_RUN_TESTS && workspace_test_target) {
+    if active_has_path
+        || id == CMD_NEW_PROJECT
+        || (id == CMD_RUN_TESTS && workspace_test_target)
+    {
         if let Some(desc) = configured_mty_missing_desc(id) {
             return Cow::Owned(desc);
         }
@@ -2526,11 +2529,13 @@ fn command_contextual_desc_with_workspace<'a>(
 fn configured_mty_missing_desc(id: u32) -> Option<String> {
     let needs_mty = matches!(
         id,
-        CMD_RUN_FILE
+        CMD_FORMAT_DOCUMENT
+            | CMD_RUN_FILE
             | CMD_RUN_TESTS
             | CMD_RUN_TEST_AT_CURSOR
             | CMD_DEBUG_START_CONTINUE
             | CMD_RUN_IN_BROWSER
+            | CMD_NEW_PROJECT
     );
     if !needs_mty {
         return None;
@@ -2551,10 +2556,12 @@ fn configured_mty_missing_desc(id: u32) -> Option<String> {
         .filter(|s| !s.is_empty())
         .unwrap_or(trimmed);
     let action = match id {
+        CMD_FORMAT_DOCUMENT => "Format",
         CMD_RUN_FILE => "Run",
         CMD_RUN_TESTS | CMD_RUN_TEST_AT_CURSOR => "Tests",
         CMD_DEBUG_START_CONTINUE => "Debug",
         CMD_RUN_IN_BROWSER => "Browser run",
+        CMD_NEW_PROJECT => "New Project",
         _ => "Command",
     };
     Some(format!(
@@ -3356,6 +3363,20 @@ mod tests {
         std::env::set_var("MIGHTY_MTY", &missing_mty);
 
         assert_eq!(
+            command_contextual_desc(
+                CMD_FORMAT_DOCUMENT,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false,
+            )
+            .as_ref(),
+            "Format unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
             command_contextual_desc(CMD_RUN_FILE, "base", true, false, false, 0, false, false)
                 .as_ref(),
             "Run unavailable: MIGHTY_MTY points to missing missing-mty.exe"
@@ -3403,8 +3424,48 @@ mod tests {
             "Browser run unavailable: MIGHTY_MTY points to missing missing-mty.exe"
         );
         assert_eq!(
+            command_contextual_desc(
+                CMD_NEW_PROJECT,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false,
+            )
+            .as_ref(),
+            "New Project unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_FORMAT_DOCUMENT,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false,
+            ),
+            Cow::Borrowed("Save this untitled file before formatting")
+        );
+        assert_eq!(
             command_contextual_desc(CMD_RUN_FILE, "base", false, false, false, 0, false, false),
             Cow::Borrowed("Save this untitled file before running")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_FORMAT_DOCUMENT,
+                "base",
+                true,
+                true,
+                false,
+                0,
+                false,
+                false,
+            ),
+            Cow::Borrowed("Read-only preview: formatting is unavailable")
         );
         assert_eq!(
             command_contextual_desc(CMD_RUN_FILE, "base", true, true, false, 0, false, false),
