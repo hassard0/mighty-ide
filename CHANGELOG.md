@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Selection palette names cursor-state outcomes**: Command Palette now reports
+  no-word Select Word targets, selection-clearing collapse, already-single
+  cursor collapse, and multi-cursor collapse counts before dispatch.
 - **Multi-cursor palette mirrors edge no-ops**: Command Palette now reports
   `No word or next occurrence for multi-cursor`, `No line above for another
   caret`, and `No line below for another caret` before dispatch when Ctrl+D or

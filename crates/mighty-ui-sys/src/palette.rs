@@ -1318,7 +1318,11 @@ impl PaletteEngine {
         }
         if matches!(
             id,
-            CMD_ADD_CARET_NEXT_OCCURRENCE | CMD_ADD_CARET_ABOVE | CMD_ADD_CARET_BELOW
+            CMD_SELECT_WORD
+                | CMD_ADD_CARET_NEXT_OCCURRENCE
+                | CMD_ADD_CARET_ABOVE
+                | CMD_ADD_CARET_BELOW
+                | CMD_COLLAPSE_CARETS
         ) {
             let can_add_next_occurrence = if id == CMD_ADD_CARET_NEXT_OCCURRENCE {
                 let mut probe = model.clone();
@@ -1326,12 +1330,21 @@ impl PaletteEngine {
             } else {
                 true
             };
-            return multi_caret_contextual_desc(
+            let can_select_word = if id == CMD_SELECT_WORD {
+                let mut probe = model.clone();
+                !probe.select_word().is_empty()
+            } else {
+                true
+            };
+            return selection_caret_contextual_desc(
                 id,
                 base,
                 model.cursor_line(),
                 model.line_count(),
+                model.caret_count(),
+                active_has_selection,
                 can_add_next_occurrence,
+                can_select_word,
             );
         }
         if id == CMD_MARKDOWN_PREVIEW {
@@ -2393,14 +2406,18 @@ fn pane_contextual_desc<'a>(id: u32, base: &'a str, pane_count: usize) -> Cow<'a
     }
 }
 
-fn multi_caret_contextual_desc<'a>(
+fn selection_caret_contextual_desc<'a>(
     id: u32,
     base: &'a str,
     cursor_line: usize,
     line_count: usize,
+    caret_count: usize,
+    has_selection: bool,
     can_add_next_occurrence: bool,
+    can_select_word: bool,
 ) -> Cow<'a, str> {
     match id {
+        CMD_SELECT_WORD if !can_select_word => Cow::Borrowed("No word at cursor"),
         CMD_ADD_CARET_NEXT_OCCURRENCE if !can_add_next_occurrence => {
             Cow::Borrowed("No word or next occurrence for multi-cursor")
         }
@@ -2410,6 +2427,11 @@ fn multi_caret_contextual_desc<'a>(
         CMD_ADD_CARET_BELOW if cursor_line + 1 >= line_count => {
             Cow::Borrowed("No line below for another caret")
         }
+        CMD_COLLAPSE_CARETS if caret_count <= 1 && has_selection => {
+            Cow::Borrowed("Clear the active selection")
+        }
+        CMD_COLLAPSE_CARETS if caret_count <= 1 => Cow::Borrowed("Already a single cursor"),
+        CMD_COLLAPSE_CARETS => Cow::Owned(format!("Collapse {caret_count} cursors to primary")),
         _ => Cow::Borrowed(base),
     }
 }
@@ -5370,29 +5392,77 @@ mod tests {
     }
 
     #[test]
-    fn multi_caret_command_descriptions_reflect_runtime_state() {
+    fn selection_caret_command_descriptions_reflect_runtime_state() {
         assert_eq!(
-            multi_caret_contextual_desc(CMD_ADD_CARET_NEXT_OCCURRENCE, "base", 0, 1, false),
+            selection_caret_contextual_desc(
+                CMD_SELECT_WORD,
+                "base",
+                0,
+                1,
+                1,
+                false,
+                true,
+                false
+            ),
+            Cow::Borrowed("No word at cursor")
+        );
+        assert_eq!(
+            selection_caret_contextual_desc(
+                CMD_ADD_CARET_NEXT_OCCURRENCE,
+                "base",
+                0,
+                1,
+                1,
+                false,
+                false,
+                true
+            ),
             Cow::Borrowed("No word or next occurrence for multi-cursor")
         );
         assert_eq!(
-            multi_caret_contextual_desc(CMD_ADD_CARET_ABOVE, "base", 0, 2, true),
+            selection_caret_contextual_desc(CMD_ADD_CARET_ABOVE, "base", 0, 2, 1, false, true, true),
             Cow::Borrowed("No line above for another caret")
         );
         assert_eq!(
-            multi_caret_contextual_desc(CMD_ADD_CARET_BELOW, "base", 1, 2, true),
+            selection_caret_contextual_desc(CMD_ADD_CARET_BELOW, "base", 1, 2, 1, false, true, true),
             Cow::Borrowed("No line below for another caret")
         );
         assert_eq!(
-            multi_caret_contextual_desc(CMD_ADD_CARET_NEXT_OCCURRENCE, "base", 0, 1, true),
+            selection_caret_contextual_desc(CMD_COLLAPSE_CARETS, "base", 0, 2, 1, true, true, true),
+            Cow::Borrowed("Clear the active selection")
+        );
+        assert_eq!(
+            selection_caret_contextual_desc(CMD_COLLAPSE_CARETS, "base", 0, 2, 1, false, true, true),
+            Cow::Borrowed("Already a single cursor")
+        );
+        assert_eq!(
+            selection_caret_contextual_desc(CMD_COLLAPSE_CARETS, "base", 0, 2, 3, true, true, true)
+                .as_ref(),
+            "Collapse 3 cursors to primary"
+        );
+        assert_eq!(
+            selection_caret_contextual_desc(
+                CMD_ADD_CARET_NEXT_OCCURRENCE,
+                "base",
+                0,
+                1,
+                1,
+                false,
+                true,
+                true
+            ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            multi_caret_contextual_desc(CMD_ADD_CARET_ABOVE, "base", 1, 2, true),
+            selection_caret_contextual_desc(CMD_SELECT_WORD, "base", 0, 1, 1, false, true, true),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            multi_caret_contextual_desc(CMD_ADD_CARET_BELOW, "base", 0, 2, true),
+            selection_caret_contextual_desc(CMD_ADD_CARET_ABOVE, "base", 1, 2, 1, false, true, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            selection_caret_contextual_desc(CMD_ADD_CARET_BELOW, "base", 0, 2, 1, false, true, true),
             Cow::Borrowed("base")
         );
     }
@@ -5403,6 +5473,29 @@ mod tests {
             return;
         };
         let engine = PaletteEngine::new();
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("unique stuff here");
+        ctx.tabs.active_model_mut().move_to(0, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_SELECT_WORD, "base")
+                .as_ref(),
+            "base"
+        );
+        assert!(!ctx.tabs.active_model().has_selection());
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("   ");
+        ctx.tabs.active_model_mut().move_to(0, 1);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_SELECT_WORD, "base")
+                .as_ref(),
+            "No word at cursor"
+        );
+        assert!(!ctx.tabs.active_model().has_selection());
 
         ctx.tabs
             .active_model_mut()
@@ -5426,6 +5519,12 @@ mod tests {
             "No word or next occurrence for multi-cursor"
         );
         assert_eq!(ctx.tabs.active_model().caret_count(), 1);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_COLLAPSE_CARETS, "base")
+                .as_ref(),
+            "Clear the active selection"
+        );
 
         ctx.tabs
             .active_model_mut()
@@ -5456,6 +5555,22 @@ mod tests {
                 .contextual_desc(&ctx, CMD_ADD_CARET_ABOVE, "base")
                 .as_ref(),
             "base"
+        );
+
+        assert!(ctx.tabs.active_model_mut().add_caret_vertical(-1));
+        assert_eq!(ctx.tabs.active_model().caret_count(), 2);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_COLLAPSE_CARETS, "base")
+                .as_ref(),
+            "Collapse 2 cursors to primary"
+        );
+        ctx.tabs.active_model_mut().collapse_carets();
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_COLLAPSE_CARETS, "base")
+                .as_ref(),
+            "Already a single cursor"
         );
     }
 
