@@ -10,10 +10,18 @@
 //! be run we toast a clear "needs the Mighty compiler" message and return -1 so
 //! the feature degrades gracefully instead of failing silently.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, ExitStatus, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
 
 use crate::MuiContext;
+
+pub(crate) const MAX_NEW_PROJECT_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
 /// Cast an opaque `i64` handle back to a context reference (mirrors `abi::ctx`).
 #[inline]
@@ -199,14 +207,12 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     let mty = mty_path();
     // `mty new <name>` scaffolds a default-template project as a subdir of the
     // working directory. We run it WITH cwd = parent so the project lands there.
-    let result = Command::new(&mty)
-        .arg("new")
-        .arg(&name)
-        .current_dir(&parent)
-        .output();
+    let mut cmd = Command::new(&mty);
+    cmd.arg("new").arg(&name).current_dir(&parent);
+    let result = run_new_project_command(cmd);
 
     match result {
-        Ok(out) if out.status.success() => {
+        Ok(Some((status, _stdout, _stderr))) if status.success() => {
             // Re-root the workspace to the new project (rebuilds tree / index /
             // git / agents) + record it in recents, then toast success.
             let opened = open_new_project(ctx, &target);
@@ -220,8 +226,8 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
             );
             1
         }
-        Ok(out) => {
-            let stderr = String::from_utf8_lossy(&out.stderr);
+        Ok(Some((_status, _stdout, stderr_bytes))) => {
+            let stderr = String::from_utf8_lossy(&stderr_bytes);
             let detail = stderr.lines().last().unwrap_or("mty new failed").trim();
             let msg = if detail.is_empty() {
                 "Could not create project".to_string()
@@ -230,6 +236,14 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
             };
             ctx.push_toast(crate::toast::Kind::Warn, msg.clone());
             println!("newproj: `{mty} new {name}` exited non-zero: {stderr}");
+            0
+        }
+        Ok(None) => {
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                "New project failed: mty new output too large".to_string(),
+            );
+            println!("newproj: `{mty} new {name}` output too large");
             0
         }
         Err(e) => {
@@ -243,6 +257,94 @@ pub(crate) fn create_project_at(ctx: &mut MuiContext, target: PathBuf) -> i32 {
     }
 }
 
+fn run_new_project_command(
+    mut cmd: Command,
+) -> Result<Option<(ExitStatus, Vec<u8>, Vec<u8>)>, String> {
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "stdout pipe unavailable".to_string()
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        "stderr pipe unavailable".to_string()
+    })?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = std::thread::spawn(move || {
+        read_new_project_stream_capped(stdout, MAX_NEW_PROJECT_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        read_new_project_stream_capped(stderr, MAX_NEW_PROJECT_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    let status = loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Ok(None);
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(e.to_string());
+            }
+        }
+    };
+
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if exceeded.load(Ordering::Relaxed) {
+        return Ok(None);
+    }
+    Ok(Some((status, stdout, stderr)))
+}
+
+fn append_new_project_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if buf.len().saturating_add(chunk.len()) > cap {
+        buf.clear();
+        return false;
+    }
+    buf.extend_from_slice(chunk);
+    true
+}
+
+fn read_new_project_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_new_project_output_with_cap(&mut buf, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    buf
+}
+
 /// Re-root the workspace to a freshly-created project directory. Mirrors the
 /// open-folder worker but takes a `PathBuf` directly (we just created it, so it
 /// exists). Returns `1` when the re-root applied, else `0`.
@@ -253,6 +355,35 @@ fn open_new_project(ctx: &mut MuiContext, target: &Path) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_project_output_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"new");
+
+        assert!(append_new_project_output_with_cap(&mut buf, b"!", 4));
+        assert_eq!(buf, b"new!");
+    }
+
+    #[test]
+    fn new_project_output_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"new:");
+
+        assert!(!append_new_project_output_with_cap(&mut buf, b"overflow", 8));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn new_project_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_new_project_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
+    }
 
     /// `mty_path` honors the `MIGHTY_MTY` override.
     #[test]
