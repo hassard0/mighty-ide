@@ -52,6 +52,12 @@ only locally clean binary is the Windows PE ZIP after `.\package-win.ps1` and a
 packaged launch succeed; macOS and Linux stay `unbuilt` until their native
 runners produce and launch the Mach-O and ELF packages.
 
+This final pass stops at release evidence. Do not continue feature work after
+the Windows ZIP size, Windows ZIP SHA-256, package-script checks, packaged
+launch result, and explicit macOS/Linux `unbuilt` decisions are recorded. New
+feature or polish work creates a new source state and requires a fresh package
+run before any binary is publishable.
+
 This checkout's final stop pass uses the same rule for all platforms:
 
 - Windows x64: publish only after the PowerShell packager rebuilds

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final stop pass records artifact evidence and stops**: README and release
+  docs now state that after the Windows ZIP size, ZIP SHA-256, package checks,
+  packaged launch result, and macOS/Linux `unbuilt` decisions are recorded,
+  further implementation or docs edits belong to a new source/package pass.
 - **Command Palette previews broken Mighty compiler overrides**: Format, Run,
   Test, Debug, Run in Browser, and New Project rows now report when
   `MIGHTY_MTY` points to a missing compiler before dispatch, while preserving

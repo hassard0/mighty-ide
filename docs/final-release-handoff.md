@@ -109,6 +109,12 @@ committed, rebuild the Windows package from that clean commit, confirm
 hash and size, confirm the packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
 
+This pass is complete when those artifact-scoped fields are reported. Do not
+fold more IDE implementation, README edits, docs edits, or package-script
+changes into the same pass after the package run; any source change after that
+point invalidates the recorded archive and requires a new clean commit plus a
+new native package run.
+
 This final pass has no follow-on feature scope. The release boundary is the
 committed source and documentation plus the ignored platform artifacts generated
 from that commit. If another source edit is needed after packaging, the package

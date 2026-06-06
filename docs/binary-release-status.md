@@ -82,6 +82,10 @@ It should report the committed source hash and generated Windows archive values
 from the post-commit package run, while leaving macOS and Linux as `unbuilt`
 unless their own native package runs completed during the same pass.
 
+After those fields are reported, stop. Additional source, README, docs,
+packaging, or feature work belongs to a later pass because it changes the source
+state that the generated archive evidence was tied to.
+
 Keep committed release docs free of generated archive hashes. The authoritative
 generated values for a Windows-hosted pass are the post-commit
 `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`, the final ZIP size, the final ZIP
