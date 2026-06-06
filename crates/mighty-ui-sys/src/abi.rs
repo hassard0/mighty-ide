@@ -9351,6 +9351,21 @@ pub extern "C" fn mui_complete_cancel(handle: i64) -> i32 {
     }
 }
 
+/// Close the dropdown for incidental cleanup without user-visible feedback.
+#[no_mangle]
+pub extern "C" fn mui_complete_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.complete.is_active() {
+        ctx.complete.cancel();
+        ctx.complete_lsp_notice = None;
+        1
+    } else {
+        0
+    }
+}
+
 /// Draw the dropdown near the cursor pixel `(cursor_px_x, cursor_px_y)`. No-op
 /// when the dropdown is closed. Mighty passes the cursor's pixel position; the
 /// shim positions the box, clamps it on-screen, and highlights the selection.

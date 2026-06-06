@@ -331,6 +331,7 @@ extern c {
   fn mui_complete_move(handle: I64, delta: I32)
   fn mui_complete_click_at(handle: I64, row: I32, col: I32, total_lines: I32) -> I32
   fn mui_complete_cancel(handle: I64) -> I32
+  fn mui_complete_dismiss(handle: I64) -> I32
   fn mui_complete_draw_at(handle: I64, row: I32, col: I32, total_lines: I32)
   // ---- hover + go-to-definition (shim-side LSP nav) ----
   fn mui_hover_request(handle: I64, line: I32, col: I32) -> I32
@@ -3176,7 +3177,7 @@ fn main() {
               if cnt == 0 { completing = false }
             }
           } else {
-            let _cc = mui_complete_cancel(h)
+            let _cd = mui_complete_dismiss(h)
             completing = false
             if cp >= 32 && cp < 127 {
               let changed = mui_ed_insert_char(h, cp)
@@ -3202,12 +3203,12 @@ fn main() {
             }
             if accepted > 0 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
-              let _cc = mui_complete_cancel(h)
+              let _cd = mui_complete_dismiss(h)
               completing = false
               typing = false
             }
           } else if k == key_escape() {
-            let _cc = mui_complete_cancel(h)
+            let _cd = mui_complete_dismiss(h)
             completing = false
             run_focus = false
             web_focus = false
@@ -3232,7 +3233,7 @@ fn main() {
               if cnt == 0 { completing = false }
             }
           } else {
-            let _cc = mui_complete_cancel(h)
+            let _cd = mui_complete_dismiss(h)
             completing = false
             run_focus = false
             web_focus = false
@@ -3257,12 +3258,12 @@ fn main() {
             }
             if accepted > 0 {
               mui_tab_set_dirty(h, mui_tab_active(h), 1)
-              let _cc = mui_complete_cancel(h)
+              let _cd = mui_complete_dismiss(h)
               completing = false
               typing = false
             }
           } else {
-            let _cc = mui_complete_cancel(h)
+            let _cd = mui_complete_dismiss(h)
             completing = false
             run_focus = false
             web_focus = false
@@ -3607,7 +3608,7 @@ fn main() {
           let cnt = mui_complete_count(h)
           if cnt > 0 { completing = true } else { let _ce = mui_complete_report_empty(h) }
         } else if is_delete_line_chord(cp, mods) {
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
@@ -3619,7 +3620,7 @@ fn main() {
             mui_ghost_arm(h)
           }
         } else if is_join_line_chord(cp, mods) {
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
@@ -3664,25 +3665,25 @@ fn main() {
           agents_focus = false
           find_nav = false
         } else if ctrl_held(mods) && (cp == 97 || cp == 65) {   // Ctrl+A : select all
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
           mui_ed_select_all(h)
         } else if ctrl_held(mods) && (cp == 108 || cp == 76) {  // Ctrl+L : select current line
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
           mui_ed_select_line(h)
         } else if ctrl_held(mods) && (cp == 99 || cp == 67) {   // Ctrl+C : copy selection / line
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
           let _copy = mui_ed_copy(h)
         } else if ctrl_held(mods) && (cp == 120 || cp == 88) {  // Ctrl+X : cut selection / line
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
@@ -3694,7 +3695,7 @@ fn main() {
             mui_ghost_arm(h)
           }
         } else if ctrl_held(mods) && !shift_held(mods) && (cp == 118 || cp == 86) {  // Ctrl+V : paste clipboard
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
@@ -3759,13 +3760,13 @@ fn main() {
           }
           typing = false
         } else if is_undo_chord(cp, mods) {                  // Ctrl+Z : undo
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
           let _u = mui_ed_undo(h)
         } else if is_redo_chord(cp, mods) {                  // Ctrl+Y / Ctrl+Shift+Z : redo
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
@@ -5336,7 +5337,7 @@ fn main() {
             }
           }
         } else if id == cmd_select_all() || id == cmd_select_line() {
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           find_nav = false
           typing = false
@@ -5367,7 +5368,7 @@ fn main() {
           agents_focus = false
           find_nav = false
         } else if id == cmd_copy_selection_or_line() {
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           typing = false
           let _copy = mui_ed_copy(h)
@@ -5379,7 +5380,7 @@ fn main() {
           agents_focus = false
           find_nav = false
         } else if id == cmd_cut_selection_or_line() || id == cmd_paste_in_editor() {
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           typing = false
           if (id == cmd_paste_in_editor() && mui_ed_can_paste(h) == 1) || (id == cmd_cut_selection_or_line() && mui_ed_can_cut(h) == 1) {
@@ -6113,7 +6114,7 @@ fn main() {
           agents_focus = false
           find_nav = false
         } else if id == cmd_undo() {
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           run_focus = false
           web_focus = false
@@ -6124,7 +6125,7 @@ fn main() {
           find_nav = false
           let _u = mui_ed_undo(h)
         } else if id == cmd_redo() {
-          let _cc = mui_complete_cancel(h)
+          let _cd = mui_complete_dismiss(h)
           completing = false
           run_focus = false
           web_focus = false

@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Autocomplete cleanup no longer leaks close-command toasts**: incidental
+  autocomplete dismissal before editing, navigation, copy/paste, undo/redo, or
+  palette commands is now silent, while the explicit Autocomplete Close command
+  still reports `No autocomplete suggestions open` when appropriate.
 - **Autocomplete request respects read-only previews**: explicit autocomplete
   requests now close any stale dropdown silently on read-only previews and
   report the file-specific read-only warning once, matching accept behavior and

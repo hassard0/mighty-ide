@@ -14010,3 +14010,19 @@ adding a request guard alone would have let the Mighty loop emit an unrelated
   a silent state mutation and an explicit report function, the report function
   should own the user-facing blocked-state text so callers do not stack generic
   cleanup messages ahead of the actionable one.
+
+## L1106 - Cleanup ABIs Need Separate Silent And Explicit Paths
+
+Autocomplete cleanup used one ABI for two jobs: explicit user-facing Close
+Suggestions feedback, and incidental cleanup before unrelated editor commands.
+Because the shared ABI reported `No autocomplete suggestions open` when no
+dropdown was active, normal shortcuts such as copy, select-line, undo, or
+palette edit actions could inherit stale autocomplete feedback while merely
+trying to clear transient state.
+
+- **IDE note:** `mui_complete_dismiss` now performs silent incidental cleanup,
+  while `mui_complete_cancel` remains the explicit close-command path that can
+  report `No autocomplete suggestions open`.
+- **Language note:** no compiler gap surfaced. Event-loop cleanup calls should
+  use quiet, idempotent ABIs; explicit command ABIs can own no-op text. Sharing
+  them makes unrelated workflows pay for another command's feedback contract.

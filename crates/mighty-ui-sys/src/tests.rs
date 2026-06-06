@@ -16283,6 +16283,15 @@ fn autocomplete_close_command_clears_active_dropdown() {
     assert_eq!(ctx.toasts.toasts()[0].message, "No autocomplete suggestions open");
     ctx.toasts.clear();
 
+    assert_eq!(crate::mui_complete_dismiss(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    assert!(crate::mui_ed_complete_request(h) > 0);
+    assert_eq!(crate::mui_complete_active(h), 1);
+    assert_eq!(crate::mui_complete_dismiss(h), 1);
+    assert_eq!(crate::mui_complete_active(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
     crate::mui_complete_move(h, 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
@@ -21013,7 +21022,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             && main.contains("if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            typing = false\n            let accepted = mui_ghost_accept(h)")
             && main.contains("if mui_ghost_can_accept(h) == 1 { mui_ed_undo_record(h) }\n            let accepted = mui_ghost_accept_word(h)")
             && main
-                .matches("if accepted > 0 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)\n              let _cc = mui_complete_cancel(h)\n              completing = false\n              typing = false\n            }")
+                .matches("if accepted > 0 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)\n              let _cd = mui_complete_dismiss(h)\n              completing = false\n              typing = false\n            }")
                 .count()
                 >= 2
             && main.contains("if accepted == 1 {\n              mui_tab_set_dirty(h, mui_tab_active(h), 1)"),
@@ -21196,10 +21205,10 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "id == cmd_format_document() {\n          do_format(h)\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
         )
             && main.contains(
-                "id == cmd_undo() {\n          let _cc = mui_complete_cancel(h)\n          completing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+                "id == cmd_undo() {\n          let _cd = mui_complete_dismiss(h)\n          completing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
             )
             && main.contains(
-                "id == cmd_redo() {\n          let _cc = mui_complete_cancel(h)\n          completing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
+                "id == cmd_redo() {\n          let _cd = mui_complete_dismiss(h)\n          completing = false\n          run_focus = false\n          web_focus = false\n          test_focus = false\n          term_focus = false\n          ai_focus = false\n          agents_focus = false\n          find_nav = false"
             ),
         "Format, Undo, and Redo commands must release stale focus"
     );
@@ -21723,7 +21732,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
             "k == key_f12() {\n          let kmods = mui_event_mods(h)\n          if alt_held(kmods) {                               // Alt+F12 : peek definition\n            let _p = peek_definition(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
         )
             && main.contains(
-                "have_prev = true\n            }\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
+                "have_prev = true\n              mui_nav_prev_set(h)\n            }\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false"
             )
             && main.contains(
                 "k == key_f2() {                            // F2 : rename symbol"
@@ -22815,7 +22824,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .map(|i| completion_start + i)
         .expect("autocomplete branch should precede rename branch");
     let completion_branch = &main[completion_start..completion_end];
-    let completion_local_cleanup = "let _cc = mui_complete_cancel(h)\n            completing = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let completion_local_cleanup = "let _cd = mui_complete_dismiss(h)\n            completing = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
     assert!(
         completion_branch.matches(completion_local_cleanup).count() >= 3,
         "Autocomplete local Escape, unhandled-key, and mouse-miss dismissals must release stale focus"
