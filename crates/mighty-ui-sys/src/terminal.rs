@@ -64,6 +64,24 @@ const MOUSE_MODE_BUTTON: u8 = 1 << 0; // DECSET ?1000
 const MOUSE_MODE_DRAG: u8 = 1 << 1; // DECSET ?1002
 const MOUSE_MODE_ANY: u8 = 1 << 2; // DECSET ?1003
 
+fn parse_decimal_usize_token(text: &str) -> Option<usize> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<usize>().ok()
+}
+
+fn parse_decimal_u32_token(text: &str) -> Option<u32> {
+    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<u32>().ok()
+}
+
+fn parse_decimal_i32_token(text: &str) -> Option<i32> {
+    parse_decimal_u32_token(text).and_then(|value| i32::try_from(value).ok())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CursorShape {
     Block,
@@ -1544,7 +1562,7 @@ impl VtParser {
                 .split(';')
                 .next()
                 .filter(|s| !s.is_empty())
-                .and_then(|s| s.parse::<usize>().ok())
+                .and_then(parse_decimal_usize_token)
                 .unwrap_or(1)
                 .max(1),
         )
@@ -1567,7 +1585,7 @@ impl VtParser {
                 .split(';')
                 .next()
                 .filter(|s| !s.is_empty())
-                .and_then(|s| s.parse::<usize>().ok())
+                .and_then(parse_decimal_usize_token)
                 .unwrap_or(1)
                 .max(1),
         )
@@ -1648,12 +1666,12 @@ impl VtParser {
         let top = parts
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1);
         let bottom = parts
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(grid.rows());
         if grid.set_scroll_region(top.saturating_sub(1), bottom.saturating_sub(1)) {
             if self.origin_mode {
@@ -1673,7 +1691,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(0);
         match mode {
             0 => grid.clear_tab_stop(),
@@ -1691,7 +1709,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(0);
         match mode {
             0 => grid.set_tab_stop(),
@@ -1844,7 +1862,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<u32>().ok())
+            .and_then(parse_decimal_u32_token)
             .unwrap_or(0);
         match shape {
             0 => self.cursor_shape = CursorShape::Block,
@@ -1885,7 +1903,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<u32>().ok())
+            .and_then(parse_decimal_u32_token)
             .unwrap_or(0);
         match mode {
             0 => grid.clear_from_cursor_to_end(),
@@ -1905,7 +1923,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<u32>().ok())
+            .and_then(parse_decimal_u32_token)
             .unwrap_or(0);
         match mode {
             0 => grid.clear_line_from_cursor_to_end(),
@@ -1924,12 +1942,12 @@ impl VtParser {
         let row = parts
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1);
         let col = parts
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1);
         if self.origin_mode {
             grid.move_cursor_origin_1_based(row, col);
@@ -1947,7 +1965,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1)
             .max(1) as isize;
         match final_byte {
@@ -1973,7 +1991,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1)
             .max(1);
         for _ in 0..count {
@@ -1993,7 +2011,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1)
             .max(1);
         grid.move_cursor_col_1_based(col);
@@ -2008,7 +2026,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1)
             .max(1);
         if self.origin_mode {
@@ -2027,7 +2045,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1)
             .max(1) as isize;
         if self.origin_mode {
@@ -2046,7 +2064,7 @@ impl VtParser {
             .split(';')
             .next()
             .filter(|s| !s.is_empty())
-            .and_then(|s| s.parse::<usize>().ok())
+            .and_then(parse_decimal_usize_token)
             .unwrap_or(1)
             .max(1) as isize;
         match final_byte {
@@ -2406,7 +2424,7 @@ impl VtParser {
             if value != "?" {
                 continue;
             }
-            let Some(index) = index.parse::<u32>().ok().filter(|n| *n <= 255) else {
+            let Some(index) = parse_decimal_u32_token(index).filter(|n| *n <= 255) else {
                 continue;
             };
             let color = self.palette_rgb[index as usize];
@@ -2428,7 +2446,7 @@ impl VtParser {
             if value == "?" {
                 continue;
             }
-            let Some(index) = index.parse::<usize>().ok().filter(|n| *n <= 255) else {
+            let Some(index) = parse_decimal_usize_token(index).filter(|n| *n <= 255) else {
                 continue;
             };
             let Some(color) = parse_osc_rgb(value) else {
@@ -2448,7 +2466,7 @@ impl VtParser {
         let mut saw_index = false;
         for index in parts {
             saw_index = true;
-            let Some(index) = index.parse::<usize>().ok().filter(|n| *n <= 255) else {
+            let Some(index) = parse_decimal_usize_token(index).filter(|n| *n <= 255) else {
                 continue;
             };
             self.palette_rgb[index] = palette_rgb8(index as u32);
@@ -2770,7 +2788,7 @@ fn parse_sgr_params(params: &str) -> Vec<Option<i32>> {
         } else if part.is_empty() {
             out.push(Some(0));
         } else {
-            out.push(part.parse().ok());
+            out.push(parse_decimal_i32_token(part));
         }
     }
     out
@@ -2778,11 +2796,11 @@ fn parse_sgr_params(params: &str) -> Vec<Option<i32>> {
 
 fn append_colon_sgr_param(part: &str, out: &mut Vec<Option<i32>>) {
     let pieces: Vec<&str> = part.split(':').collect();
-    let Some(head) = pieces.first().and_then(|s| s.parse::<i32>().ok()) else {
+    let Some(head) = pieces.first().and_then(|s| parse_decimal_i32_token(s)) else {
         out.push(None);
         return;
     };
-    let Some(mode) = pieces.get(1).and_then(|s| s.parse::<i32>().ok()) else {
+    let Some(mode) = pieces.get(1).and_then(|s| parse_decimal_i32_token(s)) else {
         out.push(Some(head));
         return;
     };
@@ -2791,14 +2809,14 @@ fn append_colon_sgr_param(part: &str, out: &mut Vec<Option<i32>>) {
         (38 | 48, 5) => {
             out.push(Some(head));
             out.push(Some(5));
-            out.push(pieces.get(2).and_then(|s| s.parse::<i32>().ok()));
+            out.push(pieces.get(2).and_then(|s| parse_decimal_i32_token(s)));
         }
         (38 | 48, 2) => {
             let rgb: Vec<i32> = pieces
                 .iter()
                 .skip(2)
                 .filter(|s| !s.is_empty())
-                .filter_map(|s| s.parse::<i32>().ok())
+                .filter_map(|s| parse_decimal_i32_token(s))
                 .collect();
             out.push(Some(head));
             out.push(Some(2));
@@ -2815,7 +2833,7 @@ fn append_colon_sgr_param(part: &str, out: &mut Vec<Option<i32>>) {
                 if piece.is_empty() {
                     out.push(Some(0));
                 } else {
-                    out.push(piece.parse().ok());
+                    out.push(parse_decimal_i32_token(piece));
                 }
             }
         }
@@ -5073,6 +5091,17 @@ mod tests {
     }
 
     #[test]
+    fn sgr_params_reject_plus_prefixed_numbers() {
+        let mut g = Grid::new(1, 8);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b[+31mA\x1b[31mB");
+
+        assert_eq!(g.cell(0, 0).fg, DEFAULT_FG);
+        assert_eq!(g.cell(0, 1).fg, 1);
+        assert!(!g.contains("+31m"));
+    }
+
+    #[test]
     fn esc_c_resets_osc_hyperlink_state() {
         let g = grid_feed(1, 8, b"\x1b]8;;https://example.com\x07A\x1bcZ");
         assert_eq!(g.cell(0, 0).ch, 'Z');
@@ -5160,6 +5189,16 @@ mod tests {
         assert_eq!(g2.cell(2, 1).ch, 'X');
         assert!(!g2.contains("[E"));
         assert!(!g2.contains("[2F"));
+    }
+
+    #[test]
+    fn csi_counts_reject_plus_prefixed_numbers() {
+        let g = grid_feed(1, 8, b"abcd\x1b[+3GZ");
+
+        assert_eq!(g.cell(0, 0).ch, 'Z');
+        assert_eq!(g.cell(0, 1).ch, 'b');
+        assert_eq!(g.cell(0, 2).ch, 'c');
+        assert!(!g.contains("+3G"));
     }
 
     #[test]
@@ -5444,6 +5483,17 @@ mod tests {
         assert_eq!(p.take_reply(), b"\x1b]4;1;rgb:cccc/4040/4040\x1b\\");
         assert!(g.contains("ok"));
         assert!(!g.contains("4;1;?"));
+    }
+
+    #[test]
+    fn osc_palette_indices_reject_plus_prefixed_numbers() {
+        let mut g = Grid::new(1, 32);
+        let mut p = VtParser::new();
+        p.feed(&mut g, b"\x1b]4;+1;?\x07ok");
+
+        assert!(p.take_reply().is_empty());
+        assert!(g.contains("ok"));
+        assert!(!g.contains("+1;?"));
     }
 
     #[test]
