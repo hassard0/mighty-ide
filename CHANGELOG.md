@@ -92,6 +92,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Peek Definition targets now share the focused-pane file-open path.
 
 ### Language intelligence
+- **Symbol rename stale input feedback is code-intelligence feedback**:
+  `Rename cancelled` and `No rename input open` now replace stale F2
+  rename/code-intelligence toasts instead of grouping with active-file rename
+  operations.
 - **LSP completion notices replace stale autocomplete feedback**: explicit
   autocomplete notices for unavailable language servers or empty LSP completion
   responses now coalesce with other code-intelligence feedback instead of

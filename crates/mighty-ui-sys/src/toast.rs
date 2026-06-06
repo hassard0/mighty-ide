@@ -779,8 +779,6 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Rename failed")
         || m.starts_with("Rename source missing")
         || m.starts_with("Already named")
-        || m == "Rename cancelled"
-        || m == "No rename input open"
         || m == "No active file to rename"
         || m.starts_with("No active file to rename:")
         || m == "Cannot rename this path"
@@ -965,6 +963,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Definition target is not a file")
         || m == "No rename target"
         || m.starts_with("No rename target at ")
+        || m == "Rename cancelled"
+        || m == "No rename input open"
         || m == "No symbol rename input open"
         || m == "Enter a new symbol name"
         || m.starts_with("Symbol already named ")
@@ -1590,6 +1590,14 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No active file to rename: (scratch)");
+
+        q.push_at(
+            Kind::Info,
+            "Already named current.mty",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Already named current.mty");
     }
 
     #[test]
@@ -3384,16 +3392,16 @@ mod tests {
         assert_eq!(q.toasts()[0].message, "No rename target at main.mty:11:2");
 
         q.push_at(Kind::Info, "Rename cancelled", t0 + Duration::from_millis(700));
-        assert_eq!(q.len(), 2);
-        assert_eq!(q.toasts()[1].message, "Rename cancelled");
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Rename cancelled");
 
         q.push_at(
             Kind::Info,
             "No rename input open",
             t0 + Duration::from_millis(725),
         );
-        assert_eq!(q.len(), 2);
-        assert_eq!(q.toasts()[1].message, "No rename input open");
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No rename input open");
     }
 
     #[test]

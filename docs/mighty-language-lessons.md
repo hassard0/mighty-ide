@@ -13869,3 +13869,16 @@ gesture can leave multiple cards that all describe the same failed lookup.
 - **Language note:** no compiler gap surfaced. Toolchain availability messages
   should be classified by the feature path that surfaced them, not by the
   external tool they mention.
+
+## L1096 - Inline Symbol Rename Is Not File Rename
+
+The inline F2 rename overlay reuses generic text like `Rename cancelled` and
+`No rename input open`, but those messages describe the symbol-rename popup, not
+the active-file rename command. Grouping them with file operations leaves stale
+code-intelligence toasts visible after an inline rename cancel or stale submit.
+
+- **IDE note:** inline symbol-rename cancel and no-open feedback now coalesces
+  with Code Intelligence, while active-file rename success/failure and
+  no-active-file guards remain in the file Rename operation family.
+- **Language note:** no compiler gap surfaced. Shared verbs in UI strings need
+  the owning interaction surface to classify them correctly.
