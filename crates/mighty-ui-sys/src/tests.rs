@@ -7452,6 +7452,93 @@ fn save_all_cancelled_untitled_picker_preserves_dirty_tab() {
 }
 
 #[test]
+fn save_all_unavailable_untitled_picker_names_save_as_recovery() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_all_unavailable_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let left = root.join("left.mty");
+    std::fs::write(&left, "left").unwrap();
+    let left_idx = ctx.tabs.open_path(left);
+    let iu = ctx.tabs.new_untitled();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
+    ctx.tabs.set_dirty(iu, true);
+    ctx.panes = crate::panes::PaneLayout::new(left_idx);
+    ctx.panes.split_right(iu, 0);
+    ctx.panes.focus(0, 0);
+    ctx.tabs.switch(left_idx);
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    std::env::set_var("MUI_SAVE_FILE_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_SAVE_FILE_FORCE_UNAVAILABLE");
+    assert_eq!(crate::mui_save_all(handle), 0);
+    assert!(ctx.tabs.is_dirty(iu));
+    assert!(ctx.tabs.get(iu).unwrap().path.is_none());
+    assert_eq!(ctx.tabs.active(), left_idx);
+    assert_eq!(ctx.panes.focused(), 0);
+    assert_eq!(ctx.panes.tab_at(0), Some(left_idx));
+    assert_eq!(ctx.panes.tab_at(1), Some(iu));
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Save dialog unavailable; use Save As for 1 untitled file"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
+fn save_all_partial_unavailable_untitled_picker_names_save_as_recovery() {
+    let _g = crate::settings::TEST_LOCK
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!(
+        "mui_save_all_partial_unavailable_{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let saved_path = root.join("saved.mty");
+    std::fs::write(&saved_path, "old\n").unwrap();
+
+    let saved_idx = ctx.tabs.open_path(saved_path.clone());
+    ctx.tabs
+        .active_model_mut()
+        .set_text_preserving_cursor("new saved text");
+    ctx.tabs.set_dirty(saved_idx, true);
+    let untitled_idx = ctx.tabs.new_untitled();
+    ctx.tabs.active_model_mut().set_text_preserving_cursor("untitled");
+    ctx.tabs.set_dirty(untitled_idx, true);
+    ctx.tabs.switch(saved_idx);
+
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+    std::env::set_var("MUI_SAVE_FILE_FORCE_UNAVAILABLE", "1");
+    let _env = EnvRemoveGuard("MUI_SAVE_FILE_FORCE_UNAVAILABLE");
+    assert_eq!(crate::mui_save_all(handle), 1);
+    assert_eq!(std::fs::read_to_string(&saved_path).unwrap(), "new saved text\n");
+    assert!(!ctx.tabs.is_dirty(saved_idx));
+    assert!(ctx.tabs.is_dirty(untitled_idx));
+    assert!(ctx.tabs.get(untitled_idx).unwrap().path.is_none());
+    assert_eq!(ctx.tabs.active(), saved_idx);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Saved 1; Save dialog unavailable for 1 untitled file; use Save As"
+    );
+
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[test]
 fn save_all_failure_reports_failed_file_count() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!(

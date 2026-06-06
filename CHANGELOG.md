@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Save All names Save As recovery after unavailable pickers**: when dirty
+  untitled tabs cannot open the native save picker, Save All now says to use
+  Save As while preserving dirty tabs and normal file-backed saves.
 - **Command Palette new-item rows name typed-name fallback**: New File, New
   File in Workspace, New Folder, and New Project descriptions now match the
   runtime unavailable-picker behavior by naming the typed-name recovery path.

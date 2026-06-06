@@ -14089,7 +14089,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             let noun = if u == 1 { "untitled file" } else { "untitled files" };
             ctx.push_toast(
                 crate::toast::Kind::Warn,
-                format!("Save dialog unavailable; {u} {noun} still unsaved"),
+                format!("Save dialog unavailable; use Save As for {u} {noun}"),
             );
             0
         }
@@ -14131,7 +14131,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             let noun = if u == 1 { "untitled file" } else { "untitled files" };
             ctx.push_toast(
                 crate::toast::Kind::Warn,
-                format!("Saved {s}; Save dialog unavailable for {u} {noun}"),
+                format!("Saved {s}; Save dialog unavailable for {u} {noun}; use Save As"),
             );
             s
         }
