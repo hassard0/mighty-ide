@@ -1669,7 +1669,8 @@ impl PaletteEngine {
         }
         if matches!(
             id,
-            CMD_AI_CLOSE
+            CMD_AI_CLEAR_CHAT
+                | CMD_AI_CLOSE
                 | CMD_SIDEBAR_CLOSE
                 | CMD_COLOR_THEME_CLOSE
                 | CMD_HOVER_CLOSE
@@ -1684,6 +1685,7 @@ impl PaletteEngine {
                 id,
                 base,
                 ctx.ai.open,
+                ctx.ai.clear_would_change(),
                 ctx.sidebar_visible,
                 ctx.theme_picker.is_active(),
                 ctx.hover.is_active(),
@@ -2523,6 +2525,7 @@ fn transient_surface_contextual_desc<'a>(
     id: u32,
     base: &'a str,
     ai_open: bool,
+    ai_clear_would_change: bool,
     sidebar_open: bool,
     theme_picker_open: bool,
     hover_open: bool,
@@ -2534,6 +2537,9 @@ fn transient_surface_contextual_desc<'a>(
     quickopen_open: bool,
 ) -> Cow<'a, str> {
     match id {
+        CMD_AI_CLEAR_CHAT if !ai_clear_would_change => {
+            Cow::Borrowed("AI Copilot chat is already empty")
+        }
         CMD_AI_CLOSE if !ai_open => Cow::Borrowed("AI Copilot is already closed"),
         CMD_SIDEBAR_CLOSE if !sidebar_open => Cow::Borrowed("Sidebar is already closed"),
         CMD_COLOR_THEME_CLOSE if !theme_picker_open => {
@@ -5451,7 +5457,7 @@ mod tests {
             assert_eq!(
                 transient_surface_contextual_desc(
                     id, "base", false, false, false, false, false, false, false, false, false,
-                    false
+                    false, false
                 ),
                 Cow::Borrowed(expected)
             );
@@ -5459,9 +5465,47 @@ mod tests {
 
         assert_eq!(
             transient_surface_contextual_desc(
+                CMD_AI_CLEAR_CHAT,
+                "base",
+                true,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("AI Copilot chat is already empty")
+        );
+        assert_eq!(
+            transient_surface_contextual_desc(
+                CMD_AI_CLEAR_CHAT,
+                "base",
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+
+        assert_eq!(
+            transient_surface_contextual_desc(
                 CMD_AI_CLOSE,
                 "base",
                 true,
+                false,
                 false,
                 false,
                 false,
@@ -5479,6 +5523,7 @@ mod tests {
                 CMD_SIDEBAR_CLOSE,
                 "base",
                 false,
+                true,
                 true,
                 false,
                 false,
@@ -5498,6 +5543,7 @@ mod tests {
                 false,
                 false,
                 true,
+                true,
                 false,
                 false,
                 false,
@@ -5515,6 +5561,7 @@ mod tests {
                 false,
                 false,
                 false,
+                true,
                 true,
                 false,
                 false,
@@ -5534,6 +5581,7 @@ mod tests {
                 false,
                 false,
                 true,
+                true,
                 false,
                 false,
                 false,
@@ -5551,6 +5599,7 @@ mod tests {
                 false,
                 false,
                 false,
+                true,
                 true,
                 false,
                 false,
@@ -5570,6 +5619,7 @@ mod tests {
                 false,
                 false,
                 true,
+                true,
                 false,
                 false,
                 false
@@ -5587,6 +5637,7 @@ mod tests {
                 false,
                 false,
                 false,
+                true,
                 true,
                 false,
                 false
@@ -5606,6 +5657,7 @@ mod tests {
                 false,
                 false,
                 true,
+                true,
                 false
             ),
             Cow::Borrowed("base")
@@ -5623,6 +5675,7 @@ mod tests {
                 false,
                 false,
                 false,
+                true,
                 true
             ),
             Cow::Borrowed("base")

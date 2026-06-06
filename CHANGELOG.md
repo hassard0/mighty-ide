@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **AI Clear Chat palette state matches runtime**: Command Palette now reports
+  when the AI transcript and draft are already empty instead of advertising a
+  mutating clear action that will only produce a no-op toast.
 - **Agents Inspect names missing compiler overrides**: the live-inspect header
   now rejects a stale `MIGHTY_MTY` override before spawning and surfaces the
   same actionable reason in both the panel note and a warning toast.

@@ -404,11 +404,15 @@ impl AiPanel {
 
     /// Clear the current draft, transcript, scroll position, and any in-flight
     /// stream handle. Returns `true` when there was user-visible state to clear.
-    pub fn clear(&mut self) -> bool {
-        let had_state = !self.input.is_empty()
+    pub fn clear_would_change(&self) -> bool {
+        !self.input.is_empty()
             || !self.transcript.is_empty()
             || self.stream.is_some()
-            || self.scroll > 0.0;
+            || self.scroll > 0.0
+    }
+
+    pub fn clear(&mut self) -> bool {
+        let had_state = self.clear_would_change();
         if let Some(stream) = self.stream.as_ref() {
             stream.finish();
         }
