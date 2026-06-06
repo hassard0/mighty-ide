@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1175).
+(lessons L1-L1176).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Prepare-rename coordinates reject overflow**: `prepareRename` result
+  `start.line` and `start.character` now reject overflowing numeric tokens
+  instead of saturating into unusable symbol lookup coordinates.
 - **Outline document-symbol numbers reject overflow**: LSP document-symbol
   error codes, SymbolKind values, and range start lines now reject overflowing
   numeric tokens instead of saturating them into scanner fallback, bogus kinds,

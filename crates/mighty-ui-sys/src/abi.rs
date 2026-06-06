@@ -11529,9 +11529,8 @@ fn top_level_json_uint_field(bytes: &[u8], field: &str) -> Option<u32> {
     let start = i;
     let mut value = 0u32;
     while i < bytes.len() && bytes[i].is_ascii_digit() {
-        value = value
-            .saturating_mul(10)
-            .saturating_add((bytes[i] - b'0') as u32);
+        value = value.checked_mul(10)?;
+        value = value.checked_add((bytes[i] - b'0') as u32)?;
         i += 1;
     }
     if i == start {
@@ -11672,8 +11671,20 @@ mod rename_prepare_tests {
     }
 
     #[test]
+    fn prepare_rename_start_rejects_overflow_line() {
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":999999999999999999999999999999,"character":8},"end":{"line":4,"character":12}},"id":3}"#;
+        assert_eq!(parse_prepare_rename_start(raw), None);
+    }
+
+    #[test]
     fn prepare_rename_start_rejects_fractional_character_prefix() {
         let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":8.5},"end":{"line":4,"character":12}},"id":3}"#;
+        assert_eq!(parse_prepare_rename_start(raw), None);
+    }
+
+    #[test]
+    fn prepare_rename_start_rejects_overflow_character() {
+        let raw = r#"{"jsonrpc":"2.0","result":{"start":{"line":4,"character":999999999999999999999999999999},"end":{"line":4,"character":12}},"id":3}"#;
         assert_eq!(parse_prepare_rename_start(raw), None);
     }
 
