@@ -12252,13 +12252,7 @@ fn codeaction_presave_not_file_message(path: &std::path::Path) -> String {
 }
 
 fn codeaction_needs_file_message(ctx: &MuiContext) -> String {
-    let name = ctx
-        .tabs
-        .active_path()
-        .as_deref()
-        .map(basename)
-        .unwrap_or_else(|| "(scratch)".to_string());
-    format!("Code action needs a file: {name}")
+    language_needs_file_message(ctx, "code action")
 }
 
 /// `1` while the code-action menu is active.

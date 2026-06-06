@@ -13353,7 +13353,7 @@ fn codeaction_command_without_file_toasts_feedback() {
     assert_eq!(crate::mui_codeaction_active(h), 1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "Code action needs a file: (scratch)"
+        "Save (scratch) before code action"
     );
 
     ctx.toasts.clear();
@@ -13369,7 +13369,7 @@ fn codeaction_command_without_file_toasts_feedback() {
     assert_eq!(crate::mui_codeaction_active(h), 1);
     assert_eq!(
         ctx.toasts.toasts().last().unwrap().message,
-        "Code action needs a file: (scratch)"
+        "Save (scratch) before code action"
     );
 }
 
