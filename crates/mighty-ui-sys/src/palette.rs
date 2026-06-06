@@ -1208,6 +1208,10 @@ impl PaletteEngine {
     }
 
     fn contextual_desc<'a>(&self, ctx: &crate::MuiContext, id: u32, base: &'a str) -> Cow<'a, str> {
+        let model = ctx.tabs.active_model();
+        let active_has_selection = model.has_selection();
+        let active_can_copy =
+            active_has_selection || !model.current_line_text_for_clipboard().is_empty();
         command_contextual_desc(
             id,
             base,
@@ -1215,6 +1219,8 @@ impl PaletteEngine {
             ctx.tabs.active_read_only(),
             ctx.tabs.is_dirty(ctx.tabs.active()),
             ctx.tabs.dirty_count(),
+            active_has_selection,
+            active_can_copy,
         )
     }
 
@@ -1428,17 +1434,25 @@ fn command_contextual_desc<'a>(
     active_read_only: bool,
     active_dirty: bool,
     dirty_count: usize,
+    active_has_selection: bool,
+    active_can_copy: bool,
 ) -> Cow<'a, str> {
     if active_read_only {
         return match id {
             CMD_SAVE | CMD_SAVE_AS => Cow::Borrowed("Read-only preview: saving is unavailable"),
             CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Reload this read-only preview from disk"),
             CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE => Cow::Borrowed("Read-only preview: file edits are unavailable"),
+            CMD_COPY_SELECTION_OR_LINE if active_can_copy => Cow::Borrowed("Read-only preview: copy is available"),
+            CMD_COPY_SELECTION_OR_LINE => Cow::Borrowed("Read-only preview has no text to copy"),
+            CMD_CUT_SELECTION_OR_LINE | CMD_PASTE_IN_EDITOR => Cow::Borrowed("Read-only preview: editing clipboard actions are unavailable"),
             _ => Cow::Borrowed(base),
         };
     }
 
     match id {
+        CMD_COPY_SELECTION_OR_LINE if active_has_selection => Cow::Borrowed("Copy the active selection to the clipboard"),
+        CMD_COPY_SELECTION_OR_LINE if active_can_copy => Cow::Borrowed("Copy the current line to the clipboard"),
+        CMD_COPY_SELECTION_OR_LINE => Cow::Borrowed("No selection or line text to copy"),
         CMD_SAVE if active_has_path => Cow::Borrowed("Write the active file to disk"),
         CMD_SAVE => Cow::Borrowed("Choose a path before saving this untitled file"),
         CMD_SAVE_AS if active_has_path => Cow::Borrowed("Choose a new path or filename for this file"),
@@ -1895,47 +1909,143 @@ mod tests {
     #[test]
     fn file_command_descriptions_reflect_document_state() {
         assert_eq!(
-            command_contextual_desc(CMD_SAVE, "base", false, false, false, 0),
+            command_contextual_desc(CMD_SAVE, "base", false, false, false, 0, false, false),
             Cow::Borrowed("Choose a path before saving this untitled file")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_AS, "base", true, false, false, 0),
+            command_contextual_desc(CMD_SAVE_AS, "base", true, false, false, 0, false, false),
             Cow::Borrowed("Choose a new path or filename for this file")
         );
         assert_eq!(
-            command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, false, 0),
+            command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, false, 0, false, false),
             Cow::Borrowed("Save this untitled file before renaming it")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE, "base", true, true, true, 1),
+            command_contextual_desc(CMD_SAVE, "base", true, true, true, 1, false, false),
             Cow::Borrowed("Read-only preview: saving is unavailable")
         );
         assert_eq!(
-            command_contextual_desc(CMD_REVERT_ACTIVE_FILE, "base", true, true, false, 0),
+            command_contextual_desc(CMD_REVERT_ACTIVE_FILE, "base", true, true, false, 0, false, false),
             Cow::Borrowed("Reload this read-only preview from disk")
         );
         assert_eq!(
-            command_contextual_desc(CMD_RELOAD_ACTIVE_FILE, "base", true, false, true, 1),
+            command_contextual_desc(CMD_RELOAD_ACTIVE_FILE, "base", true, false, true, 1, false, false),
             Cow::Borrowed("Save or discard changes before reloading")
         );
         assert_eq!(
-            command_contextual_desc(CMD_DELETE_ACTIVE_FILE, "base", true, false, true, 1),
+            command_contextual_desc(CMD_DELETE_ACTIVE_FILE, "base", true, false, true, 1, false, false),
             Cow::Borrowed("Save or discard changes before deleting")
+        );
+    }
+
+    #[test]
+    fn copy_command_descriptions_reflect_editor_state() {
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_SELECTION_OR_LINE,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                true,
+                true
+            ),
+            Cow::Borrowed("Copy the active selection to the clipboard")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_SELECTION_OR_LINE,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                true
+            ),
+            Cow::Borrowed("Copy the current line to the clipboard")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_SELECTION_OR_LINE,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("No selection or line text to copy")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_SELECTION_OR_LINE,
+                "base",
+                true,
+                true,
+                false,
+                0,
+                false,
+                true
+            ),
+            Cow::Borrowed("Read-only preview: copy is available")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_COPY_SELECTION_OR_LINE,
+                "base",
+                true,
+                true,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("Read-only preview has no text to copy")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_CUT_SELECTION_OR_LINE,
+                "base",
+                true,
+                true,
+                false,
+                0,
+                true,
+                true
+            ),
+            Cow::Borrowed("Read-only preview: editing clipboard actions are unavailable")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_PASTE_IN_EDITOR,
+                "base",
+                true,
+                true,
+                false,
+                0,
+                false,
+                true
+            ),
+            Cow::Borrowed("Read-only preview: editing clipboard actions are unavailable")
         );
     }
 
     #[test]
     fn save_all_description_reports_dirty_count() {
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, false, 0),
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, false, 0, false, false),
             Cow::Borrowed("No unsaved tabs need writing")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, true, 1),
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, true, 1, false, false),
             Cow::Borrowed("Write the one unsaved tab")
         );
         assert_eq!(
-            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, true, 3).as_ref(),
+            command_contextual_desc(CMD_SAVE_ALL, "base", true, false, true, 3, false, false)
+                .as_ref(),
             "Write 3 unsaved tabs"
         );
     }

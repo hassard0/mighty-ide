@@ -22,6 +22,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   selection or current line is copyable without touching the OS clipboard,
   matching cut/paste command-state checks while keeping read-only previews
   copyable.
+- **Command Palette copy rows describe the live editor state**: Copy now tells
+  users whether it will copy the selection, current line, nothing, or a
+  read-only preview, while Cut/Paste explicitly say they are unavailable in
+  read-only previews.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.

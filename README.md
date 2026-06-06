@@ -39,6 +39,8 @@ OS; record unavailable native runners as `unbuilt`.
   selection or current line is copyable without touching the OS clipboard,
   matching cut/paste command-state checks and keeping read-only previews
   copyable
+- Command Palette copy/cut/paste rows reflect the active editor state, including
+  empty copy targets and read-only previews
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
   toasts instead of stacking generic `Copied` notifications
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
