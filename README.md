@@ -165,6 +165,9 @@ and the final handoff response after packaging.
 - Command Palette Source Control and Explorer lifecycle rows mirror no-op
   states, including clean stage/unstage sets, missing staged changes or commit
   messages, empty commit-message drafts, and closed panels
+- Command Palette Git Switch Branch, Push, Pull, and Fetch rows report missing
+  git repositories before dispatch, matching Source Control stage, commit, and
+  refresh actions
 - Command Palette Keyboard Shortcuts lifecycle rows mirror no-op states,
   including closed overlays, selected shortcuts already using defaults, and
   empty override sets

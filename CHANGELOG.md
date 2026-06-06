@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews git repository blockers consistently**: Switch
+  Branch, Push, Pull, and Fetch now report `Not a git repository` before
+  dispatch, matching Source Control stage, commit, and refresh rows.
 - **Git Blame rejects stale active targets early**: Toggle Blame now reports
   missing or directory-backed active files before invoking git, and the command
   palette mirrors that feedback before dispatch.

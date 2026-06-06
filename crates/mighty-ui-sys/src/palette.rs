@@ -1491,7 +1491,11 @@ impl PaletteEngine {
         }
         if matches!(
             id,
-            CMD_GIT_STAGE_ALL
+            CMD_GIT_SWITCH_BRANCH
+                | CMD_GIT_PUSH
+                | CMD_GIT_PULL
+                | CMD_GIT_FETCH
+                | CMD_GIT_STAGE_ALL
                 | CMD_GIT_UNSTAGE_ALL
                 | CMD_GIT_COMMIT_STAGED
                 | CMD_GIT_CLEAR_COMMIT_MESSAGE
@@ -2118,7 +2122,11 @@ fn source_control_contextual_desc<'a>(
     message_empty: bool,
 ) -> Cow<'a, str> {
     match id {
-        CMD_GIT_STAGE_ALL
+        CMD_GIT_SWITCH_BRANCH
+        | CMD_GIT_PUSH
+        | CMD_GIT_PULL
+        | CMD_GIT_FETCH
+        | CMD_GIT_STAGE_ALL
         | CMD_GIT_UNSTAGE_ALL
         | CMD_GIT_COMMIT_STAGED
         | CMD_GIT_REFRESH_SOURCE_CONTROL
@@ -4240,6 +4248,17 @@ mod tests {
 
     #[test]
     fn source_control_command_descriptions_reflect_runtime_state() {
+        for id in [
+            CMD_GIT_SWITCH_BRANCH,
+            CMD_GIT_PUSH,
+            CMD_GIT_PULL,
+            CMD_GIT_FETCH,
+        ] {
+            assert_eq!(
+                source_control_contextual_desc(id, "base", true, false, 0, 0, true),
+                Cow::Borrowed("Not a git repository")
+            );
+        }
         assert_eq!(
             source_control_contextual_desc(
                 CMD_GIT_STAGE_ALL,
