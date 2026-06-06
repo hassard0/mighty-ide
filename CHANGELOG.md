@@ -52,6 +52,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Run Tests, Run Test at Cursor, Debug Start, and Run in Browser now show
   read-only preview limitations directly in the palette instead of waiting for
   execution-time feedback.
+- **Command Palette Web lifecycle rows explain no-op states**: Web Stop, Open in
+  Browser, Clear Output, and Close Panel now mirror Web Playground runtime
+  feedback for idle servers, missing URLs, empty output, and closed panels.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.

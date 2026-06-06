@@ -1232,6 +1232,19 @@ impl PaletteEngine {
         if id == CMD_GHOST_COMPLETION_DISMISS {
             return dismiss_ghost_contextual_desc(base, ctx.ghost.has_ghost());
         }
+        if matches!(
+            id,
+            CMD_WEB_STOP | CMD_WEB_OPEN_BROWSER | CMD_WEB_CLEAR_OUTPUT | CMD_WEB_CLOSE
+        ) {
+            return web_contextual_desc(
+                id,
+                base,
+                ctx.web.is_active(),
+                ctx.web.is_running(),
+                ctx.web.url().is_empty(),
+                ctx.web.line_count(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1470,6 +1483,23 @@ fn dismiss_ghost_contextual_desc(base: &str, has_ghost: bool) -> Cow<'_, str> {
         Cow::Borrowed(base)
     } else {
         Cow::Borrowed("No AI ghost completion visible")
+    }
+}
+
+fn web_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    running: bool,
+    url_empty: bool,
+    line_count: usize,
+) -> Cow<'a, str> {
+    match id {
+        CMD_WEB_STOP if !running => Cow::Borrowed("No web server running"),
+        CMD_WEB_OPEN_BROWSER if url_empty => Cow::Borrowed("Web URL not ready"),
+        CMD_WEB_CLEAR_OUTPUT if line_count == 0 => Cow::Borrowed("Web output already empty"),
+        CMD_WEB_CLOSE if !active => Cow::Borrowed("Web Playground is already closed"),
+        _ => Cow::Borrowed(base),
     }
 }
 
@@ -2301,6 +2331,42 @@ mod tests {
         );
         assert_eq!(
             dismiss_ghost_contextual_desc("base", true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn web_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_STOP, "base", false, false, true, 0),
+            Cow::Borrowed("No web server running")
+        );
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_OPEN_BROWSER, "base", true, true, true, 6),
+            Cow::Borrowed("Web URL not ready")
+        );
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_CLEAR_OUTPUT, "base", true, true, false, 0),
+            Cow::Borrowed("Web output already empty")
+        );
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_CLOSE, "base", false, false, true, 0),
+            Cow::Borrowed("Web Playground is already closed")
+        );
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_STOP, "base", true, true, false, 6),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_OPEN_BROWSER, "base", true, true, false, 6),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_CLEAR_OUTPUT, "base", true, true, false, 6),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            web_contextual_desc(CMD_WEB_CLOSE, "base", true, true, false, 6),
             Cow::Borrowed("base")
         );
     }

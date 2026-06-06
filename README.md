@@ -78,6 +78,8 @@ This checkout's final stop pass uses the same rule for all platforms:
   when an untitled tab needs either a saved file or a Mighty workspace target
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
   read-only previews as unavailable before the command is launched
+- Command Palette Web lifecycle rows mirror Web Playground no-op states,
+  including no running server, missing URL, empty output, and closed panel
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
   toasts instead of stacking generic `Copied` notifications
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
