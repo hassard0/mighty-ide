@@ -782,7 +782,7 @@ pub struct CommandAction {
 }
 
 /// One code action: a `title`, optional inline/command edits, optional command
-/// metadata, and the synthetic "kind" for mty's own fixers.
+/// metadata, preferred status, and the synthetic "kind" for mty's own fixers.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CodeAction {
     /// Menu title (e.g. `Replace with 'print'`, `Fix all (mty)`).
@@ -794,6 +794,8 @@ pub struct CodeAction {
     /// A command to execute through `workspace/executeCommand` when no edit was
     /// available inline.
     pub command: Option<CommandAction>,
+    /// `true` when the server marks this as the preferred quick fix.
+    pub is_preferred: bool,
     /// `true` if this is the synthetic shim-provided "Fix all (mty)" action that
     /// runs `mty fix --apply` rather than applying an LSP edit.
     pub fix_all_mty: bool,
@@ -914,6 +916,7 @@ fn parse_one_action(obj: &[u8]) -> Option<CodeAction> {
         edit,
         command_edit,
         command,
+        is_preferred: top_level_bool_field(obj, "isPreferred"),
         fix_all_mty,
     })
 }
@@ -925,6 +928,12 @@ fn is_mighty_fix_all_command(command: &str) -> bool {
 fn code_action_disabled(obj: &[u8]) -> bool {
     top_level_field_value_start(obj, "disabled")
         .is_some_and(|i| i < obj.len() && matches!(obj[i], b'{' | b't'))
+}
+
+fn top_level_bool_field(obj: &[u8], field: &str) -> bool {
+    top_level_field_value_start(obj, field).is_some_and(|i| {
+        obj.get(i..i + 4) == Some(b"true")
+    })
 }
 
 fn top_level_field_value_start(obj: &[u8], field: &str) -> Option<usize> {
@@ -1366,7 +1375,11 @@ impl CodeActionState {
             .into_iter()
             .filter(CodeAction::is_actionable)
             .collect();
-        self.sel = 0;
+        self.sel = self
+            .actions
+            .iter()
+            .position(|action| action.is_preferred)
+            .unwrap_or(0);
         self.active = !self.actions.is_empty();
         self.actions.len()
     }
@@ -1587,6 +1600,8 @@ impl CodeActionState {
             let by = row_y + (row_h - 18.0) * 0.5;
             let badge = if a.fix_all_mty {
                 theme::accent_a(0.16)
+            } else if a.is_preferred {
+                theme::accent_a(0.20)
             } else {
                 MuiColor::new(1.0, 0.824, 0.478, 0.16)
             };
@@ -1594,13 +1609,18 @@ impl CodeActionState {
             // Vector icon (the embedded UI fonts lack the emoji/symbol glyphs that
             // previously rendered as boxes here): a check for "fix all", else a
             // wrench for a single quick-fix.
-            let icon = if a.fix_all_mty { crate::icons::CHECK } else { crate::icons::WRENCH };
+            let icon = if a.fix_all_mty || a.is_preferred { crate::icons::CHECK } else { crate::icons::WRENCH };
             ctx.dl_icon(bx + 3.0, by + 3.0, 12.0, 12.0, icon, theme::SYN_FUNCTION(), 1.6, false);
 
             let ty = row_y + (row_h - chrome) * 0.5 - 0.5;
             let fg = if selected { theme::TEXT() } else { theme::TEXT_1() };
-            let title = fit_ui_sized(&mut ctx.text, &a.title, box_w - 52.0, chrome);
+            let title_budget = box_w - 52.0 - if a.is_preferred { 68.0 } else { 0.0 };
+            let title = fit_ui_sized(&mut ctx.text, &a.title, title_budget, chrome);
             ctx.text.queue_ui_sized(box_x + 36.0, ty, &title, fg, chrome, clip);
+            if a.is_preferred {
+                let sx = box_x + box_w - 66.0;
+                ctx.text.queue_ui_sized(sx, ty, "preferred", theme::TEXT_3(), chrome - 1.0, clip);
+            }
         }
     }
 }
@@ -1632,7 +1652,10 @@ fn signature_content_budget(text_w: f32) -> f32 {
 fn code_action_popup_width(text: &mut crate::text::Text, actions: &[CodeAction], chrome: f32) -> f32 {
     let content_w = actions
         .iter()
-        .map(|a| text.measure_ui_sized(&a.title, chrome).0)
+        .map(|a| {
+            let suffix = if a.is_preferred { 68.0 } else { 0.0 };
+            text.measure_ui_sized(&a.title, chrome).0 + suffix
+        })
         .fold(0.0_f32, f32::max);
     (content_w + 56.0).max(240.0)
 }
@@ -2363,6 +2386,26 @@ mod tests {
     }
 
     #[test]
+    fn parse_code_actions_preserves_preferred_marker() {
+        let json = r#"{"result":[{"title":"Maybe","command":"server.maybe","isPreferred":false},{"title":"Best","command":"server.best","isPreferred":true}],"id":5}"#;
+        let actions = parse_code_actions(json);
+
+        assert_eq!(actions.len(), 2);
+        assert!(!actions[0].is_preferred);
+        assert!(actions[1].is_preferred);
+    }
+
+    #[test]
+    fn parse_code_actions_uses_top_level_preferred_marker() {
+        let json = r#"{"result":[{"title":"Nested only","command":"server.apply","metadata":{"isPreferred":true}},{"title":"Top level","command":"server.best","isPreferred":true}],"id":5}"#;
+        let actions = parse_code_actions(json);
+
+        assert_eq!(actions.len(), 2);
+        assert!(!actions[0].is_preferred);
+        assert!(actions[1].is_preferred);
+    }
+
+    #[test]
     fn parse_code_actions_fix_all_command_must_be_mighty_owned() {
         let json = r#"{"result":[{"title":"Server fix all","command":"rust-analyzer.fixAll"},{"title":"TS source fix all","command":{"title":"Fix all","command":"typescript.applyFixAllCodeAction","arguments":[{"fixId":"fixMissingImport"}]}},{"title":"Mighty fix all","command":"mty.fix_all"}],"id":5}"#;
         let actions = parse_code_actions(json);
@@ -2543,12 +2586,12 @@ mod tests {
         assert_eq!(c.set(vec![]), 0);
         assert!(!c.is_active());
         assert_eq!(
-            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, command_edit: None, command: None, fix_all_mty: false }]),
+            c.set(vec![CodeAction { title: "Inert command".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: false }]),
             0,
             "non-actionable code actions are hidden instead of becoming inert menu rows"
         );
         let actions = vec![
-            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, fix_all_mty: false },
+            CodeAction { title: "A".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: false, fix_all_mty: false },
             CodeAction {
                 title: "C".into(),
                 edit: None,
@@ -2557,9 +2600,10 @@ mod tests {
                     command: "server.command".into(),
                     arguments_json: None,
                 }),
+                is_preferred: false,
                 fix_all_mty: false,
             },
-            CodeAction { title: "B".into(), edit: None, command_edit: None, command: None, fix_all_mty: true },
+            CodeAction { title: "B".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 3);
         assert!(c.is_active());
@@ -2581,14 +2625,28 @@ mod tests {
     }
 
     #[test]
+    fn code_action_state_selects_first_preferred_action() {
+        let mut c = CodeActionState::new();
+        let actions = vec![
+            CodeAction { title: "Ordinary".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: false, fix_all_mty: false },
+            CodeAction { title: "Preferred".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: true, fix_all_mty: false },
+            CodeAction { title: "Later preferred".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: true, fix_all_mty: false },
+        ];
+
+        assert_eq!(c.set(actions), 3);
+        assert_eq!(c.selection(), 1);
+        assert_eq!(c.selected().unwrap().title, "Preferred");
+    }
+
+    #[test]
     fn code_action_click_row_selects_action() {
         let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
             return;
         };
         let mut c = CodeActionState::new();
         let actions = vec![
-            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, fix_all_mty: false },
-            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, fix_all_mty: true },
+            CodeAction { title: "Replace typo".into(), edit: Some(WorkspaceEdit::default()), command_edit: None, command: None, is_preferred: false, fix_all_mty: false },
+            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
         let (box_x, box_y, _box_w, _box_h, pad, row_h) =
@@ -2637,6 +2695,7 @@ mod tests {
             edit: Some(WorkspaceEdit::default()),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }];
         let wide = vec![CodeAction {
@@ -2644,6 +2703,7 @@ mod tests {
             edit: Some(WorkspaceEdit::default()),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }];
 
@@ -2671,9 +2731,10 @@ mod tests {
                 edit: Some(WorkspaceEdit::default()),
                 command_edit: None,
                 command: None,
+                is_preferred: false,
                 fix_all_mty: false,
             },
-            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, fix_all_mty: true },
+            CodeAction { title: "Fix all".into(), edit: None, command_edit: None, command: None, is_preferred: false, fix_all_mty: true },
         ];
         assert_eq!(c.set(actions), 2);
         let min_x = 220.0;
@@ -2710,6 +2771,7 @@ mod tests {
             edit: Some(WorkspaceEdit::default()),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }];
         assert_eq!(c.set(actions), 1);
@@ -2733,6 +2795,7 @@ mod tests {
                 edit: Some(WorkspaceEdit::default()),
                 command_edit: None,
                 command: None,
+                is_preferred: false,
                 fix_all_mty: false,
             })
             .collect();
@@ -2759,6 +2822,7 @@ mod tests {
                 edit: Some(WorkspaceEdit::default()),
                 command_edit: None,
                 command: None,
+                is_preferred: false,
                 fix_all_mty: false,
             })
             .collect();
@@ -2806,6 +2870,7 @@ mod tests {
                 edit: Some(WorkspaceEdit::default()),
                 command_edit: None,
                 command: None,
+                is_preferred: false,
                 fix_all_mty: false,
             }]),
             1

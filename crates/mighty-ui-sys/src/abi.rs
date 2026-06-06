@@ -1168,6 +1168,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                     edit: None,
                     command_edit: None,
                     command: None,
+                    is_preferred: false,
                     fix_all_mty: false,
                 },
                 crate::language::CodeAction {
@@ -1175,6 +1176,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                     edit: None,
                     command_edit: None,
                     command: None,
+                    is_preferred: false,
                     fix_all_mty: false,
                 },
                 crate::language::CodeAction {
@@ -1182,6 +1184,7 @@ pub extern "C" fn mui_init_s(width: u32, height: u32) -> i64 {
                     edit: None,
                     command_edit: None,
                     command: None,
+                    is_preferred: false,
                     fix_all_mty: true,
                 },
             ];
@@ -12460,6 +12463,7 @@ pub(crate) fn compute_line_actions(
             edit: None,
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: true,
         });
     }

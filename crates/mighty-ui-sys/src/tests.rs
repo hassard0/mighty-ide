@@ -12577,6 +12577,7 @@ fn rename_and_code_action_close_commands_clear_active_state() {
                 command: "server.apply".to_string(),
                 arguments_json: None,
             }),
+            is_preferred: false,
             fix_all_mty: false,
         }]) > 0
     );
@@ -12634,6 +12635,7 @@ fn rename_and_code_action_close_commands_clear_active_state() {
                 command: "server.organizeImports".to_string(),
                 arguments_json: None,
             }),
+            is_preferred: false,
             fix_all_mty: false,
         }]) > 0
     );
@@ -12869,6 +12871,7 @@ fn editor_popup_draws_restore_existing_overlay_state() {
             command: "server.apply".to_string(),
             arguments_json: None,
         }),
+        is_preferred: false,
         fix_all_mty: false,
     }]) > 0);
     ctx.overlay = true;
@@ -13863,6 +13866,7 @@ fn codeaction_command_without_file_toasts_feedback() {
             command: "server.apply".to_string(),
             arguments_json: None,
         }),
+        is_preferred: false,
         fix_all_mty: false,
     }]);
 
@@ -13880,6 +13884,7 @@ fn codeaction_command_without_file_toasts_feedback() {
         edit: None,
         command_edit: None,
         command: None,
+        is_preferred: false,
         fix_all_mty: true,
     }]);
 
@@ -13907,6 +13912,7 @@ fn codeaction_apply_preflight_tracks_selected_action_target() {
             command: "server.apply".to_string(),
             arguments_json: None,
         }),
+        is_preferred: false,
         fix_all_mty: false,
     }]);
     assert_eq!(crate::mui_codeaction_can_apply(h), 0);
@@ -13927,6 +13933,7 @@ fn codeaction_apply_preflight_tracks_selected_action_target() {
             command: "server.apply".to_string(),
             arguments_json: None,
         }),
+        is_preferred: false,
         fix_all_mty: false,
     }]);
     assert_eq!(crate::mui_codeaction_can_apply(h), 1);
@@ -13937,6 +13944,7 @@ fn codeaction_apply_preflight_tracks_selected_action_target() {
         edit: Some(crate::language::WorkspaceEdit::default()),
         command_edit: None,
         command: None,
+        is_preferred: false,
         fix_all_mty: false,
     }]);
     assert_eq!(crate::mui_codeaction_can_apply(h), 0);
@@ -13984,6 +13992,7 @@ fn codeaction_apply_rejects_read_only_binary_preview_before_edit() {
         }),
         command_edit: None,
         command: None,
+        is_preferred: false,
         fix_all_mty: false,
     }]);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -14043,6 +14052,7 @@ fn codeaction_workspace_edit_refreshes_clean_split_tab_without_switching_focus()
         }),
         command_edit: None,
         command: None,
+        is_preferred: false,
         fix_all_mty: false,
     }]), 1);
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
@@ -14103,6 +14113,7 @@ fn codeaction_workspace_edit_refreshes_clean_duplicate_other_tabs() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -14157,6 +14168,7 @@ fn codeaction_active_workspace_edit_remains_undoable() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -14219,6 +14231,7 @@ fn codeaction_active_workspace_edit_refreshes_clean_duplicate_without_losing_und
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -14272,6 +14285,7 @@ fn codeaction_fix_all_reload_remains_undoable() {
             edit: None,
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: true,
         }]),
         1
@@ -14344,6 +14358,7 @@ fn codeaction_fix_all_refreshes_clean_duplicate_tab_after_fix() {
             edit: None,
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: true,
         }]),
         1
@@ -14410,6 +14425,7 @@ fn codeaction_fix_all_refreshes_clean_duplicate_when_fixer_fails_after_pre_fix_s
             edit: None,
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: true,
         }]),
         1
@@ -14462,6 +14478,7 @@ fn codeaction_fix_all_presave_failure_reports_filesystem_reason() {
             edit: None,
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: true,
         }]),
         1
@@ -14519,6 +14536,7 @@ fn codeaction_fix_all_presave_republishes_resurrected_file_to_quickopen() {
             edit: None,
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: true,
         }]),
         1
@@ -14591,6 +14609,7 @@ fn codeaction_fix_all_skips_dirty_duplicate_tab() {
             edit: None,
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: true,
         }]),
         1
@@ -14676,6 +14695,7 @@ fn codeaction_workspace_edit_skips_dirty_non_active_split_tab() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -14750,6 +14770,7 @@ fn codeaction_workspace_edit_skips_active_path_with_dirty_duplicate() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -14824,6 +14845,7 @@ fn codeaction_workspace_edit_skips_dirty_duplicate_when_clean_tab_matches_first(
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -14894,6 +14916,7 @@ fn codeaction_workspace_edit_publishes_created_file_to_quickopen() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -14952,6 +14975,7 @@ fn codeaction_workspace_edit_skips_missing_non_create_file() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -15013,6 +15037,7 @@ fn codeaction_workspace_edit_skips_directory_non_active_file() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -15075,6 +15100,7 @@ fn codeaction_workspace_edit_skips_non_directory_parent_non_active_file() {
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -15137,6 +15163,7 @@ fn codeaction_active_workspace_edit_skips_non_directory_parent_without_mutating_
             }),
             command_edit: None,
             command: None,
+            is_preferred: false,
             fix_all_mty: false,
         }]),
         1
@@ -15924,6 +15951,7 @@ fn sync_active_path_clears_stale_active_language_ui() {
                 command: "server.apply".to_string(),
                 arguments_json: None,
             }),
+            is_preferred: false,
             fix_all_mty: false,
         }]) > 0
     );
