@@ -2090,6 +2090,16 @@ mod tests {
     }
 
     #[test]
+    fn language_lsp_response_wait_rejects_fractional_numeric_prefix() {
+        let stream = r#"{"jsonrpc":"2.0","id":2.5,"result":{"signatures":[{"label":"wrong()"}]}}{"jsonrpc":"2.0","id":2,"result":{"signatures":[{"label":"right(a)","parameters":[{"label":"a"}]}]}}"#;
+        let one = crate::nav::lsp::isolate_response_id(stream, 2);
+        let sig = parse_signature_help(&one).expect("sig");
+
+        assert_eq!(sig.label, "right(a)");
+        assert!(!one.contains("wrong"));
+    }
+
+    #[test]
     fn language_lsp_isolate_response_id_skips_progress_metadata_id() {
         let stream = r#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"signatures":[{"label":"wrong()"}]}}}}{"jsonrpc":"2.0","id":2,"result":{"signatures":[{"label":"right(a)","parameters":[{"label":"a"}]}]}}"#;
         let one = crate::nav::lsp::isolate_response_id(stream, 2);

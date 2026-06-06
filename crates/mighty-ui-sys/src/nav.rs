@@ -598,6 +598,10 @@ fn top_level_uint_field(obj: &[u8], field: &[u8]) -> Option<u32> {
     }
     if j == start {
         None
+    } else if j < obj.len()
+        && !matches!(obj[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        None
     } else {
         Some(value)
     }
@@ -1608,6 +1612,16 @@ mod tests {
     }
 
     #[test]
+    fn nav_lsp_response_wait_rejects_fractional_numeric_prefix() {
+        let fractional = br#"{"jsonrpc":"2.0","id":2.5,"result":{"contents":"wrong"}}"#;
+        let stream = br#"{"jsonrpc":"2.0","id":2.5,"result":{"contents":"wrong"}}
+{"jsonrpc":"2.0","id":2,"result":{"contents":"right"}}"#;
+
+        assert!(!lsp::has_response_id(fractional, 2));
+        assert!(lsp::has_response_id(stream, 2));
+    }
+
+    #[test]
     fn nav_lsp_initialize_advertises_hover_and_definition_capabilities() {
         let msg = lsp::initialize_msg();
 
@@ -1632,6 +1646,15 @@ mod tests {
 
         assert_eq!(parse_hover_value(&one).unwrap(), "right hover");
         assert!(!one.contains("workspace/applyEdit"));
+    }
+
+    #[test]
+    fn nav_lsp_isolate_response_id_rejects_fractional_numeric_prefix() {
+        let stream = r#"{"jsonrpc":"2.0","id":2.5,"result":{"contents":{"value":"wrong hover"}}}{"jsonrpc":"2.0","id":2,"result":{"contents":{"value":"right hover"}}}"#;
+        let one = lsp::isolate_response_id(stream, 2);
+
+        assert_eq!(parse_hover_value(&one).unwrap(), "right hover");
+        assert!(!one.contains("wrong hover"));
     }
 
     // ---- guarded LSP integration test ----

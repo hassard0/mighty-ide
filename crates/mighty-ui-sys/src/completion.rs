@@ -3188,6 +3188,17 @@ mod tests {
     }
 
     #[test]
+    fn lsp_completion_response_wait_rejects_fractional_numeric_prefix() {
+        let stream = br#"{"jsonrpc":"2.0","id":2.5,"result":[{"label":"wrong"}]}
+{"jsonrpc":"2.0","id":2,"result":[{"label":"right"}]}"#;
+
+        assert!(crate::nav::lsp::has_response_id(stream, 2));
+        let isolated = crate::nav::lsp::isolate_response_id(&String::from_utf8_lossy(stream), 2);
+        let labels = super::lsp::scrape_labels(&isolated);
+        assert_eq!(labels, vec!["right".to_string()]);
+    }
+
+    #[test]
     fn lsp_scrape_handles_escapes() {
         let json = r#"[{"label":"a\"b"},{"label":"c\\d"}]"#;
         let labels = super::lsp::scrape_labels(json);
