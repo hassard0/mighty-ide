@@ -2169,6 +2169,27 @@ fn web_run_build_failure_toast_includes_latest_error_line() {
 }
 
 #[test]
+fn web_run_without_file_reports_save_target_feedback() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    ctx.sidebar_visible = true;
+    ctx.problems.set_open(true);
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    assert_eq!(crate::webabi::mui_web_run(handle), 0);
+    assert!(ctx.web.is_active());
+    assert!(!ctx.web.is_running());
+    assert!(!ctx.term_open);
+    assert!(!ctx.problems.is_open());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(
+        toast.message,
+        "Save this untitled file before running in browser"
+    );
+}
+
+#[test]
 fn web_run_rejects_missing_active_path_before_spawn() {
     let mut ctx = ctx_or_skip!();
     let root = std::env::temp_dir().join(format!("mui_web_missing_target_{}", std::process::id()));

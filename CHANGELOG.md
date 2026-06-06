@@ -35,8 +35,8 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   attempted.
 - **Command Palette file-backed commands explain scratch buffers**: Hover,
   Go to Definition, Peek Definition, Signature Help, Rename Symbol, Format, Run,
-  Run Test at Cursor, and Debug Start now tell users to save untitled buffers
-  before those file-backed operations.
+  Run Test at Cursor, Debug Start, and Run in Browser now tell users to save
+  untitled buffers before those file-backed operations.
 - **Command Palette Run Tests mirrors workspace target state**: Run Tests now
   tells untitled buffers to save or open a Mighty folder only when neither an
   active file nor discoverable workspace test target exists, matching the test
@@ -51,6 +51,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Run in Browser respects read-only previews**: direct Web Playground runs now
   reject binary/read-only buffers before opening the panel or spawning a build,
   with a focused toast explaining why the command is unavailable.
+- **Run in Browser explains untitled buffers**: Web Playground launch now tells
+  scratch tabs to save before running in browser instead of reporting a generic
+  missing active file.
 - **Inline AI respects read-only previews**: explicit ghost-completion requests
   and passive debounce ticks now clear/reject binary previews before snapshotting
   editor contents for an AI request.

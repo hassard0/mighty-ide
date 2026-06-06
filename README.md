@@ -67,7 +67,8 @@ This checkout's final stop pass uses the same rule for all platforms:
   Find remains available while Replace, autocomplete acceptance, Rename Symbol,
   code-action edits, and inline AI edits are unavailable
 - Command Palette file-backed commands explain unsaved scratch buffers before
-  language lookup, format, run, test-at-cursor, or debug actions need a saved path
+  language lookup, format, run, test-at-cursor, debug, or browser-run actions
+  need a saved path
 - Command Palette Run Tests mirrors the test runner's target rules, explaining
   when an untitled tab needs either a saved file or a Mighty workspace target
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
@@ -311,7 +312,7 @@ This checkout's final stop pass uses the same rule for all platforms:
   generic unresolved row
 
 ### Web
-- **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance, and reports stale Web click/scroll routes after the panel closes. Sample: `examples/webspin/`
+- **Run in Browser (Alt+W)** — build the active file to `wasm32-web` and run it in the browser via `mty serve` (web-game packages) or a `mty build --target wasm32-web` + static-server fallback; streams build/serve output, scrapes the served URL, opens the default browser, stop affordance, explains untitled scratch buffers before launch, and reports stale Web click/scroll routes after the panel closes. Sample: `examples/webspin/`
 
 - Diff and Markdown preview stale scroll routes report when their surface has
   already closed instead of mutating hidden viewport state, and Markdown preview

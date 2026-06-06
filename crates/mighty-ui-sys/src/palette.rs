@@ -1536,6 +1536,7 @@ fn command_contextual_desc_with_workspace<'a>(
         }
         CMD_RUN_TEST_AT_CURSOR if !active_has_path => Cow::Borrowed("Save this untitled file before running test at cursor"),
         CMD_DEBUG_START_CONTINUE if !active_has_path => Cow::Borrowed("Save this untitled file before starting debug"),
+        CMD_RUN_IN_BROWSER if !active_has_path => Cow::Borrowed("Save this untitled file before running in browser"),
         CMD_RENAME_ACTIVE_FILE if active_has_path => Cow::Borrowed("Rename the active file on disk"),
         CMD_RENAME_ACTIVE_FILE => Cow::Borrowed("Save this untitled file before renaming it"),
         CMD_DELETE_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before deleting"),
@@ -2191,6 +2192,7 @@ mod tests {
             (CMD_RUN_FILE, "Save this untitled file before running"),
             (CMD_RUN_TEST_AT_CURSOR, "Save this untitled file before running test at cursor"),
             (CMD_DEBUG_START_CONTINUE, "Save this untitled file before starting debug"),
+            (CMD_RUN_IN_BROWSER, "Save this untitled file before running in browser"),
         ] {
             assert_eq!(
                 command_contextual_desc(id, "base", false, false, false, 0, false, false),

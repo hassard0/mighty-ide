@@ -94,7 +94,10 @@ pub extern "C" fn mui_web_run(handle: i64) -> i32 {
         ctx.run.close();
         ctx.problems.set_open(false);
         crate::abi::trace("web_run no_active_file");
-        ctx.push_toast(crate::toast::Kind::Warn, "Run in Browser: no active file");
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            "Save this untitled file before running in browser",
+        );
         return 0;
     };
     if ctx.tabs.active_read_only() {
