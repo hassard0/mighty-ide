@@ -9991,6 +9991,21 @@ pub extern "C" fn mui_keys_cancel(handle: i64) {
     }
 }
 
+/// Silently close the shortcuts overlay even when a remap capture is active.
+#[no_mangle]
+pub extern "C" fn mui_keys_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.shortcuts.is_active() {
+        ctx.shortcuts.cancel();
+        trace("shortcuts_dismiss");
+        1
+    } else {
+        0
+    }
+}
+
 /// Close the shortcuts overlay even when a remap capture is active. Returns `1`
 /// when it closed the overlay, or `0` when it was already closed.
 #[no_mangle]

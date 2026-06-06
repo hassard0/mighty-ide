@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14165,3 +14165,17 @@ one, but the user-facing message path should not depend on an unchecked
 - **Language note:** no compiler gap surfaced. Command preflight code should
   treat derived diagnostic strings as fallible data, even when upstream state
   tracking currently makes the empty case unreachable.
+
+## L1116 - Capture Mode Still Needs Working Pointer Dismissal
+
+Keyboard Shortcuts remap capture has different Escape semantics from the normal
+overlay: Escape cancels capture and keeps the overlay open. That leaked into
+pointer handling, so clicking the visible close affordance while capture was
+active only cancelled capture and left the overlay visible.
+
+- **IDE note:** capture-mode close-click and outside-click routes now hit-test
+  the overlay, then call `mui_keys_dismiss` for close or miss paths. Escape
+  still cancels capture without closing the overlay.
+- **Language note:** no compiler gap surfaced. Modal capture states should
+  separate keyboard cancellation from pointer dismissal so visible close chrome
+  remains trustworthy.

@@ -13025,6 +13025,18 @@ fn keyboard_shortcuts_close_command_exits_capture_and_overlay() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Keyboard Shortcuts is already closed");
+
+    ctx.toasts.clear();
+    crate::mui_keys_open(handle);
+    assert_eq!(crate::mui_keys_begin_capture(handle), 1);
+    assert_eq!(crate::mui_keys_capturing(handle), 1);
+    assert_eq!(crate::mui_keys_dismiss(handle), 1);
+    assert_eq!(crate::mui_keys_active(handle), 0);
+    assert_eq!(crate::mui_keys_capturing(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    assert_eq!(crate::mui_keys_dismiss(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
 }
 
 #[test]
@@ -23051,11 +23063,16 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .expect("keyboard shortcuts branch should precede branch picker");
     let keys_branch = &overlay_branch[keys_start..keys_end];
     let keys_cancel_cleanup = "mui_keys_cancel(h)\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
-    let keys_cancel_cleanup_outer = "mui_keys_cancel(h)\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let keys_capture_dismiss_cleanup = "let _kd = mui_keys_dismiss(h)\n              run_focus = false\n              web_focus = false\n              test_focus = false\n              term_focus = false\n              ai_focus = false\n              agents_focus = false\n              find_nav = false\n              typing = false";
     assert!(
-        keys_branch.matches(keys_cancel_cleanup).count() >= 4
-            && keys_branch.matches(keys_cancel_cleanup_outer).count() >= 1,
+        keys_branch.matches(keys_cancel_cleanup).count() >= 5,
         "Keyboard Shortcuts local cancel exits must release stale focus"
+    );
+    assert!(
+        keys_branch.contains("let khc = mui_keys_click(h)")
+            && keys_branch.contains("if khc == 3 || khc < 0")
+            && keys_branch.contains(keys_capture_dismiss_cleanup),
+        "Keyboard Shortcuts capture-mode close and outside clicks must dismiss the overlay"
     );
     let branch_start = overlay_branch
         .find("} else if mui_branch_active(h) == 1 {")

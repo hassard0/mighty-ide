@@ -418,6 +418,7 @@ extern c {
   fn mui_keys_reset_selected_command(handle: I64) -> I32
   fn mui_keys_reset_all_command(handle: I64) -> I32
   fn mui_keys_cancel(handle: I64)
+  fn mui_keys_dismiss(handle: I64) -> I32
   fn mui_keys_close(handle: I64) -> I32
   fn mui_keys_draw(handle: I64)
   // ---- universal Quick-Open (Ctrl+P): files / > cmds / @ syms / : line ----
@@ -1756,15 +1757,28 @@ fn main() {
               typing = false
             }
           } else if tag == ev_mouse_down() {
-            mui_keys_cancel(h)
-            run_focus = false
-            web_focus = false
-            test_focus = false
-            term_focus = false
-            ai_focus = false
-            agents_focus = false
-            find_nav = false
-            typing = false
+            let khc = mui_keys_click(h)
+            if khc == 3 || khc < 0 {
+              let _kd = mui_keys_dismiss(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
+            } else {
+              mui_keys_cancel(h)
+              run_focus = false
+              web_focus = false
+              test_focus = false
+              term_focus = false
+              ai_focus = false
+              agents_focus = false
+              find_nav = false
+              typing = false
+            }
           }
         } else if tag == ev_char() {
           let cp = mui_event_codepoint(h)
