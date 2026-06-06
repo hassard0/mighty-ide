@@ -383,8 +383,13 @@ fn apply_edit_request_id(stream: &[u8]) -> Option<String> {
         {
             continue;
         }
-        let id_at = top_level_field_value_start(obj, b"id")?;
-        return read_json_id_at(obj, id_at).map(|(id, _)| id);
+        let Some(id_at) = top_level_field_value_start(obj, b"id") else {
+            continue;
+        };
+        let Some((id, _)) = read_json_id_at(obj, id_at) else {
+            continue;
+        };
+        return Some(id);
     }
     None
 }
@@ -1587,6 +1592,18 @@ mod tests {
         assert_eq!(apply_edit_request_id(missing_edit), None);
         assert_eq!(apply_edit_request_id(nested_edit), None);
         assert_eq!(apply_edit_request_id(valid), Some("10".to_string()));
+    }
+
+    #[test]
+    fn apply_edit_request_id_skips_malformed_requests_before_valid_one() {
+        let stream = br#"{"jsonrpc":"2.0","method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}
+{"jsonrpc":"2.0","id":false,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}
+{"jsonrpc":"2.0","id":"cmd-8","method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+
+        assert_eq!(
+            apply_edit_request_id(stream),
+            Some(r#""cmd-8""#.to_string())
+        );
     }
 
     #[test]
