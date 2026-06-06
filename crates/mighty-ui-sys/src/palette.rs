@@ -1490,6 +1490,15 @@ fn command_contextual_desc<'a>(
         CMD_RELOAD_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
         CMD_REVERT_ACTIVE_FILE if active_has_path => Cow::Borrowed("Discard local edits and reload from disk"),
         CMD_REVERT_ACTIVE_FILE => Cow::Borrowed("Needs a file-backed tab"),
+        CMD_HOVER if !active_has_path => Cow::Borrowed("Save this untitled file before requesting hover"),
+        CMD_GOTO_DEFINITION if !active_has_path => Cow::Borrowed("Save this untitled file before Go to Definition"),
+        CMD_PEEK_DEFINITION if !active_has_path => Cow::Borrowed("Save this untitled file before Peek Definition"),
+        CMD_SIGNATURE_HELP if !active_has_path => Cow::Borrowed("Save this untitled file before signature help"),
+        CMD_RENAME_SYMBOL if !active_has_path => Cow::Borrowed("Save this untitled file before symbol rename"),
+        CMD_FORMAT_DOCUMENT if !active_has_path => Cow::Borrowed("Save this untitled file before formatting"),
+        CMD_RUN_FILE if !active_has_path => Cow::Borrowed("Save this untitled file before running"),
+        CMD_RUN_TEST_AT_CURSOR if !active_has_path => Cow::Borrowed("Save this untitled file before running test at cursor"),
+        CMD_DEBUG_START_CONTINUE if !active_has_path => Cow::Borrowed("Save this untitled file before starting debug"),
         CMD_RENAME_ACTIVE_FILE if active_has_path => Cow::Borrowed("Rename the active file on disk"),
         CMD_RENAME_ACTIVE_FILE => Cow::Borrowed("Save this untitled file before renaming it"),
         CMD_DELETE_ACTIVE_FILE if active_has_path && active_dirty => Cow::Borrowed("Save or discard changes before deleting"),
@@ -2129,6 +2138,27 @@ mod tests {
                 command_contextual_desc(id, "base", true, true, false, 0, false, false),
                 Cow::Borrowed(expected),
                 "command {id} should explain read-only preview state"
+            );
+        }
+    }
+
+    #[test]
+    fn file_backed_command_descriptions_reflect_unsaved_scratch_state() {
+        for (id, expected) in [
+            (CMD_HOVER, "Save this untitled file before requesting hover"),
+            (CMD_GOTO_DEFINITION, "Save this untitled file before Go to Definition"),
+            (CMD_PEEK_DEFINITION, "Save this untitled file before Peek Definition"),
+            (CMD_SIGNATURE_HELP, "Save this untitled file before signature help"),
+            (CMD_RENAME_SYMBOL, "Save this untitled file before symbol rename"),
+            (CMD_FORMAT_DOCUMENT, "Save this untitled file before formatting"),
+            (CMD_RUN_FILE, "Save this untitled file before running"),
+            (CMD_RUN_TEST_AT_CURSOR, "Save this untitled file before running test at cursor"),
+            (CMD_DEBUG_START_CONTINUE, "Save this untitled file before starting debug"),
+        ] {
+            assert_eq!(
+                command_contextual_desc(id, "base", false, false, false, 0, false, false),
+                Cow::Borrowed(expected),
+                "command {id} should explain unsaved scratch state"
             );
         }
     }

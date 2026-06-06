@@ -55,6 +55,8 @@ runners produce and launch the Mach-O and ELF packages.
 - Command Palette language and AI edit rows report read-only previews up front:
   Find remains available while Replace, autocomplete acceptance, Rename Symbol,
   code-action edits, and inline AI edits are unavailable
+- Command Palette file-backed commands explain unsaved scratch buffers before
+  language lookup, format, run, test-at-cursor, or debug actions need a saved path
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
   read-only previews as unavailable before the command is launched
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste

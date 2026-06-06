@@ -33,6 +33,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Replace, autocomplete, Rename Symbol, Code Actions, Inline Ask, and forced
   ghost completion now surface read-only limitations before a mutation path is
   attempted.
+- **Command Palette file-backed commands explain scratch buffers**: Hover,
+  Go to Definition, Peek Definition, Signature Help, Rename Symbol, Format, Run,
+  Run Test at Cursor, and Debug Start now tell users to save untitled buffers
+  before those file-backed operations.
 - **Command Palette launch commands explain read-only previews**: Format, Run,
   Run Tests, Run Test at Cursor, Debug Start, and Run in Browser now show
   read-only preview limitations directly in the palette instead of waiting for
