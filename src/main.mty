@@ -79,6 +79,9 @@ extern c {
   fn mui_ed_complete_request(handle: I64) -> I32
   fn mui_ed_complete_accept(handle: I64) -> I32
   fn mui_ed_nav_stream(handle: I64)
+  fn mui_nav_prev_set(handle: I64)
+  fn mui_nav_prev_clear(handle: I64)
+  fn mui_nav_prev_available(handle: I64) -> I32
   fn mui_ed_tab_switch(handle: I64, idx: I32) -> I32
   fn mui_ed_click(handle: I64) -> I32
   fn mui_minimap_click(handle: I64, x: F32, y: F32) -> I32
@@ -3641,6 +3644,7 @@ fn main() {
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)
             have_prev = false
+            mui_nav_prev_clear(h)
             mui_hover_clear(h)
             hovering = false
           } else {
@@ -3996,6 +4000,7 @@ fn main() {
               prev_line = cur_line
               prev_col = cur_col
               have_prev = true
+              mui_nav_prev_set(h)
             }
             run_focus = false
             web_focus = false
@@ -5657,6 +5662,7 @@ fn main() {
             prev_line = cur_line
             prev_col = cur_col
             have_prev = true
+            mui_nav_prev_set(h)
           }
           run_focus = false
           web_focus = false
@@ -6211,6 +6217,7 @@ fn main() {
           if have_prev {
             mui_ed_move_to(h, prev_line, prev_col)
             have_prev = false
+            mui_nav_prev_clear(h)
             mui_hover_clear(h)
             hovering = false
           } else {

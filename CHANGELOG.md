@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Jump Back palette mirrors navigation history**: Command Palette now reports
+  `No previous location` before dispatch until Go to Definition records a
+  return target, then restores the normal Jump Back description after history is
+  available.
 - **Tab navigation palette names single-tab no-ops**: Command Palette now
   reports `Only one tab open` for Next Tab and Previous Tab before dispatch
   when cycling tabs cannot change the active editor.

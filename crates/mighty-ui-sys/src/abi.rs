@@ -14857,6 +14857,28 @@ pub extern "C" fn mui_ed_nav_stream(handle: i64) {
     }
 }
 
+/// Mirror whether Mighty currently has a Jump Back target.
+#[no_mangle]
+pub extern "C" fn mui_nav_prev_set(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.nav_prev_available = true;
+    }
+}
+
+/// Clear Mighty's mirrored Jump Back target.
+#[no_mangle]
+pub extern "C" fn mui_nav_prev_clear(handle: i64) {
+    if let Some(ctx) = unsafe { ctx(handle) } {
+        ctx.nav_prev_available = false;
+    }
+}
+
+/// `1` when Jump Back can move to a previous location.
+#[no_mangle]
+pub extern "C" fn mui_nav_prev_available(handle: i64) -> i32 {
+    unsafe { ctx(handle) }.map_or(0, |ctx| i32::from(ctx.nav_prev_available))
+}
+
 /// Switch to tab `idx`, syncing the active path. Tab switching is now a plain
 /// index change (each tab owns its model), so no byte-swap loop is needed.
 /// Returns the new active index.

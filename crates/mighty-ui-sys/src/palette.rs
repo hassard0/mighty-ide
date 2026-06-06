@@ -1235,6 +1235,9 @@ impl PaletteEngine {
         if matches!(id, CMD_SPLIT_RIGHT | CMD_FOCUS_NEXT_PANE | CMD_CLOSE_PANE) {
             return pane_contextual_desc(id, base, ctx.panes.count());
         }
+        if id == CMD_JUMP_BACK {
+            return jump_back_contextual_desc(base, ctx.nav_prev_available);
+        }
         if id == CMD_OPEN_RECENT {
             return open_recent_contextual_desc(
                 base,
@@ -2765,6 +2768,14 @@ fn open_recent_contextual_desc(base: &str, has_actionable_recents: bool) -> Cow<
         Cow::Borrowed(base)
     } else {
         Cow::Borrowed("No recent files or folders")
+    }
+}
+
+fn jump_back_contextual_desc(base: &str, has_previous_location: bool) -> Cow<'_, str> {
+    if has_previous_location {
+        Cow::Borrowed(base)
+    } else {
+        Cow::Borrowed("No previous location")
     }
 }
 
@@ -5684,6 +5695,52 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn jump_back_description_reflects_navigation_history() {
+        assert_eq!(
+            jump_back_contextual_desc("Return to previous location", false),
+            Cow::Borrowed("No previous location")
+        );
+        assert_eq!(
+            jump_back_contextual_desc("Return to previous location", true),
+            Cow::Borrowed("Return to previous location")
+        );
+    }
+
+    #[test]
+    fn jump_back_palette_description_probes_mirrored_history() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+        let handle = (&mut ctx as *mut crate::MuiContext) as usize as i64;
+
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_JUMP_BACK, "Return to previous location")
+                .as_ref(),
+            "No previous location"
+        );
+
+        crate::abi::mui_nav_prev_set(handle);
+        assert_eq!(crate::abi::mui_nav_prev_available(handle), 1);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_JUMP_BACK, "Return to previous location")
+                .as_ref(),
+            "Return to previous location"
+        );
+
+        crate::abi::mui_nav_prev_clear(handle);
+        assert_eq!(crate::abi::mui_nav_prev_available(handle), 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_JUMP_BACK, "Return to previous location")
+                .as_ref(),
+            "No previous location"
+        );
     }
 
     #[test]

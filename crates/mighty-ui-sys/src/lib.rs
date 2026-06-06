@@ -232,6 +232,9 @@ pub struct MuiContext {
     /// Editor buffer bytes streamed in from Mighty for a hover/def request
     /// (same shape as `complete_buf`; the live unsaved source is the doc text).
     nav_buf: Vec<u8>,
+    /// Mirror of Mighty's one-slot Jump Back state so Rust-owned surfaces such
+    /// as the Command Palette can describe the command before dispatch.
+    nav_prev_available: bool,
 
     // ---- deeper language intelligence (signature help / rename / code actions) ----
     /// Signature-help popup state (parsed `SignatureInformation`), shim-owned.
@@ -888,6 +891,7 @@ pub(crate) fn build_context(
         hover: nav::HoverState::new(),
         def: nav::DefState::new(),
         nav_buf: Vec::new(),
+        nav_prev_available: false,
         sig: language::SigState::new(),
         rename: language::RenameState::new(),
         codeaction: language::CodeActionState::new(),
@@ -1565,6 +1569,7 @@ impl MuiContext {
             hover: nav::HoverState::new(),
             def: nav::DefState::new(),
             nav_buf: Vec::new(),
+            nav_prev_available: false,
             sig: language::SigState::new(),
             rename: language::RenameState::new(),
             codeaction: language::CodeActionState::new(),
