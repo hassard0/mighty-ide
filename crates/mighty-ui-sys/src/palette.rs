@@ -1335,6 +1335,21 @@ impl PaletteEngine {
                 welcome_visible,
             );
         }
+        if matches!(
+            id,
+            CMD_REVEAL_ACTIVE_FILE
+                | CMD_REVEAL_ACTIVE_FILE_IN_OS
+                | CMD_COPY_ACTIVE_FILE_PATH
+                | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH
+                | CMD_COPY_ACTIVE_FILE_NAME
+                | CMD_COPY_ACTIVE_FILE_DIRECTORY
+        ) {
+            if let Some(path) = ctx.tabs.active_path() {
+                if let Some(desc) = active_file_utility_stale_target_desc(id, &path) {
+                    return Cow::Owned(desc);
+                }
+            }
+        }
         if matches!(id, CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE)
             && !(id == CMD_RELOAD_ACTIVE_FILE && ctx.tabs.is_dirty(ctx.tabs.active()))
         {
@@ -2545,6 +2560,26 @@ fn palette_basename(path: &std::path::Path) -> String {
     path.file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.to_string_lossy().into_owned())
+}
+
+fn active_file_utility_stale_target_desc(id: u32, path: &std::path::Path) -> Option<String> {
+    let prefix = match id {
+        CMD_REVEAL_ACTIVE_FILE | CMD_REVEAL_ACTIVE_FILE_IN_OS => "Reveal target",
+        CMD_COPY_ACTIVE_FILE_PATH
+        | CMD_COPY_ACTIVE_FILE_RELATIVE_PATH
+        | CMD_COPY_ACTIVE_FILE_NAME
+        | CMD_COPY_ACTIVE_FILE_DIRECTORY => "Copy target",
+        _ => return None,
+    };
+    let name = palette_basename(path);
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => None,
+        Ok(_) => Some(format!("{prefix} is not a file: {name}")),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Some(format!("{prefix} missing: {name}"))
+        }
+        Err(e) => Some(format!("{prefix} unavailable: {name}: {e}")),
+    }
 }
 
 fn reload_revert_stale_target_desc(id: u32, path: &std::path::Path) -> Option<String> {
@@ -5222,6 +5257,50 @@ mod tests {
             None
         );
         assert_eq!(reload_revert_stale_target_desc(CMD_SAVE, &missing), None);
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn active_file_utility_descriptions_report_stale_targets() {
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_active_utility_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let missing = root.join("gone.mty");
+        assert_eq!(
+            active_file_utility_stale_target_desc(CMD_REVEAL_ACTIVE_FILE, &missing),
+            Some("Reveal target missing: gone.mty".to_string())
+        );
+        assert_eq!(
+            active_file_utility_stale_target_desc(CMD_COPY_ACTIVE_FILE_RELATIVE_PATH, &missing),
+            Some("Copy target missing: gone.mty".to_string())
+        );
+
+        let blocked = root.join("blocked.mty");
+        std::fs::create_dir_all(&blocked).unwrap();
+        assert_eq!(
+            active_file_utility_stale_target_desc(CMD_REVEAL_ACTIVE_FILE_IN_OS, &blocked),
+            Some("Reveal target is not a file: blocked.mty".to_string())
+        );
+        assert_eq!(
+            active_file_utility_stale_target_desc(CMD_COPY_ACTIVE_FILE_DIRECTORY, &blocked),
+            Some("Copy target is not a file: blocked.mty".to_string())
+        );
+
+        let file = root.join("ok.mty");
+        std::fs::write(&file, "ok").unwrap();
+        assert_eq!(
+            active_file_utility_stale_target_desc(CMD_COPY_ACTIVE_FILE_NAME, &file),
+            None
+        );
+        assert_eq!(
+            active_file_utility_stale_target_desc(CMD_RELOAD_ACTIVE_FILE, &missing),
+            None
+        );
 
         let _ = std::fs::remove_dir_all(&root);
     }
