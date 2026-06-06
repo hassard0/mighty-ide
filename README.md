@@ -68,6 +68,13 @@ with the source commit, payload hashes, payload sizes, and clean-binary checks;
 macOS and Linux publish only when their native tarballs carry equivalent
 Mach-O or ELF manifests from the same pass.
 
+Final handoff output for a Windows-hosted pass must contain the committed
+source hash, Windows archive path, ZIP size, ZIP SHA-256, package-script checks,
+packaged launch result, and explicit `unbuilt` decisions for macOS and Linux
+unless matching native runners produced those archives during the same pass.
+After those fields are recorded, stop; further implementation work starts a new
+source state and requires a new package run.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`

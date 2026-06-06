@@ -70,6 +70,11 @@ runners completed during the same pass, and stop.
 If the source tree changes after a package is built, rebuild the package before
 publishing it.
 
+The final answer is part of the release evidence for this Windows-hosted pass.
+It should report the committed source hash and generated Windows archive values
+from the post-commit package run, while leaving macOS and Linux as `unbuilt`
+unless their own native package runs completed during the same pass.
+
 Keep committed release docs free of generated archive hashes. The authoritative
 generated values for a Windows-hosted pass are the post-commit
 `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`, the final ZIP size, the final ZIP

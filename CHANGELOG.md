@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final handoff response is artifact-scoped**: README and release status docs
+  now require the final Windows-hosted handoff to report the committed source
+  hash, generated Windows ZIP size/hash, package-script checks, packaged launch,
+  and explicit macOS/Linux `unbuilt` decisions without committing generated
+  archive values back into reusable docs.
 - **Final release docs avoid self-referential hashes**: README and release
   status docs now keep generated ZIP hashes out of source control, requiring
   the post-commit package manifest, final ZIP size/hash, and packaged launch

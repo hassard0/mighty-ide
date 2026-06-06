@@ -141,6 +141,11 @@ hash, the Windows ZIP size and SHA-256, the package-script checks that passed,
 and the explicit macOS/Linux `unbuilt` status. Do not do additional feature or
 polish work after that report.
 
+Use the final response, the generated Windows `PACKAGE-MANIFEST.txt`, and the
+Windows ZIP hash/size as the artifact-scoped evidence for this pass. Do not
+commit those generated values back into the reusable docs after the package run;
+doing so would create a new source commit and require a new package.
+
 Stopping here is part of the release contract. Further IDE polish belongs in a
 new pass after the verified package handoff, not in the same finalization pass.
 
