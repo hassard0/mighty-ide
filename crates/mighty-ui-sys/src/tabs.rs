@@ -712,6 +712,11 @@ impl TabStore {
         None
     }
 
+    /// Whether there is a tab currently recoverable through reopen-closed-tab.
+    pub fn has_closed_tabs(&self) -> bool {
+        !self.closed.is_empty()
+    }
+
     /// Number of tabs currently recoverable through reopen-closed-tab.
     #[cfg(test)]
     pub fn closed_count(&self) -> usize {

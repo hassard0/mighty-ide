@@ -1390,6 +1390,30 @@ impl PaletteEngine {
                 ctx.quickopen.is_active(),
             );
         }
+        if matches!(
+            id,
+            CMD_CLEAR_NOTIFICATIONS
+                | CMD_REOPEN_CLOSED_TAB
+                | CMD_DOCK_CLOSE
+                | CMD_PROMPT_CANCEL
+                | CMD_DIRTY_CONFIRM_CANCEL
+                | CMD_GIT_BRANCH_CANCEL
+                | CMD_BREADCRUMB_MENU_CANCEL
+                | CMD_SNIPPET_CANCEL
+        ) {
+            return utility_command_contextual_desc(
+                id,
+                base,
+                !ctx.toasts.is_empty(),
+                ctx.tabs.has_closed_tabs(),
+                ctx.bottom_dock_open(),
+                ctx.prompt.is_active(),
+                ctx.pending_dirty_close.is_some() || ctx.pending_quit.is_some(),
+                ctx.branch_picker.is_active(),
+                ctx.crumb_menu.is_active(),
+                ctx.snippet_session.is_active(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1875,6 +1899,38 @@ fn transient_surface_contextual_desc<'a>(
         }
         CMD_COMMAND_PALETTE_CLOSE if !palette_open => Cow::Borrowed("No command palette open"),
         CMD_QUICK_OPEN_CLOSE if !quickopen_open => Cow::Borrowed("No Quick Open panel open"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn utility_command_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    notifications_present: bool,
+    has_closed_tabs: bool,
+    bottom_dock_open: bool,
+    prompt_open: bool,
+    dirty_confirm_open: bool,
+    branch_picker_open: bool,
+    breadcrumb_menu_open: bool,
+    snippet_active: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_CLEAR_NOTIFICATIONS if !notifications_present => {
+            Cow::Borrowed("No notifications to clear")
+        }
+        CMD_REOPEN_CLOSED_TAB if !has_closed_tabs => Cow::Borrowed("No closed tab to reopen"),
+        CMD_DOCK_CLOSE if !bottom_dock_open => Cow::Borrowed("No bottom dock is open"),
+        CMD_PROMPT_CANCEL if !prompt_open => Cow::Borrowed("No prompt input open"),
+        CMD_DIRTY_CONFIRM_CANCEL if !dirty_confirm_open => {
+            Cow::Borrowed("No unsaved changes confirmation open")
+        }
+        CMD_GIT_BRANCH_CANCEL if !branch_picker_open => Cow::Borrowed("No branch picker open"),
+        CMD_BREADCRUMB_MENU_CANCEL if !breadcrumb_menu_open => {
+            Cow::Borrowed("No breadcrumb menu open")
+        }
+        CMD_SNIPPET_CANCEL if !snippet_active => Cow::Borrowed("No snippet session active"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -3349,6 +3405,152 @@ mod tests {
                 "base",
                 false,
                 false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true
+            ),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn utility_command_descriptions_reflect_runtime_state() {
+        let cases = [
+            (CMD_CLEAR_NOTIFICATIONS, "No notifications to clear"),
+            (CMD_REOPEN_CLOSED_TAB, "No closed tab to reopen"),
+            (CMD_DOCK_CLOSE, "No bottom dock is open"),
+            (CMD_PROMPT_CANCEL, "No prompt input open"),
+            (
+                CMD_DIRTY_CONFIRM_CANCEL,
+                "No unsaved changes confirmation open",
+            ),
+            (CMD_GIT_BRANCH_CANCEL, "No branch picker open"),
+            (CMD_BREADCRUMB_MENU_CANCEL, "No breadcrumb menu open"),
+            (CMD_SNIPPET_CANCEL, "No snippet session active"),
+        ];
+        for (id, expected) in cases {
+            assert_eq!(
+                utility_command_contextual_desc(
+                    id, "base", false, false, false, false, false, false, false, false
+                ),
+                Cow::Borrowed(expected)
+            );
+        }
+
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_CLEAR_NOTIFICATIONS,
+                "base",
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_REOPEN_CLOSED_TAB,
+                "base",
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_DOCK_CLOSE,
+                "base",
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_PROMPT_CANCEL,
+                "base",
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_DIRTY_CONFIRM_CANCEL,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_GIT_BRANCH_CANCEL,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_BREADCRUMB_MENU_CANCEL,
+                "base",
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            utility_command_contextual_desc(
+                CMD_SNIPPET_CANCEL,
+                "base",
                 false,
                 false,
                 false,

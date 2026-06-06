@@ -111,6 +111,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Sidebar, Color Theme, Hover, Signature Help, Code Actions, Find & Replace,
   Autocomplete, Command Palette, and Quick Open close rows now mirror their
   no-open runtime feedback before dispatch.
+- **Command Palette utility rows explain no-op states**: Clear Notifications,
+  Reopen Closed Tab, Close Bottom Dock, Prompt Cancel, Unsaved Changes Cancel,
+  Git Branch Cancel, Breadcrumb Close, and Snippet Cancel now mirror their
+  empty/no-open runtime feedback before dispatch.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.

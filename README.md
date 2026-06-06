@@ -130,6 +130,10 @@ source state and requires a new package run.
 - Command Palette transient close rows for AI Copilot, Sidebar, Color Theme,
   Hover, Signature Help, Code Actions, Find & Replace, Autocomplete, Command
   Palette, and Quick Open mirror their no-open runtime feedback before dispatch
+- Command Palette utility and cancel rows for notifications, Reopen Closed Tab,
+  bottom dock, prompt input, unsaved-change confirmation, branch picker,
+  breadcrumb menu, and snippets mirror their empty/no-open runtime feedback
+  before dispatch
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
   toasts instead of stacking generic `Copied` notifications
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight
