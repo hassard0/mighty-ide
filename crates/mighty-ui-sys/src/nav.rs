@@ -591,9 +591,8 @@ fn top_level_uint_field(obj: &[u8], field: &[u8]) -> Option<u32> {
     let start = j;
     let mut value = 0u32;
     while j < obj.len() && obj[j].is_ascii_digit() {
-        value = value
-            .saturating_mul(10)
-            .saturating_add((obj[j] - b'0') as u32);
+        value = value.checked_mul(10)?;
+        value = value.checked_add((obj[j] - b'0') as u32)?;
         j += 1;
     }
     if j == start {
@@ -1430,6 +1429,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_definition_rejects_overflow_positions() {
+        let json = r#"{"jsonrpc":"2.0","result":{"uri":"file:///C:/tmp/bad.mty","range":{"start":{"line":999999999999999999999999999999,"character":6},"end":{"line":4,"character":12}}},"id":2}"#;
+        assert_eq!(parse_definition(json), None);
+    }
+
+    #[test]
     fn parse_definition_reads_location_link_selection_range() {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"originSelectionRange":{"start":{"line":2,"character":4},"end":{"line":2,"character":7}},"targetUri":"file:///C:/tmp/lib.rs","targetRange":{"start":{"line":30,"character":0},"end":{"line":36,"character":1}},"targetSelectionRange":{"start":{"line":32,"character":8},"end":{"line":32,"character":14}}}]}"#;
         let (uri, line, col) = parse_definition(json).expect("location link");
@@ -1454,6 +1459,12 @@ mod tests {
         assert_eq!(uri, "file:///C:/tmp/right.rs");
         assert_eq!(line, 11);
         assert_eq!(col, 5);
+    }
+
+    #[test]
+    fn parse_definition_location_link_rejects_overflow_positions() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"targetUri":"file:///C:/tmp/bad.rs","targetRange":{"start":{"line":10,"character":0},"end":{"line":12,"character":0}},"targetSelectionRange":{"start":{"line":11,"character":999999999999999999999999999999},"end":{"line":11,"character":9}}}]}"#;
+        assert_eq!(parse_definition(json), None);
     }
 
     #[test]
@@ -1619,6 +1630,17 @@ mod tests {
 
         assert!(!lsp::has_response_id(fractional, 2));
         assert!(lsp::has_response_id(stream, 2));
+    }
+
+    #[test]
+    fn nav_lsp_response_wait_rejects_overflow_numeric_id() {
+        let overflow = br#"{"jsonrpc":"2.0","id":999999999999999999999999999999,"result":{"contents":"wrong"}}"#;
+        let stream = r#"{"jsonrpc":"2.0","id":999999999999999999999999999999,"result":{"contents":{"value":"wrong hover"}}}{"jsonrpc":"2.0","id":2,"result":{"contents":{"value":"right hover"}}}"#;
+        let one = lsp::isolate_response_id(stream, 2);
+
+        assert!(!lsp::has_response_id(overflow, 2));
+        assert_eq!(parse_hover_value(&one).unwrap(), "right hover");
+        assert!(!one.contains("wrong hover"));
     }
 
     #[test]
