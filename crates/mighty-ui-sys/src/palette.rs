@@ -1251,7 +1251,7 @@ impl PaletteEngine {
             return zoom_contextual_desc(id, base, crate::uiscale::user_zoom());
         }
         if id == CMD_AUTOCOMPLETE && active_has_path && !active_read_only {
-            return autocomplete_contextual_desc(base, ctx.language);
+            return autocomplete_contextual_desc(base, ctx.language, ctx.complete.is_active());
         }
         if matches!(
             id,
@@ -2182,7 +2182,11 @@ fn dismiss_ghost_contextual_desc(base: &str, has_ghost: bool) -> Cow<'_, str> {
 fn autocomplete_contextual_desc(
     base: &str,
     lang: crate::langdetect::Language,
+    suggestions_open: bool,
 ) -> Cow<'_, str> {
+    if suggestions_open {
+        return Cow::Borrowed("Refresh autocomplete suggestions at the cursor");
+    }
     match crate::lspregistry::unavailable_reason(lang) {
         Some(reason) => Cow::Owned(format!("Use buffer-word fallback; {reason}")),
         None => Cow::Borrowed(base),
@@ -3122,7 +3126,7 @@ fn command_contextual_desc_with_workspace<'a>(
             | CMD_DELETE_LINE
             | CMD_JOIN_LINE => Cow::Borrowed("Read-only preview: editing is unavailable"),
             CMD_FIND_REPLACE => Cow::Borrowed("Read-only preview: find is available, replace is unavailable"),
-            CMD_AUTOCOMPLETE => Cow::Borrowed("Read-only preview: accepting completions is unavailable"),
+            CMD_AUTOCOMPLETE => Cow::Borrowed("Read-only preview: autocomplete is unavailable"),
             CMD_RENAME_SYMBOL => Cow::Borrowed("Read-only preview: symbol rename is unavailable"),
             CMD_CODE_ACTIONS => Cow::Borrowed("Read-only preview: code-action edits are unavailable"),
             CMD_INLINE_AI_ASK | CMD_FORCE_GHOST_COMPLETION => Cow::Borrowed("Read-only preview: inline AI edits are unavailable"),
@@ -3913,7 +3917,7 @@ mod tests {
 
         let expected = "Python language server unavailable; configure python in lsp.toml";
         assert_eq!(
-            autocomplete_contextual_desc("base", crate::langdetect::Language::Python).as_ref(),
+            autocomplete_contextual_desc("base", crate::langdetect::Language::Python, false).as_ref(),
             "Use buffer-word fallback; Python language server unavailable; configure python in lsp.toml"
         );
         assert_eq!(
@@ -3982,9 +3986,44 @@ mod tests {
     #[test]
     fn autocomplete_description_keeps_plain_text_as_buffer_words() {
         assert_eq!(
-            autocomplete_contextual_desc("base", crate::langdetect::Language::PlainText),
+            autocomplete_contextual_desc("base", crate::langdetect::Language::PlainText, false),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn autocomplete_description_reflects_open_suggestions() {
+        assert_eq!(
+            autocomplete_contextual_desc("base", crate::langdetect::Language::PlainText, true),
+            Cow::Borrowed("Refresh autocomplete suggestions at the cursor")
+        );
+    }
+
+    #[test]
+    fn autocomplete_palette_description_reflects_active_dropdown() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_complete_active_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("main.mty");
+        std::fs::write(&path, "let counter = 1\nlet count").unwrap();
+
+        ctx.tabs.open_path(path);
+        let text = ctx.tabs.active_model().as_text();
+        assert!(ctx.complete.request(text.as_bytes(), text.len(), &[]) > 0);
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_AUTOCOMPLETE, "Suggest completions at the cursor"),
+            Cow::Borrowed("Refresh autocomplete suggestions at the cursor")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
@@ -4289,7 +4328,7 @@ mod tests {
             (CMD_DELETE_LINE, "Read-only preview: editing is unavailable"),
             (CMD_JOIN_LINE, "Read-only preview: editing is unavailable"),
             (CMD_FIND_REPLACE, "Read-only preview: find is available, replace is unavailable"),
-            (CMD_AUTOCOMPLETE, "Read-only preview: accepting completions is unavailable"),
+            (CMD_AUTOCOMPLETE, "Read-only preview: autocomplete is unavailable"),
             (CMD_RENAME_SYMBOL, "Read-only preview: symbol rename is unavailable"),
             (CMD_CODE_ACTIONS, "Read-only preview: code-action edits are unavailable"),
             (CMD_INLINE_AI_ASK, "Read-only preview: inline AI edits are unavailable"),

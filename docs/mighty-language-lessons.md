@@ -13977,3 +13977,19 @@ wrong workflow.
 - **Language note:** no compiler gap surfaced. Shared filesystem phrasing is
   tempting, but user-facing feedback should preserve the command boundary when
   the notification system uses text to infer ownership.
+
+## L1104 - Autocomplete Trigger Text Should Reflect Refresh State
+
+Trigger Autocomplete opens suggestions when none are visible, but once the
+dropdown is already active the same command refreshes the suggestion set at the
+current cursor. The Command Palette described both states with the same base
+text, and the read-only preview wording talked about accepting completions even
+though accepting is a separate command path.
+
+- **IDE note:** Trigger Autocomplete now reports
+  `Refresh autocomplete suggestions at the cursor` while suggestions are
+  already open, preserves language-server fallback guidance before the dropdown
+  exists, and describes read-only previews as `autocomplete is unavailable`.
+- **Language note:** no compiler gap surfaced. Palette descriptions should name
+  the command's immediate action, especially when one command can be both an
+  opener and a refresher depending on shim-owned transient state.

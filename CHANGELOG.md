@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Autocomplete palette reflects active suggestions**: Trigger Autocomplete
+  now says it will refresh suggestions when the dropdown is already open, and
+  read-only previews describe autocomplete itself as unavailable.
 - **Single-tab navigation feedback coalesces as tab feedback**: the `Only one
   tab open` no-op message now replaces stale tab-management toasts instead of
   stacking beside them.
