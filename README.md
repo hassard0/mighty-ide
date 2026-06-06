@@ -142,6 +142,8 @@ source state and requires a new package run.
   surfaces before dispatch
 - Command Palette Git Blame toggle rows mirror active and scratch-buffer
   runtime feedback before dispatch
+- Command Palette folding rows mirror no-op states for missing foldable blocks,
+  already-folded documents, and documents with nothing folded
 - Command Palette dedicated close rows for Welcome and Git Blame mirror
   already-closed/hidden runtime feedback before dispatch
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste

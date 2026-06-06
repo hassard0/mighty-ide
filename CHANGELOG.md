@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette folding commands explain no-op states**: Fold Toggle, Fold
+  All, and Unfold All now mirror runtime feedback for missing foldable blocks,
+  already-folded documents, and documents with nothing folded.
 - **Command Palette Git Blame toggle explains live state**: `Git: Toggle Blame`
   now says when it will hide an active blame gutter and mirrors the runtime
   scratch-buffer feedback before dispatch.

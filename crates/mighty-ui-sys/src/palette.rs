@@ -1235,6 +1235,18 @@ impl PaletteEngine {
         if id == CMD_GIT_TOGGLE_BLAME {
             return blame_toggle_contextual_desc(base, ctx.blame.is_active(), active_has_path);
         }
+        if matches!(id, CMD_FOLD_TOGGLE | CMD_FOLD_ALL | CMD_UNFOLD_ALL) {
+            let fold = ctx.tabs.active_fold();
+            let cursor_line = model.cursor_line();
+            return fold_contextual_desc(
+                id,
+                base,
+                fold.enclosing_start(cursor_line).is_some(),
+                fold.ranges().is_empty(),
+                fold.ranges().iter().all(|r| fold.is_folded(r.start)),
+                fold.ranges().iter().any(|r| fold.is_folded(r.start)),
+            );
+        }
         if matches!(
             id,
             CMD_TOGGLE_TERMINAL
@@ -2066,6 +2078,26 @@ fn blame_toggle_contextual_desc<'a>(
         Cow::Borrowed("No file to blame: (scratch)")
     } else {
         Cow::Borrowed(base)
+    }
+}
+
+fn fold_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    has_cursor_fold: bool,
+    no_foldable_blocks: bool,
+    all_blocks_folded: bool,
+    has_folded_blocks: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_FOLD_TOGGLE if !has_cursor_fold => Cow::Borrowed("No foldable block at cursor"),
+        CMD_FOLD_ALL if no_foldable_blocks => Cow::Borrowed("No foldable blocks"),
+        CMD_FOLD_ALL if all_blocks_folded => {
+            Cow::Borrowed("All foldable blocks already folded")
+        }
+        CMD_UNFOLD_ALL if no_foldable_blocks => Cow::Borrowed("No foldable blocks"),
+        CMD_UNFOLD_ALL if !has_folded_blocks => Cow::Borrowed("No folded blocks to unfold"),
+        _ => Cow::Borrowed(base),
     }
 }
 
@@ -3785,6 +3817,42 @@ mod tests {
         );
         assert_eq!(
             blame_toggle_contextual_desc("base", false, true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn fold_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            fold_contextual_desc(CMD_FOLD_TOGGLE, "base", false, true, true, false),
+            Cow::Borrowed("No foldable block at cursor")
+        );
+        assert_eq!(
+            fold_contextual_desc(CMD_FOLD_ALL, "base", false, true, true, false),
+            Cow::Borrowed("No foldable blocks")
+        );
+        assert_eq!(
+            fold_contextual_desc(CMD_UNFOLD_ALL, "base", false, true, true, false),
+            Cow::Borrowed("No foldable blocks")
+        );
+        assert_eq!(
+            fold_contextual_desc(CMD_FOLD_ALL, "base", true, false, true, true),
+            Cow::Borrowed("All foldable blocks already folded")
+        );
+        assert_eq!(
+            fold_contextual_desc(CMD_UNFOLD_ALL, "base", true, false, false, false),
+            Cow::Borrowed("No folded blocks to unfold")
+        );
+        assert_eq!(
+            fold_contextual_desc(CMD_FOLD_TOGGLE, "base", true, false, false, false),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            fold_contextual_desc(CMD_FOLD_ALL, "base", true, false, false, false),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            fold_contextual_desc(CMD_UNFOLD_ALL, "base", true, false, false, true),
             Cow::Borrowed("base")
         );
     }
