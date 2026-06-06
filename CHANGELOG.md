@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette Save All names untitled Save As recovery**: Save All rows
+  now detect dirty untitled tabs and say when Save As may be needed, matching
+  the runtime unavailable-picker guidance.
 - **Save All names Save As recovery after unavailable pickers**: when dirty
   untitled tabs cannot open the native save picker, Save All now says to use
   Save As while preserving dirty tabs and normal file-backed saves.

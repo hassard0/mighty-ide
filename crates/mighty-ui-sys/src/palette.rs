@@ -1010,7 +1010,7 @@ impl PaletteEngine {
             CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file with the native picker", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
             CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),
-            CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs and ask where untitled files should live", false),
+            CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs; untitled files may need Save As", false),
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
             CMD_EXPLORER_REFRESH => (icons::REFRESH, "Refresh the Explorer tree and file index", false),
@@ -1446,6 +1446,12 @@ impl PaletteEngine {
                 })
                 .count();
             if let Some(desc) = save_all_dirty_conflict_desc(dirty_conflicts, dirty_count) {
+                return desc;
+            }
+            let dirty_untitled = (0..ctx.tabs.count())
+                .filter(|idx| ctx.tabs.is_dirty(*idx) && ctx.tabs.path(*idx).is_none())
+                .count();
+            if let Some(desc) = save_all_dirty_untitled_desc(dirty_untitled, dirty_count) {
                 return desc;
             }
         }
@@ -2811,6 +2817,35 @@ fn save_all_dirty_conflict_desc(
         };
         Some(Cow::Owned(format!(
             "Save All will skip {dirty_conflicts} {noun}"
+        )))
+    }
+}
+
+fn save_all_dirty_untitled_desc(
+    dirty_untitled: usize,
+    dirty_count: usize,
+) -> Option<Cow<'static, str>> {
+    if dirty_untitled == 0 {
+        return None;
+    }
+    if dirty_untitled == dirty_count {
+        if dirty_untitled == 1 {
+            Some(Cow::Borrowed(
+                "Save untitled tab; use Save As if picker is unavailable",
+            ))
+        } else {
+            Some(Cow::Owned(format!(
+                "Save {dirty_untitled} untitled tabs; use Save As if pickers are unavailable"
+            )))
+        }
+    } else {
+        let noun = if dirty_untitled == 1 {
+            "untitled tab"
+        } else {
+            "untitled tabs"
+        };
+        Some(Cow::Owned(format!(
+            "Write {dirty_count} unsaved tabs; use Save As for {dirty_untitled} {noun}"
         )))
     }
 }
@@ -5947,6 +5982,61 @@ mod tests {
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
             Cow::Borrowed("Save All will skip 2 dirty duplicate files")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn save_all_description_names_save_as_for_dirty_untitled_tabs() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let untitled = ctx.tabs.new_untitled();
+        ctx.tabs.active_model_mut().set_text_preserving_cursor("draft\n");
+        ctx.tabs.set_dirty(untitled, true);
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
+            Cow::Borrowed("Save untitled tab; use Save As if picker is unavailable")
+        );
+
+        let second = ctx.tabs.new_untitled();
+        ctx.tabs.active_model_mut().set_text_preserving_cursor("second\n");
+        ctx.tabs.set_dirty(second, true);
+
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
+            Cow::Borrowed("Save 2 untitled tabs; use Save As if pickers are unavailable")
+        );
+    }
+
+    #[test]
+    fn save_all_description_names_save_as_for_mixed_dirty_untitled_tabs() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_save_all_mixed_untitled_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("saved.mty");
+        std::fs::write(&path, "saved\n").unwrap();
+
+        let file_idx = ctx.tabs.open_path(path);
+        ctx.tabs.active_model_mut().set_text_preserving_cursor("changed\n");
+        ctx.tabs.set_dirty(file_idx, true);
+        let untitled = ctx.tabs.new_untitled();
+        ctx.tabs.active_model_mut().set_text_preserving_cursor("draft\n");
+        ctx.tabs.set_dirty(untitled, true);
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
+            Cow::Borrowed("Write 2 unsaved tabs; use Save As for 1 untitled tab")
         );
 
         let _ = std::fs::remove_dir_all(&root);
