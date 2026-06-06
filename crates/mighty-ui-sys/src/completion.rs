@@ -14,7 +14,8 @@
 //!   thoroughly unit-tested ([`buffer_words`], [`filter_by_prefix`]).
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
-//!   parse `CompletionItem` insert/display text, and merge them ahead of the buffer words.
+//!   parse `CompletionItem` insert/display/sort text, and merge them ahead of
+//!   the buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
 //!
@@ -53,6 +54,8 @@ pub struct SemanticCandidate {
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
+    /// Optional LSP `sortText`, used to rank semantic rows before buffer words.
+    pub sort_text: Option<String>,
 }
 
 /// Whether a char is part of an identifier.
@@ -216,6 +219,7 @@ impl CompletionEngine {
                 display_text: None,
                 detail_text: None,
                 filter_text: None,
+                sort_text: None,
             })
             .collect();
         self.request_semantic(bytes, cursor, &semantic)
@@ -242,8 +246,17 @@ impl CompletionEngine {
         let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
         // 1) Semantic (LSP) candidates first — filter by prefix, drop the exact
-        //    prefix, keep their order.
-        for item in semantic {
+        //    prefix, and honor provider sortText when present.
+        let mut semantic_order: Vec<(usize, &SemanticCandidate)> =
+            semantic.iter().enumerate().collect();
+        if semantic.iter().any(|item| item.sort_text.is_some()) {
+            semantic_order.sort_by(|(a_idx, a), (b_idx, b)| {
+                semantic_candidate_sort_key(a)
+                    .cmp(semantic_candidate_sort_key(b))
+                    .then_with(|| a_idx.cmp(b_idx))
+            });
+        }
+        for (_idx, item) in semantic_order {
             if semantic_candidate_matches_prefix(item, &prefix) && seen.insert(item.text.clone()) {
                 self.candidates.push(Candidate {
                     text: item.text.clone(),
@@ -648,6 +661,13 @@ fn semantic_candidate_matches_prefix(item: &SemanticCandidate, prefix: &str) -> 
             .is_some_and(|filter| filter.starts_with(prefix))
 }
 
+fn semantic_candidate_sort_key(item: &SemanticCandidate) -> &str {
+    item.sort_text
+        .as_deref()
+        .or(item.display_text.as_deref())
+        .unwrap_or(&item.text)
+}
+
 fn completion_badge_letter_width(text: &mut crate::text::Text, letter: &str, size: f32) -> f32 {
     text.measure_ui_sized(letter, size).0
 }
@@ -729,7 +749,7 @@ fn fit_completion_text(text: &mut crate::text::Text, s: &str, max_px: f32, size:
     ELLIPSIS.to_string()
 }
 
-/// Classify a candidate into a mockup-style type badge + a signature/kind hint.
+/// Classify a candidate into a mockup-style type badge + kind hint.
 /// A light heuristic over the text since the engine only tracks semantic-ness:
 /// capitalized → type (T, teal), keyword set → keyword (K, violet), looks like a
 /// fn (followed by `(` in source isn't known here) → fn (ƒ, gold) when semantic,
@@ -808,10 +828,10 @@ fn completion_footer_tail(cand: &Candidate) -> &str {
 
 pub mod lsp {
     //! Minimal `mty lsp` client: spawn the server, do the LSP handshake, ask
-    //! for completion at a position, and scrape `CompletionItem` `label`s out of
-    //! the JSON response with a small hand scanner (no serde dependency). Every
-    //! step is short-timeout and failure-tolerant — any error returns an empty
-    //! label list so the caller falls back to buffer words.
+    //! for completion at a position, and scrape top-level `CompletionItem`
+    //! fields out of the JSON response with a small hand scanner (no serde
+    //! dependency). Every step is short-timeout and failure-tolerant — any error
+    //! returns an empty label list so the caller falls back to buffer words.
 
     use super::SemanticCandidate;
     use std::io::{Read, Write};
@@ -859,7 +879,8 @@ pub mod lsp {
     /// `textEdit.newText`, then `insertText`, then `label`, and flattens LSP
     /// snippet-formatted insert text to plain text before it reaches the editor.
     /// Preserves `filterText` so prefix matching can follow the server's chosen
-    /// key while accept still inserts the selected text.
+    /// key while accept still inserts the selected text, and `sortText` so the
+    /// dropdown can honor provider ranking.
     /// Handles both `result: [items...]` and `result: { items: [items...] }`,
     /// plus a bare item array for tests.
     pub fn scrape_candidates(json: &str) -> Vec<SemanticCandidate> {
@@ -878,6 +899,7 @@ pub mod lsp {
                         display_text,
                         detail_text: completion_item_detail_text(item),
                         filter_text: completion_item_filter_text(item),
+                        sort_text: completion_item_sort_text(item),
                     });
                 }
             }
@@ -907,6 +929,10 @@ pub mod lsp {
 
     fn completion_item_filter_text(item: &[u8]) -> Option<String> {
         top_level_string_value(item, b"filterText").filter(|filter| !filter.is_empty())
+    }
+
+    fn completion_item_sort_text(item: &[u8]) -> Option<String> {
+        top_level_string_value(item, b"sortText").filter(|sort| !sort.is_empty())
     }
 
     fn completion_item_display_text(item: &[u8], insert_text: &str) -> Option<String> {
@@ -1552,6 +1578,7 @@ mod tests {
             display_text: None,
             detail_text: None,
             filter_text: Some("np".to_string()),
+            sort_text: None,
         }];
 
         let n = e.request_semantic(src, src.len(), &semantic);
@@ -1570,6 +1597,7 @@ mod tests {
             display_text: Some("println!".to_string()),
             detail_text: None,
             filter_text: Some("println".to_string()),
+            sort_text: None,
         }];
 
         let n = e.request_semantic(src, src.len(), &semantic);
@@ -1577,6 +1605,44 @@ mod tests {
         assert_eq!(n, 1);
         assert_eq!(e.accepted_text(), "println($1)");
         assert_eq!(e.candidates[0].display_text(), "println!");
+    }
+
+    #[test]
+    fn request_semantic_honors_sort_text() {
+        let mut e = CompletionEngine::new();
+        let src = b"pr";
+        let semantic = vec![
+            SemanticCandidate {
+                text: "printer".to_string(),
+                display_text: None,
+                detail_text: None,
+                filter_text: None,
+                sort_text: Some("020".to_string()),
+            },
+            SemanticCandidate {
+                text: "printf".to_string(),
+                display_text: None,
+                detail_text: None,
+                filter_text: None,
+                sort_text: Some("010".to_string()),
+            },
+            SemanticCandidate {
+                text: "prepend".to_string(),
+                display_text: None,
+                detail_text: None,
+                filter_text: None,
+                sort_text: None,
+            },
+        ];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 3);
+        assert_eq!(e.accepted_text(), "printf");
+        e.move_sel(1);
+        assert_eq!(e.accepted_text(), "printer");
+        e.move_sel(1);
+        assert_eq!(e.accepted_text(), "prepend");
     }
 
     #[test]
@@ -1616,6 +1682,7 @@ mod tests {
             display_text: None,
             detail_text: None,
             filter_text: Some("let".to_string()),
+            sort_text: None,
         }];
 
         let n = e.request_semantic(src, src.len(), &semantic);
@@ -2014,6 +2081,18 @@ mod tests {
         assert_eq!(candidates[0].filter_text.as_deref(), Some("np"));
         assert_eq!(candidates[1].text, "plain");
         assert_eq!(candidates[1].filter_text, None);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_sort_text() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"printer","sortText":"020"},{"label":"printf","sortText":"010"}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].text, "printer");
+        assert_eq!(candidates[0].sort_text.as_deref(), Some("020"));
+        assert_eq!(candidates[1].text, "printf");
+        assert_eq!(candidates[1].sort_text.as_deref(), Some("010"));
     }
 
     #[test]
