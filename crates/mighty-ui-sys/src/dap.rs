@@ -236,6 +236,10 @@ fn top_level_uint_field(bytes: &[u8], field: &[u8]) -> Option<i64> {
     }
     if j == start {
         None
+    } else if j < bytes.len()
+        && !matches!(bytes[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        None
     } else {
         Some(v)
     }
@@ -1630,6 +1634,14 @@ mod tests {
     }
 
     #[test]
+    fn parse_envelope_rejects_fractional_request_seq_prefix() {
+        let raw = r#"{"seq":1,"type":"response","request_seq":4.5,"success":true,"command":"initialize","body":{}}"#;
+        let env = parse_envelope(raw).unwrap();
+
+        assert_eq!(env.request_seq, None);
+    }
+
+    #[test]
     fn parse_stopped_event_body() {
         let raw = r#"{"seq":9,"type":"event","event":"stopped","body":{"reason":"breakpoint","threadId":1,"allThreadsStopped":true}}"#;
         let env = parse_envelope(raw).unwrap();
@@ -1686,6 +1698,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_stopped_rejects_fractional_thread_id_prefix() {
+        let raw = r#"{"type":"event","event":"stopped","body":{"reason":"breakpoint","threadId":1.5}}"#;
+        let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(info.reason, "breakpoint");
+        assert_eq!(info.thread_id, None);
+    }
+
+    #[test]
     fn parse_stopped_requires_stopped_event() {
         let raw = r#"{"type":"event","event":"output","body":{"reason":"wrong","description":"wrong desc","threadId":99}}"#;
         let info = parse_stopped(&parse_envelope(raw).unwrap().raw);
@@ -1720,6 +1741,14 @@ mod tests {
         let threads = parse_threads(&parse_envelope(raw).unwrap().raw);
 
         assert_eq!(threads, vec![7, 9]);
+    }
+
+    #[test]
+    fn parse_threads_rejects_fractional_id_prefixes() {
+        let raw = r#"{"type":"response","command":"threads","success":true,"body":{"threads":[{"id":7.5,"name":"bad"},{"id":9,"name":"good"}]}}"#;
+        let threads = parse_threads(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(threads, vec![9]);
     }
 
     #[test]
@@ -1804,6 +1833,17 @@ mod tests {
         assert_eq!(frames[0].id, 2);
         assert_eq!(frames[0].line, 12);
         assert_eq!(frames[0].file, "C:/right.mty");
+    }
+
+    #[test]
+    fn parse_stack_trace_rejects_fractional_frame_numbers() {
+        let raw = r#"{"type":"response","command":"stackTrace","success":true,"body":{"stackFrames":[{"id":1.5,"name":"bad id","line":7,"source":{"path":"C:/bad-id.mty"}},{"id":2,"name":"bad line","line":8.5,"source":{"path":"C:/bad-line.mty"}},{"id":3,"name":"good","line":9,"source":{"path":"C:/good.mty"}}]}}"#;
+        let frames = parse_stack_trace(&parse_envelope(raw).unwrap().raw);
+
+        assert_eq!(frames.len(), 1);
+        assert_eq!(frames[0].id, 3);
+        assert_eq!(frames[0].line, 9);
+        assert_eq!(frames[0].file, "C:/good.mty");
     }
 
     #[test]
@@ -1933,6 +1973,12 @@ mod tests {
     #[test]
     fn parse_exit_code_requires_body_owned_field() {
         let raw = r#"{"type":"event","event":"exited","exitCode":7}"#;
+        assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 0);
+    }
+
+    #[test]
+    fn parse_exit_code_rejects_fractional_prefix() {
+        let raw = r#"{"type":"event","event":"exited","body":{"exitCode":7.5}}"#;
         assert_eq!(parse_exit_code(&parse_envelope(raw).unwrap().raw), 0);
     }
 
