@@ -37,6 +37,14 @@ fn active_target_label(ctx: &MuiContext) -> String {
         .to_string()
 }
 
+fn file_target_label(path: &std::path::Path) -> String {
+    path.file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| path.to_str().unwrap_or("file"))
+        .to_string()
+}
+
 fn run_output_row_label(text: &str) -> String {
     let compact = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let compact = compact.trim();
@@ -866,6 +874,32 @@ pub extern "C" fn mui_diff_open(handle: i64, staged: i32) -> i32 {
         );
         return 0;
     };
+    match std::fs::metadata(&abs) {
+        Ok(meta) if meta.is_file() => {}
+        Ok(_) => {
+            crate::abi::refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                format!("Diff failed: {}: not a file", file_target_label(&abs)),
+            );
+            return 0;
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            crate::abi::refresh_workspace_file_views(ctx);
+            ctx.push_toast(
+                crate::toast::Kind::Warn,
+                format!("Diff target missing: {}", file_target_label(&abs)),
+            );
+            return 0;
+        }
+        Err(e) => {
+            ctx.push_toast(
+                crate::toast::Kind::Error,
+                format!("Diff failed: {}: {e}", file_target_label(&abs)),
+            );
+            return 0;
+        }
+    }
     let rel = abs
         .strip_prefix(&root)
         .map(|p| p.to_string_lossy().replace('\\', "/"))

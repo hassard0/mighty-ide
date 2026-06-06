@@ -409,6 +409,8 @@ and the final handoff response after packaging.
 - Source Control row opens reject directory targets from stale git status
   entries instead of opening an empty tab, then refresh the status list so
   repeated clicks do not keep targeting a non-file row
+- Direct active-file inline diff opens report stale missing or directory-backed
+  targets before invoking git, matching Source Control row diff handling
 
 ### Run · Test · Debug
 - Run panel (Ctrl+Shift+R) — background `mty run` with streamed output + clickable diagnostics

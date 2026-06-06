@@ -631,6 +631,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No source-control row"
         || m == "No git repository for diff"
         || m.starts_with("No diff for ")
+        || m.starts_with("Diff target missing:")
+        || m.starts_with("Diff failed:")
         || m == "Diff view closed"
         || m == "Diff view is already closed"
         || m == "No file to blame"

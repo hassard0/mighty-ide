@@ -7707,6 +7707,39 @@ fn diff_open_noops_report_visible_feedback() {
 }
 
 #[test]
+fn diff_open_rejects_stale_active_targets_before_git() {
+    let mut ctx = ctx_or_skip!();
+    let root = std::env::temp_dir().join(format!("mui_diff_stale_active_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    ctx.tree.set_root(root.clone());
+    ctx.workspace.set_root(root.clone());
+    ctx.scm.root = Some(root.clone());
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let missing = root.join("gone.mty");
+    std::fs::write(&missing, "fn main() {}\n").unwrap();
+    ctx.tabs.open_path(missing.clone());
+    std::fs::remove_file(&missing).unwrap();
+    assert_eq!(crate::featureabi::mui_diff_open(handle, 0), 0);
+    assert!(!ctx.diff.is_active());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Diff target missing: gone.mty");
+
+    let blocked = root.join("blocked.mty");
+    std::fs::create_dir_all(&blocked).unwrap();
+    ctx.tabs.open_path(blocked.clone());
+    assert_eq!(crate::featureabi::mui_diff_open(handle, 0), 0);
+    assert!(!ctx.diff.is_active());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Error);
+    assert_eq!(toast.message, "Diff failed: blocked.mty: not a file");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn diff_close_clears_inline_view() {
     let mut ctx = ctx_or_skip!();
     let handle = (&mut ctx as *mut MuiContext) as usize as i64;
