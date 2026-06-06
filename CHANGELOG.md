@@ -19,6 +19,10 @@ driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 - **Generic LSP completion surfaces deprecated items**: semantic completion now
   preserves `CompletionItem.deprecated` and LSP `tags: [1]`, showing deprecated
   rows and selected-row footers before users accept old APIs.
+- **Generic LSP completion uses label details**: semantic completion now uses
+  `CompletionItem.labelDetails.detail` and `.description` as provider detail
+  when top-level `detail` is absent, preserving split signatures and origin
+  hints from modern language servers.
 - **Generic LSP completion keeps provider documentation**: semantic completion
   now preserves string and MarkupContent `CompletionItem.documentation`, using it
   as the selected-row footer context when no shorter provider `detail` is

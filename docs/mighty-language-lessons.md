@@ -14570,3 +14570,20 @@ without the IDE showing the same warning other editors expose.
 - **Language note:** no compiler gap surfaced. This is another rich-protocol
   ownership case: Rust should retain compatibility metadata until rendering
   decides how to expose it, while Mighty keeps the scalar accept path simple.
+
+## L1142 - LSP Completion Label Details Belong In Row Context
+
+Modern language servers can put signature-like suffixes and source descriptions
+in `CompletionItem.labelDetails` instead of the older top-level `detail` field.
+Mighty IDE preserved `detail`, docs, kind, sorting, and deprecation, but still
+dropped label details. That made rows such as `map` lose their `(callback)` or
+`Array` context even though the server sent it.
+
+- **IDE note:** semantic completion now uses `labelDetails.detail` and
+  `labelDetails.description` as provider detail text when top-level `detail` is
+  absent. Explicit `detail` still wins, so richer provider summaries are not
+  replaced by shorter label fragments.
+- **Language note:** no compiler gap surfaced. This reinforces the completion
+  boundary rule: Rust keeps modern protocol structure and decides how to render
+  it, while Mighty still accepts one selected insert string through the scalar
+  ABI.

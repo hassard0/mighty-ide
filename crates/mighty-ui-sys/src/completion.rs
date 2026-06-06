@@ -14,8 +14,8 @@
 //!   thoroughly unit-tested ([`buffer_words`], [`filter_by_prefix`]).
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
-//!   parse `CompletionItem` insert/display/kind/detail/docs/sort/deprecated text, and
-//!   merge them ahead of the buffer words.
+//!   parse `CompletionItem` insert/display/kind/detail/labelDetails/docs/sort/
+//!   deprecated text, and merge them ahead of the buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
 //!
@@ -1062,7 +1062,29 @@ pub mod lsp {
     }
 
     fn completion_item_detail_text(item: &[u8]) -> Option<String> {
-        top_level_string_value(item, b"detail").filter(|detail| !detail.trim().is_empty())
+        top_level_string_value(item, b"detail")
+            .filter(|detail| !detail.trim().is_empty())
+            .or_else(|| completion_item_label_details_text(item))
+    }
+
+    fn completion_item_label_details_text(item: &[u8]) -> Option<String> {
+        let at = top_level_field_value_start(item, b"labelDetails")?;
+        let details = value_region(item, at)?;
+        if details.first() != Some(&b'{') {
+            return None;
+        }
+        let detail = top_level_string_value(details, b"detail")
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        let description = top_level_string_value(details, b"description")
+            .map(|value| value.trim().to_string())
+            .filter(|value| !value.is_empty());
+        match (detail, description) {
+            (Some(detail), Some(description)) => Some(format!("{detail} - {description}")),
+            (Some(detail), None) => Some(detail),
+            (None, Some(description)) => Some(description),
+            (None, None) => None,
+        }
     }
 
     fn completion_item_documentation_text(item: &[u8]) -> Option<String> {
@@ -2454,6 +2476,29 @@ mod tests {
             candidates[0].detail_text.as_deref(),
             Some("macro println!(...)")
         );
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_uses_label_details_when_detail_is_absent() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"map","labelDetails":{"detail":"(callback)","description":"Array"}},{"label":"len","labelDetails":{"description":"slice"}},{"label":"plain","labelDetails":{"label":"ignored"}}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(
+            candidates[0].detail_text.as_deref(),
+            Some("(callback) - Array")
+        );
+        assert_eq!(candidates[1].detail_text.as_deref(), Some("slice"));
+        assert_eq!(candidates[2].detail_text, None);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_keeps_top_level_detail_before_label_details() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"map","detail":"fn map<T>()","labelDetails":{"detail":"(callback)","description":"Array"}}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].detail_text.as_deref(), Some("fn map<T>()"));
     }
 
     #[test]
