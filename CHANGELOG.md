@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Rename Cancel palette state matches runtime**: Command Palette now reports
+  `No rename input open` before dispatch when Rename Symbol has no active
+  inline prompt, matching the runtime cancel no-op toast.
 - **AI Clear Chat palette state matches runtime**: Command Palette now reports
   when the AI transcript and draft are already empty instead of advertising a
   mutating clear action that will only produce a no-op toast.

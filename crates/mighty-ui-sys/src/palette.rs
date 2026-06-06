@@ -1675,6 +1675,7 @@ impl PaletteEngine {
                 | CMD_COLOR_THEME_CLOSE
                 | CMD_HOVER_CLOSE
                 | CMD_SIGNATURE_HELP_CLOSE
+                | CMD_RENAME_CANCEL
                 | CMD_CODE_ACTIONS_CLOSE
                 | CMD_FIND_REPLACE_CLOSE
                 | CMD_AUTOCOMPLETE_CLOSE
@@ -1690,6 +1691,7 @@ impl PaletteEngine {
                 ctx.theme_picker.is_active(),
                 ctx.hover.is_active(),
                 ctx.sig.is_active(),
+                ctx.rename.is_active(),
                 ctx.codeaction.is_active(),
                 ctx.replace_bar.is_active(),
                 ctx.complete.is_active(),
@@ -2530,6 +2532,7 @@ fn transient_surface_contextual_desc<'a>(
     theme_picker_open: bool,
     hover_open: bool,
     signature_open: bool,
+    rename_open: bool,
     code_actions_open: bool,
     find_replace_open: bool,
     autocomplete_open: bool,
@@ -2549,6 +2552,7 @@ fn transient_surface_contextual_desc<'a>(
         CMD_SIGNATURE_HELP_CLOSE if !signature_open => {
             Cow::Borrowed("No signature help popup open")
         }
+        CMD_RENAME_CANCEL if !rename_open => Cow::Borrowed("No rename input open"),
         CMD_CODE_ACTIONS_CLOSE if !code_actions_open => {
             Cow::Borrowed("No code action menu open")
         }
@@ -5435,6 +5439,13 @@ mod tests {
 
     #[test]
     fn transient_surface_command_descriptions_reflect_runtime_state() {
+        fn desc_for(id: u32, flags: [bool; 12]) -> Cow<'static, str> {
+            transient_surface_contextual_desc(
+                id, "base", flags[0], flags[1], flags[2], flags[3], flags[4], flags[5],
+                flags[6], flags[7], flags[8], flags[9], flags[10], flags[11],
+            )
+        }
+
         let cases = [
             (CMD_AI_CLOSE, "AI Copilot is already closed"),
             (CMD_SIDEBAR_CLOSE, "Sidebar is already closed"),
@@ -5444,6 +5455,7 @@ mod tests {
                 CMD_SIGNATURE_HELP_CLOSE,
                 "No signature help popup open",
             ),
+            (CMD_RENAME_CANCEL, "No rename input open"),
             (CMD_CODE_ACTIONS_CLOSE, "No code action menu open"),
             (CMD_FIND_REPLACE_CLOSE, "No Find & Replace bar open"),
             (
@@ -5454,229 +5466,98 @@ mod tests {
             (CMD_QUICK_OPEN_CLOSE, "No Quick Open panel open"),
         ];
         for (id, expected) in cases {
-            assert_eq!(
-                transient_surface_contextual_desc(
-                    id, "base", false, false, false, false, false, false, false, false, false,
-                    false, false
-                ),
-                Cow::Borrowed(expected)
-            );
+            assert_eq!(desc_for(id, [false; 12]), Cow::Borrowed(expected));
         }
 
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_AI_CLEAR_CHAT,
-                "base",
-                true,
-                false,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [true, false, true, false, false, false, false, false, false, false, false, false]
             ),
             Cow::Borrowed("AI Copilot chat is already empty")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_AI_CLEAR_CHAT,
-                "base",
-                true,
-                true,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [true, true, true, false, false, false, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
 
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_AI_CLOSE,
-                "base",
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [true, false, false, false, false, false, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_SIDEBAR_CLOSE,
-                "base",
-                false,
-                true,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [false, true, true, false, false, false, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_COLOR_THEME_CLOSE,
-                "base",
-                false,
-                false,
-                true,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [false, false, true, true, false, false, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_HOVER_CLOSE,
-                "base",
-                false,
-                false,
-                false,
-                true,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [false, false, false, false, true, false, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_SIGNATURE_HELP_CLOSE,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                true,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false
+                [false, false, false, false, false, true, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
+                CMD_RENAME_CANCEL,
+                [false, false, false, false, false, false, true, false, false, false, false, false]
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            desc_for(
                 CMD_CODE_ACTIONS_CLOSE,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                true,
-                true,
-                false,
-                false,
-                false,
-                false
+                [false, false, false, false, false, false, false, true, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_FIND_REPLACE_CLOSE,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                true,
-                true,
-                false,
-                false,
-                false
+                [false, false, false, false, false, false, false, false, true, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_AUTOCOMPLETE_CLOSE,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                true,
-                true,
-                false,
-                false
+                [false, false, false, false, false, false, false, false, false, true, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_COMMAND_PALETTE_CLOSE,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                true,
-                true,
-                false
+                [false, false, false, false, false, false, false, false, false, false, true, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            transient_surface_contextual_desc(
+            desc_for(
                 CMD_QUICK_OPEN_CLOSE,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                true,
-                true
+                [false, false, false, false, false, false, false, false, false, false, false, true]
             ),
             Cow::Borrowed("base")
         );
@@ -5684,6 +5565,13 @@ mod tests {
 
     #[test]
     fn utility_command_descriptions_reflect_runtime_state() {
+        fn desc_for(id: u32, flags: [bool; 8]) -> Cow<'static, str> {
+            utility_command_contextual_desc(
+                id, "base", flags[0], flags[1], flags[2], flags[3], flags[4], flags[5],
+                flags[6], flags[7],
+            )
+        }
+
         let cases = [
             (CMD_CLEAR_NOTIFICATIONS, "No notifications to clear"),
             (CMD_REOPEN_CLOSED_TAB, "No closed tab to reopen"),
@@ -5698,131 +5586,62 @@ mod tests {
             (CMD_SNIPPET_CANCEL, "No snippet session active"),
         ];
         for (id, expected) in cases {
-            assert_eq!(
-                utility_command_contextual_desc(
-                    id, "base", false, false, false, false, false, false, false, false
-                ),
-                Cow::Borrowed(expected)
-            );
+            assert_eq!(desc_for(id, [false; 8]), Cow::Borrowed(expected));
         }
 
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_CLEAR_NOTIFICATIONS,
-                "base",
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [true, false, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_REOPEN_CLOSED_TAB,
-                "base",
-                false,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false
+                [false, true, false, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_DOCK_CLOSE,
-                "base",
-                false,
-                false,
-                true,
-                false,
-                false,
-                false,
-                false,
-                false
+                [false, false, true, false, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_PROMPT_CANCEL,
-                "base",
-                false,
-                false,
-                false,
-                true,
-                false,
-                false,
-                false,
-                false
+                [false, false, false, true, false, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_DIRTY_CONFIRM_CANCEL,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                true,
-                false,
-                false,
-                false
+                [false, false, false, false, true, false, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_GIT_BRANCH_CANCEL,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                true,
-                false,
-                false
+                [false, false, false, false, false, true, false, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_BREADCRUMB_MENU_CANCEL,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                true,
-                false
+                [false, false, false, false, false, false, true, false]
             ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            utility_command_contextual_desc(
+            desc_for(
                 CMD_SNIPPET_CANCEL,
-                "base",
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                false,
-                true
+                [false, false, false, false, false, false, false, true]
             ),
             Cow::Borrowed("base")
         );

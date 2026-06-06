@@ -81,6 +81,10 @@ unless matching native runners produced those archives during the same pass.
 After those fields are recorded, stop; further implementation work starts a new
 source state and requires a new package run.
 
+This stop pass keeps the source-controlled README, changelog, and release docs
+as the reusable contract, then records generated Windows ZIP evidence only after
+the final source commit has been packaged.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`

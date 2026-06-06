@@ -152,6 +152,8 @@ The final source-controlled docs should remain reusable release rules and
 templates. Generated archive hashes and sizes belong to the post-commit package
 manifest, final handoff response, and external upload note; committing them into
 this file would change the source hash and require a new package run.
+For this stop pass, README, changelog, and release docs are committed first;
+the Windows ZIP evidence is generated only from that committed tree.
 The manifest must include the source commit, generated UTC timestamp, native
 payload hash and size rows, archive path, and clean-binary checks. A package
 that lacks any of those fields is incomplete even if the executable launches.
