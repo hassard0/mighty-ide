@@ -114,6 +114,7 @@ tarball:
 - `docs/release-verification.md`
 - `docs/release-evidence.md`
 - `docs/binary-release-status.md`
+- `docs/release-readiness.md`
 - `docs/final-release-handoff.md`
 
 ## Platform Matrix

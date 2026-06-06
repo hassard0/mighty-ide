@@ -69,6 +69,10 @@ driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
   only a rebuilt Windows PE ZIP, while macOS and Linux stay `unbuilt` until
   native runners produce matching Mach-O or ELF packages from the same source
   commit.
+- **Release readiness docs ship with every package**: README now includes a
+  practical build/package quick start, and release archives bundle a concise
+  source-versus-binary readiness checklist alongside the existing verification,
+  evidence, and handoff docs.
 - **Save All palette copy matches untitled-buffer behavior**: Command Palette
   metadata now says Save All will prompt for destinations for dirty untitled
   tabs, instead of implying those buffers are skipped until a separate Save As.

@@ -98,7 +98,9 @@ template is in [`docs/release-verification.md`](docs/release-verification.md),
 the final upload record is in
 [`docs/release-evidence.md`](docs/release-evidence.md), the clean-binary status
 summary is in
-[`docs/binary-release-status.md`](docs/binary-release-status.md), and the final
+[`docs/binary-release-status.md`](docs/binary-release-status.md), the
+source/binary readiness checklist is in
+[`docs/release-readiness.md`](docs/release-readiness.md), and the final
 stop/pass handoff is in
 [`docs/final-release-handoff.md`](docs/final-release-handoff.md).
 
@@ -113,6 +115,7 @@ together long enough to verify:
 - completed `docs/release-verification.md` evidence record for the archive
 - completed `docs/release-evidence.md` upload record for the archive
 - packaged `docs/binary-release-status.md` clean-binary status
+- packaged `docs/release-readiness.md` source/binary readiness checklist
 - packaged `docs/final-release-handoff.md` stop/publish rule
 - packaged launch from inside the assembled directory or app bundle
 

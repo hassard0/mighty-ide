@@ -12,6 +12,31 @@ formatting, run/test/debug adapters, and project tooling.
 
 ![Mighty IDE](screenshots/24-debug.png)
 
+## Quick Start
+
+Mighty IDE is a native desktop app. The checked-in source builds the editor
+loop from `src/main.mty` and the Rust `mighty-ui-sys` shim, then packages the
+runtime files under `dist/`.
+
+For a local Windows build:
+
+```powershell
+.\build-ide.ps1 -Mty C:\path\to\mty.exe
+.\target\main.exe samples\hello.mty
+```
+
+For a clean Windows release package:
+
+```powershell
+.\package-win.ps1 -Mty C:\path\to\mty.exe
+dist\mighty-ide-win64\mighty-ide.exe samples\hello.mty
+```
+
+macOS and Linux packages are built by `./package-macos.sh` and
+`./package-linux.sh` on their matching native hosts. They are not derived from
+the Windows ZIP because the app ships a native executable and native shim
+library for each OS.
+
 ## Features
 
 Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
@@ -30,6 +55,8 @@ Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [C
   template for generated hashes, sizes, manifests, and launch results.
 - [docs/binary-release-status.md](docs/binary-release-status.md): concise
   publish/hold/unbuilt decision rules.
+- [docs/release-readiness.md](docs/release-readiness.md): final source and
+  binary readiness checklist for all platforms.
 - [docs/final-release-handoff.md](docs/final-release-handoff.md): final
   stop-pass handoff contract.
 

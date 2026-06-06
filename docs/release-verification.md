@@ -77,6 +77,9 @@ Linux x64: unbuilt - native Linux runner unavailable for this pass.
 Script review or wrong-host refusal checks are source-readiness evidence, not
 clean-binary evidence for macOS or Linux.
 
+Use [`release-readiness.md`](release-readiness.md) as the concise
+source-versus-binary readiness checklist when preparing the final handoff.
+
 For a stop pass from Windows, include the reviewed macOS and Linux package
 commands as script-ready only. Leave their release decision as `unbuilt` until
 the native package script, manifest, archive scan, hash, and packaged launch

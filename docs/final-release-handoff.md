@@ -18,6 +18,8 @@ build notes, changelog, package scripts, and release docs being handed off.
 
 1. Finish and commit source, README, changelog, build notes, package scripts,
    and release docs.
+   Use [`release-readiness.md`](release-readiness.md) to confirm the source
+   inputs and per-platform binary states are separated before packaging.
 2. Rebuild each available platform package from that clean commit.
 3. Confirm the package manifest names the same source commit.
 4. Confirm package and archive scans passed.
