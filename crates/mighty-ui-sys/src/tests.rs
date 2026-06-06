@@ -3292,10 +3292,7 @@ fn test_run_rejects_read_only_binary_preview_before_spawn() {
     assert_eq!(ctx.tests_panel.row_count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(
-        toast.message,
-        "Run Tests is unavailable in read-only previews"
-    );
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -3325,10 +3322,7 @@ fn test_run_at_cursor_rejects_read_only_binary_preview_before_spawn() {
     assert_eq!(ctx.tests_panel.row_count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(
-        toast.message,
-        "Run Test at Cursor is unavailable in read-only previews"
-    );
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -10940,7 +10934,7 @@ fn debug_start_rejects_read_only_binary_preview_before_spawn() {
     assert_eq!(ctx.dbg.console_count(), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Debug is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }

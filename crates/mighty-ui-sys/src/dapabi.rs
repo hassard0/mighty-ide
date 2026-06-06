@@ -207,7 +207,7 @@ fn dbg_start_or_continue(ctx: &mut MuiContext) -> i32 {
             if ctx.tabs.active_read_only() {
                 ctx.push_toast(
                     crate::toast::Kind::Warn,
-                    "Debug is unavailable in read-only previews",
+                    ctx.read_only_active_file_message(),
                 );
                 crate::abi::trace("dbg_action start_read_only");
                 return ctx.dbg.state().as_i32();

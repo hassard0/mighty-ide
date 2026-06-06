@@ -127,13 +127,13 @@ fn fail_test_before_start(ctx: &mut MuiContext, path: &std::path::Path, focus: O
     );
 }
 
-fn reject_read_only_test_run(ctx: &mut MuiContext, action: &str) -> i32 {
+fn reject_read_only_test_run(ctx: &mut MuiContext, _action: &str) -> i32 {
     ctx.tests_panel.open();
     ctx.active_panel = crate::PANEL_TEST;
     ctx.sidebar_visible = true;
     ctx.push_toast(
         crate::toast::Kind::Warn,
-        format!("{action} is unavailable in read-only previews"),
+        ctx.read_only_active_file_message(),
     );
     0
 }
