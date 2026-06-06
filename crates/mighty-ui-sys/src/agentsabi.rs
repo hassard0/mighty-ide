@@ -16,13 +16,21 @@
 
 #![allow(dead_code)]
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
 
 use crate::agents::{self, AgentModel, RuntimeSnapshot};
 use crate::layout;
 use crate::theme;
 use crate::MuiContext;
+
+pub(crate) const MAX_INSPECT_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
 // ===========================================================================
 // Display-node model (flattened topology rows)
@@ -514,11 +522,11 @@ impl AgentTopology {
             self.snapshot = None;
             return -1;
         }
-        let out = inspect_command(&mty, sock.as_deref()).output();
+        let out = run_inspect_command(inspect_command(&mty, sock.as_deref()));
         match out {
-            Ok(o) => {
-                let stdout = String::from_utf8_lossy(&o.stdout);
-                let stderr = String::from_utf8_lossy(&o.stderr);
+            Ok((stdout_bytes, stderr_bytes)) => {
+                let stdout = String::from_utf8_lossy(&stdout_bytes);
+                let stderr = String::from_utf8_lossy(&stderr_bytes);
                 if let Some(snap) = agents::parse_snapshot(&stdout) {
                     let n = snap.agents.len();
                     self.inspect_note = format!("Live inspect: {n} agent(s) attached.");
@@ -540,7 +548,12 @@ impl AgentTopology {
                     -1
                 }
             }
-            Err(e) => {
+            Err(InspectOutputError::TooLarge) => {
+                self.inspect_note = "Live inspect unavailable: output too large".to_string();
+                self.snapshot = None;
+                -1
+            }
+            Err(InspectOutputError::Spawn(e)) => {
                 self.inspect_note = format!("Live inspect: could not spawn `{mty} inspect`: {e}");
                 self.snapshot = None;
                 -1
@@ -1166,10 +1179,100 @@ pub extern "C" fn mui_agents_click_is_clear(handle: i64) -> i32 {
 fn inspect_command(mty: &str, sock: Option<&str>) -> Command {
     let mut cmd = Command::new(mty);
     cmd.arg("inspect").arg("--json");
+    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     if let Some(sock) = sock.map(str::trim).filter(|s| !s.is_empty()) {
         cmd.arg("--sock").arg(sock);
     }
     cmd
+}
+
+enum InspectOutputError {
+    Spawn(String),
+    TooLarge,
+}
+
+fn run_inspect_command(mut cmd: Command) -> Result<(Vec<u8>, Vec<u8>), InspectOutputError> {
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| InspectOutputError::Spawn(e.to_string()))?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        InspectOutputError::Spawn("stdout pipe unavailable".to_string())
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+        InspectOutputError::Spawn("stderr pipe unavailable".to_string())
+    })?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = std::thread::spawn(move || {
+        read_inspect_stream_capped(stdout, MAX_INSPECT_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        read_inspect_stream_capped(stderr, MAX_INSPECT_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Err(InspectOutputError::TooLarge);
+        }
+        match child.try_wait() {
+            Ok(Some(_status)) => break,
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(e) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(InspectOutputError::Spawn(e.to_string()));
+            }
+        }
+    }
+
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let stderr = stderr_reader.join().unwrap_or_default();
+    if exceeded.load(Ordering::Relaxed) {
+        return Err(InspectOutputError::TooLarge);
+    }
+    Ok((stdout, stderr))
+}
+
+fn append_inspect_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if buf.len().saturating_add(chunk.len()) > cap {
+        buf.clear();
+        return false;
+    }
+    buf.extend_from_slice(chunk);
+    true
+}
+
+fn read_inspect_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_inspect_output_with_cap(&mut buf, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    buf
 }
 
 fn active_agent_target_label(ctx: &MuiContext) -> String {
@@ -1373,6 +1476,35 @@ pub extern "C" fn mui_agents_draw(handle: i64) {
 mod tests {
     use super::*;
     use crate::agents::scan_file;
+
+    #[test]
+    fn inspect_output_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"{");
+
+        assert!(append_inspect_output_with_cap(&mut buf, b"}", 2));
+        assert_eq!(buf, b"{}");
+    }
+
+    #[test]
+    fn inspect_output_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"json:");
+
+        assert!(!append_inspect_output_with_cap(&mut buf, b"overflow", 8));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn inspect_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_inspect_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
+    }
 
     fn seeded() -> AgentTopology {
         let mut t = AgentTopology::new();
