@@ -1350,6 +1350,21 @@ impl PaletteEngine {
                 }
             }
         }
+        if matches!(id, CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE)
+            && !ctx.tabs.active_read_only()
+        {
+            if let Some(path) = ctx.tabs.active_path() {
+                if id == CMD_DELETE_ACTIVE_FILE && ctx.tabs.any_dirty_path(&path) {
+                    return Cow::Owned(format!(
+                        "Save or discard changes in {} before deleting",
+                        palette_basename(&path)
+                    ));
+                }
+                if let Some(desc) = active_file_edit_stale_target_desc(id, &path) {
+                    return Cow::Owned(desc);
+                }
+            }
+        }
         if matches!(id, CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE)
             && !(id == CMD_RELOAD_ACTIVE_FILE && ctx.tabs.is_dirty(ctx.tabs.active()))
         {
@@ -2579,6 +2594,29 @@ fn active_file_utility_stale_target_desc(id: u32, path: &std::path::Path) -> Opt
             Some(format!("{prefix} missing: {name}"))
         }
         Err(e) => Some(format!("{prefix} unavailable: {name}: {e}")),
+    }
+}
+
+fn active_file_edit_stale_target_desc(id: u32, path: &std::path::Path) -> Option<String> {
+    let name = palette_basename(path);
+    match id {
+        CMD_RENAME_ACTIVE_FILE => match std::fs::metadata(path) {
+            Ok(meta) if meta.is_file() => None,
+            Ok(_) => Some(format!("Rename failed: {name}: not a file")),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Some(format!("Rename source missing: {name}"))
+            }
+            Err(e) => Some(format!("Rename failed: {name}: {e}")),
+        },
+        CMD_DELETE_ACTIVE_FILE => match std::fs::metadata(path) {
+            Ok(meta) if meta.is_file() => None,
+            Ok(_) => Some(format!("Delete failed: {name}: not a file")),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                Some(format!("Delete target missing: {name}"))
+            }
+            Err(e) => Some(format!("Delete failed: {name}: {e}")),
+        },
+        _ => None,
     }
 }
 
@@ -5224,6 +5262,50 @@ mod tests {
             ),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn active_file_edit_descriptions_report_stale_targets() {
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_active_edit_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let missing = root.join("old.mty");
+        assert_eq!(
+            active_file_edit_stale_target_desc(CMD_RENAME_ACTIVE_FILE, &missing),
+            Some("Rename source missing: old.mty".to_string())
+        );
+        assert_eq!(
+            active_file_edit_stale_target_desc(CMD_DELETE_ACTIVE_FILE, &missing),
+            Some("Delete target missing: old.mty".to_string())
+        );
+
+        let blocked = root.join("blocked.mty");
+        std::fs::create_dir_all(&blocked).unwrap();
+        assert_eq!(
+            active_file_edit_stale_target_desc(CMD_RENAME_ACTIVE_FILE, &blocked),
+            Some("Rename failed: blocked.mty: not a file".to_string())
+        );
+        assert_eq!(
+            active_file_edit_stale_target_desc(CMD_DELETE_ACTIVE_FILE, &blocked),
+            Some("Delete failed: blocked.mty: not a file".to_string())
+        );
+
+        let file = root.join("ok.mty");
+        std::fs::write(&file, "ok").unwrap();
+        assert_eq!(
+            active_file_edit_stale_target_desc(CMD_RENAME_ACTIVE_FILE, &file),
+            None
+        );
+        assert_eq!(
+            active_file_edit_stale_target_desc(CMD_REVEAL_ACTIVE_FILE, &missing),
+            None
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

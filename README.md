@@ -262,6 +262,9 @@ and the final handoff response after packaging.
   targets
 - Command Palette active-file utility rows for Reveal and Copy Path/Name/Folder
   report stale missing or directory-backed active targets before dispatch
+- Command Palette Rename/Delete rows report stale missing or directory-backed
+  active targets before dispatch, and Delete names dirty duplicate blockers
+  before asking for confirmation
 - Unsaved-changes confirmation stale click, cancel, save, and discard routes
   report when the confirmation has already closed
 - Bottom dock stale close, preset, and resize affordances report when no dock is

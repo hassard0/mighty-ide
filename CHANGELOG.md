@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews stale rename/delete targets**: Rename Active File
+  and Delete Active File now report missing or directory-backed active paths
+  before dispatch, and Delete names dirty duplicate blockers before asking for
+  confirmation.
 - **Command Palette previews stale active-file utility targets**: Reveal Active
   File, Show in File Manager, and Copy Active File path/name/directory rows now
   report missing or directory-backed active paths before dispatch.
