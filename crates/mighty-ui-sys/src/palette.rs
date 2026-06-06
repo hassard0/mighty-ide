@@ -1274,6 +1274,17 @@ impl PaletteEngine {
                 ctx.agents.run_line_count(),
             );
         }
+        if matches!(id, CMD_TERMINAL_CLEAR | CMD_TERMINAL_CLOSE) {
+            return terminal_contextual_desc(
+                id,
+                base,
+                ctx.term_open,
+                ctx.terminal.is_some(),
+                ctx.terminal
+                    .as_ref()
+                    .is_some_and(|terminal| terminal.has_visible_content()),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1573,6 +1584,22 @@ fn agents_contextual_desc<'a>(
             Cow::Borrowed("Agents run output already empty")
         }
         CMD_AGENTS_CLOSE if !active => Cow::Borrowed("Mighty Agents panel is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn terminal_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    open: bool,
+    present: bool,
+    has_visible_content: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_TERMINAL_CLEAR if open && present && !has_visible_content => {
+            Cow::Borrowed("Terminal is already empty")
+        }
+        CMD_TERMINAL_CLOSE if !open && !present => Cow::Borrowed("Terminal is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -2517,6 +2544,34 @@ mod tests {
         );
         assert_eq!(
             agents_contextual_desc(CMD_AGENTS_CLOSE, "base", true, 0),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn terminal_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            terminal_contextual_desc(CMD_TERMINAL_CLEAR, "base", true, true, false),
+            Cow::Borrowed("Terminal is already empty")
+        );
+        assert_eq!(
+            terminal_contextual_desc(CMD_TERMINAL_CLOSE, "base", false, false, false),
+            Cow::Borrowed("Terminal is already closed")
+        );
+        assert_eq!(
+            terminal_contextual_desc(CMD_TERMINAL_CLEAR, "base", false, false, false),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            terminal_contextual_desc(CMD_TERMINAL_CLEAR, "base", true, true, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            terminal_contextual_desc(CMD_TERMINAL_CLOSE, "base", false, true, false),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            terminal_contextual_desc(CMD_TERMINAL_CLOSE, "base", true, true, false),
             Cow::Borrowed("base")
         );
     }

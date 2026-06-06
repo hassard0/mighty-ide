@@ -3001,6 +3001,10 @@ impl Terminal {
         self.grid.contains(needle)
     }
 
+    pub fn has_visible_content(&self) -> bool {
+        self.grid.has_visible_content()
+    }
+
     pub fn clear_buffer(&mut self) -> bool {
         let had_content = self.grid.has_visible_content();
         self.grid.clear();

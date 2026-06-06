@@ -92,6 +92,8 @@ Mach-O or ELF manifests from the same pass.
   including no running server, missing URL, empty output, and closed panel
 - Command Palette Agents lifecycle rows mirror Mighty Agents no-op states,
   including empty run output and closed panel
+- Command Palette Terminal lifecycle rows mirror integrated terminal no-op
+  states, including empty visible buffer and closed terminal
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste
   toasts instead of stacking generic `Copied` notifications
 - Toggle line comment (Ctrl+/), Tab/Shift+Tab indent and outdent, auto-indent on Enter (brace-aware), bracket/quote auto-close + skip-over + empty-pair backspace, bracket-match highlight

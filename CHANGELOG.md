@@ -69,6 +69,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command Palette Agents lifecycle rows explain no-op states**: Clear Run
   Output and Close Panel now mirror Mighty Agents runtime feedback for empty
   run transcripts and closed panels.
+- **Command Palette Terminal lifecycle rows explain no-op states**: Clear
+  Buffer and Close now mirror integrated terminal runtime feedback for empty
+  visible buffers and closed terminals.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.
