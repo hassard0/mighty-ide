@@ -1296,7 +1296,12 @@ pub mod lsp {
         if text_edit.first() != Some(&b'{') {
             return None;
         }
-        let range_at = top_level_field_value_start(text_edit, b"range")?;
+        completion_text_edit_named_range(text_edit, b"range")
+            .or_else(|| completion_text_edit_named_range(text_edit, b"insert"))
+    }
+
+    fn completion_text_edit_named_range(text_edit: &[u8], field: &[u8]) -> Option<CompletionEditRange> {
+        let range_at = top_level_field_value_start(text_edit, field)?;
         let range = value_region(text_edit, range_at)?;
         if range.first() != Some(&b'{') {
             return None;
@@ -2944,6 +2949,29 @@ mod tests {
             })
         );
         assert_eq!(labels, vec!["Console.WriteLine($1)".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_uses_insert_range_from_insert_replace_edit() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"WriteLine","filterText":"WriteLine","textEdit":{"newText":"Console.WriteLine","insert":{"start":{"line":0,"character":8},"end":{"line":0,"character":10}},"replace":{"start":{"line":0,"character":0},"end":{"line":0,"character":15}}}}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].text, "Console.WriteLine");
+        assert_eq!(
+            candidates[0].edit_range,
+            Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 8,
+                end_line: 0,
+                end_col_utf16: 10,
+            })
+        );
+
+        let mut engine = CompletionEngine::new();
+        let n = engine.request_semantic(b"Console.Wr", 10, &candidates);
+        assert_eq!(n, 1);
+        assert_eq!(engine.accepted_replace_len(), 2);
     }
 
     #[test]

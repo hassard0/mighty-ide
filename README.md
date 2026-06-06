@@ -353,11 +353,11 @@ source commit and report only the archive produced by that run.
 - Hover info (Ctrl+K), autocomplete (Ctrl+Space — semantic LSP completions + buffer words)
 - Semantic autocomplete preserves LSP `label`, `kind`, `filterText`,
   `sortText`, `preselect`, `deprecated`, `commitCharacters`, `insertText`,
-  safe same-line `textEdit.range` spans, snippet bodies, provider `detail`,
-  `labelDetails`, and provider `documentation`, so generic server results can
-  match, classify, rank, choose an initial row, display warnings, commit through
-  punctuation, replace qualified prefixes, insert, and describe different text
-  without placeholder signatures
+  safe same-line `textEdit.range` / `InsertReplaceEdit.insert` spans, snippet
+  bodies, provider `detail`, `labelDetails`, and provider `documentation`, so
+  generic server results can match, classify, rank, choose an initial row,
+  display warnings, commit through punctuation, replace qualified prefixes,
+  insert, and describe different text without placeholder signatures
 - Empty explicit autocomplete requests name the active file or scratch buffer
   and cursor position, so no-candidate feedback stays actionable in multi-tab
   sessions

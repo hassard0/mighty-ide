@@ -14612,10 +14612,11 @@ return a wider `textEdit.range`, for example replacing `Console.Wr` with
 `Console.WriteLine`; deleting only `Wr` leaves duplicated qualifiers.
 
 - **IDE note:** semantic candidates now preserve safe same-line
-  `CompletionItem.textEdit.range` spans that end at the request cursor. The shim
-  converts LSP UTF-16 columns to editor character columns, stores a per-candidate
-  replacement width, and falls back to the typed prefix when the provider range
-  is absent, multi-line, stale, or not anchored at the cursor.
+  `CompletionItem.textEdit.range` spans and `InsertReplaceEdit.insert` spans
+  that end at the request cursor. The shim converts LSP UTF-16 columns to editor
+  character columns, stores a per-candidate replacement width, and falls back to
+  the typed prefix when the provider range is absent, multi-line, stale, or not
+  anchored at the cursor.
 - **Language note:** no compiler gap surfaced. The same scalar ABI boundary
   holds: Mighty still asks Rust to accept the selected completion, while Rust
   owns rich protocol validation and replacement-width selection.
