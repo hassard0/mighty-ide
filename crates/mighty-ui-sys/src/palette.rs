@@ -1009,7 +1009,7 @@ impl PaletteEngine {
             CMD_NEW_FOLDER => (icons::NEW_FOLDER, "Use the native folder picker; typed name if unavailable", false),
             CMD_OPEN_FILE => (icons::NEW_FILE, "Choose an existing file; typed path if picker is unavailable", false),
             CMD_SAVE => (icons::FILE_MTY, "Write the active file to disk", false),
-            CMD_SAVE_AS => (icons::FILE_MTY, "Save the active file with the native Save As dialog", false),
+            CMD_SAVE_AS => (icons::FILE_MTY, "Save with a chosen path; typed path if picker is unavailable", false),
             CMD_SAVE_ALL => (icons::FILE_MTY, "Write dirty tabs; untitled files may need Save As", false),
             CMD_RENAME_ACTIVE_FILE => (icons::FILE_MTY, "Rename the active file on disk", false),
             CMD_REVEAL_ACTIVE_FILE => (icons::SEARCH, "Show the active file in the IDE file tree", false),
@@ -2989,6 +2989,14 @@ mod tests {
         assert_eq!(
             command_static_desc(CMD_OPEN_FOLDER),
             "Open a workspace folder; typed path if picker is unavailable"
+        );
+    }
+
+    #[test]
+    fn save_as_command_description_names_typed_path_fallback() {
+        assert_eq!(
+            command_static_desc(CMD_SAVE_AS),
+            "Save with a chosen path; typed path if picker is unavailable"
         );
     }
 
