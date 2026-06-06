@@ -1385,6 +1385,7 @@ impl PaletteEngine {
                 ctx.problems.is_open(),
                 ctx.problems.count(),
                 active_has_path,
+                ctx.language,
             );
         }
         if matches!(
@@ -1931,13 +1932,20 @@ fn problems_contextual_desc<'a>(
     open: bool,
     count: usize,
     active_has_path: bool,
+    lang: crate::langdetect::Language,
 ) -> Cow<'a, str> {
     match id {
         CMD_PROBLEMS_REFRESH if !active_has_path => {
             Cow::Borrowed("No file-backed tab; refresh clears diagnostics and opens Problems")
         }
-        CMD_PROBLEMS_REFRESH if !open => {
-            Cow::Borrowed("Open Problems and refresh diagnostics")
+        CMD_PROBLEMS_REFRESH => {
+            if let Some(reason) = crate::lspregistry::unavailable_reason(lang) {
+                return Cow::Owned(reason);
+            }
+            if !open {
+                return Cow::Borrowed("Open Problems and refresh diagnostics");
+            }
+            Cow::Borrowed(base)
         }
         CMD_PROBLEMS_CLEAR if count == 0 => Cow::Borrowed("Problems diagnostics already empty"),
         CMD_PROBLEMS_CLOSE if !open => Cow::Borrowed("Problems panel is already closed"),
@@ -2909,6 +2917,18 @@ mod tests {
         std::env::set_var("MUI_CONFIG_DIR", &config_dir);
 
         let expected = "Python language server unavailable; configure python in lsp.toml";
+        assert_eq!(
+            problems_contextual_desc(
+                CMD_PROBLEMS_REFRESH,
+                "base",
+                true,
+                0,
+                true,
+                crate::langdetect::Language::Python
+            )
+            .as_ref(),
+            expected
+        );
         for id in [
             CMD_GOTO_DEFINITION,
             CMD_PEEK_DEFINITION,
@@ -3433,31 +3453,80 @@ mod tests {
     #[test]
     fn problems_command_descriptions_reflect_runtime_state() {
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_REFRESH, "base", true, 0, false),
+            problems_contextual_desc(
+                CMD_PROBLEMS_REFRESH,
+                "base",
+                true,
+                0,
+                false,
+                crate::langdetect::Language::PlainText
+            ),
             Cow::Borrowed("No file-backed tab; refresh clears diagnostics and opens Problems")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_REFRESH, "base", false, 0, true),
+            problems_contextual_desc(
+                CMD_PROBLEMS_REFRESH,
+                "base",
+                false,
+                0,
+                true,
+                crate::langdetect::Language::PlainText
+            ),
             Cow::Borrowed("Open Problems and refresh diagnostics")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 0, true),
+            problems_contextual_desc(
+                CMD_PROBLEMS_CLEAR,
+                "base",
+                true,
+                0,
+                true,
+                crate::langdetect::Language::PlainText
+            ),
             Cow::Borrowed("Problems diagnostics already empty")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", false, 2, true),
+            problems_contextual_desc(
+                CMD_PROBLEMS_CLOSE,
+                "base",
+                false,
+                2,
+                true,
+                crate::langdetect::Language::PlainText
+            ),
             Cow::Borrowed("Problems panel is already closed")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 2, true),
+            problems_contextual_desc(
+                CMD_PROBLEMS_CLEAR,
+                "base",
+                true,
+                2,
+                true,
+                crate::langdetect::Language::PlainText
+            ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", true, 0, true),
+            problems_contextual_desc(
+                CMD_PROBLEMS_CLOSE,
+                "base",
+                true,
+                0,
+                true,
+                crate::langdetect::Language::PlainText
+            ),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_REFRESH, "base", true, 0, true),
+            problems_contextual_desc(
+                CMD_PROBLEMS_REFRESH,
+                "base",
+                true,
+                0,
+                true,
+                crate::langdetect::Language::PlainText
+            ),
             Cow::Borrowed("base")
         );
     }

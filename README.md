@@ -144,7 +144,8 @@ and the final handoff response after packaging.
   results, empty result/symbol lists, and closed panels
 - Command Palette refresh rows for Explorer, Problems, Outline, Source Control,
   and Mighty Agents describe when they will reveal a panel, rescan live state,
-  clear scratch diagnostics, or hit a missing git repository
+  clear scratch diagnostics, hit a missing configured language server, or hit a
+  missing git repository
 - Command Palette Search toggle rows say which search field will receive focus
   when switching between query and replace
 - Command Palette Debug lifecycle rows mirror Run and Debug no-op states,

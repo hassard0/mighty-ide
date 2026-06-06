@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews Problems LSP blockers**: `Problems: Refresh
+  Diagnostics` now shows the configured/default language-server availability
+  reason before dispatch, matching the runtime refresh toast.
 - **Diagnostics refresh surfaces missing LSP servers**: explicit Problems
   refresh for LSP-backed languages now reports unavailable configured/default
   language servers with the same actionable `lsp.toml` feedback as navigation,
