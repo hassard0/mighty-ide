@@ -31,6 +31,9 @@ use std::time::Duration;
 use crate::diagnostics::{Diag, Severity};
 use crate::lspregistry::ServerSpec;
 
+const MAX_LSP_RESPONSE_BYTES: usize = 4 * 1024 * 1024;
+const MAX_LSP_DIAGNOSTIC_BYTES: usize = 8 * 1024 * 1024;
+
 /// Which single LSP request to fire after initialize + didOpen.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Method {
@@ -277,7 +280,9 @@ pub fn request_with_timeout(
             match stdout.read(&mut chunk) {
                 Ok(0) => break,
                 Ok(n) => {
-                    buf.extend_from_slice(&chunk[..n]);
+                    if !append_lsp_stream_chunk(&mut buf, &chunk[..n], MAX_LSP_RESPONSE_BYTES) {
+                        break;
+                    }
                     if respond_apply_edit && !apply_edit_replied {
                         if let Some(id) = apply_edit_request_id(&buf) {
                             let response = apply_edit_response(&id);
@@ -288,9 +293,6 @@ pub fn request_with_timeout(
                         }
                     }
                     if has_response_id(&buf, "2") {
-                        break;
-                    }
-                    if buf.len() > 4 * 1024 * 1024 {
                         break;
                     }
                 }
@@ -333,6 +335,15 @@ fn lock_shared<T>(shared: &Arc<Mutex<T>>) -> MutexGuard<'_, T> {
     shared
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn append_lsp_stream_chunk(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if buf.len().saturating_add(chunk.len()) > cap {
+        buf.clear();
+        return false;
+    }
+    buf.extend_from_slice(chunk);
+    true
 }
 
 fn request_msg(method: &Method, uri: &str, source: &str, line: u32, col: u32) -> String {
@@ -473,16 +484,15 @@ pub fn diagnostics_with_timeout(
             match stdout.read(&mut chunk) {
                 Ok(0) => break,
                 Ok(n) => {
-                    buf.extend_from_slice(&chunk[..n]);
+                    if !append_lsp_stream_chunk(&mut buf, &chunk[..n], MAX_LSP_DIAGNOSTIC_BYTES) {
+                        break;
+                    }
                     // Stop once a complete publishDiagnostics notification for
                     // our URI has arrived. Other workspace files can publish
                     // first, and their messages/relatedInformation may mention
                     // this URI.
                     if has_publish_diagnostics_for_uri(&buf, &uri_for_reader) {
                         // Give a brief grace read so the array body is fully buffered.
-                        break;
-                    }
-                    if buf.len() > 8 * 1024 * 1024 {
                         break;
                     }
                 }
@@ -787,8 +797,7 @@ fn top_level_uint_field(obj: &[u8], field: &[u8]) -> Option<u32> {
     }
     if j == start {
         None
-    } else if j < obj.len()
-        && !matches!(obj[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    } else if j < obj.len() && !matches!(obj[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
     {
         None
     } else {
@@ -986,9 +995,7 @@ fn read_json_id_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
     if j == start || (bytes[start] == b'-' && j == start + 1) {
         return None;
     }
-    if j < bytes.len()
-        && !matches!(bytes[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
-    {
+    if j < bytes.len() && !matches!(bytes[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']') {
         return None;
     }
     Some((String::from_utf8_lossy(&bytes[start..j]).into_owned(), j))
@@ -1530,7 +1537,9 @@ mod tests {
         assert!(msg.contains(r#""labelDetailsSupport":true"#));
         assert!(msg.contains(r#""documentationFormat":["markdown","plaintext"]"#));
         assert!(msg.contains(r#""completionItemKind":{"valueSet":[1,2,3"#));
-        assert!(msg.contains(r#""completionList":{"itemDefaults":["commitCharacters","editRange"]}"#));
+        assert!(
+            msg.contains(r#""completionList":{"itemDefaults":["commitCharacters","editRange"]}"#)
+        );
         assert!(msg.contains(r#""hover":{"contentFormat":["markdown","plaintext"]}"#));
         assert!(msg.contains(r#""definition":{"linkSupport":true}"#));
         assert!(msg.contains(r#""signatureHelp":{"signatureInformation":{"documentationFormat":["markdown","plaintext"],"parameterInformation":{"labelOffsetSupport":true}}}"#));
@@ -1576,6 +1585,22 @@ mod tests {
 
         assert!(!has_response_id(fractional, "2"));
         assert!(has_response_id(stream, "2"));
+    }
+
+    #[test]
+    fn lsp_stream_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"abcd");
+
+        assert!(append_lsp_stream_chunk(&mut buf, b"ef", 6));
+        assert_eq!(buf, b"abcdef");
+    }
+
+    #[test]
+    fn lsp_stream_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"{\"jsonrpc\":\"2.0\",");
+
+        assert!(!append_lsp_stream_chunk(&mut buf, b"\"id\":2}", 20));
+        assert!(buf.is_empty());
     }
 
     #[test]
@@ -1650,7 +1675,8 @@ mod tests {
 
     #[test]
     fn apply_edit_request_id_skips_malformed_requests_before_valid_one() {
-        let stream = br#"{"jsonrpc":"2.0","method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}
+        let stream =
+            br#"{"jsonrpc":"2.0","method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}
 {"jsonrpc":"2.0","id":false,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}
 {"jsonrpc":"2.0","id":"cmd-8","method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
 
