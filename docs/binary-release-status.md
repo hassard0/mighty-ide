@@ -131,3 +131,8 @@ Use `publish` for Windows only after the PowerShell packager and launch pass.
 Use `unbuilt - native runner unavailable for this pass` for macOS or Linux when
 their native package scripts were not run on matching infrastructure. Do not
 continue feature work after reporting these fields.
+
+Generated archive hashes, package timestamps, payload hashes, and launch results
+are intentionally not committed into this reusable status file. Record them in
+the ignored package manifest, external upload note, and final handoff response
+for the native package run that produced them.

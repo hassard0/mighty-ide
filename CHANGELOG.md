@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Stop-pass release handoff is explicit**: README and release docs now state
+  the source-first, package-second order for the final pass, keeping generated
+  archive hashes and manifest values out of git while tying the Windows ZIP
+  evidence to the final committed source hash.
 - **Clear Breakpoints palette names panel reveal**: Command Palette now says
   `Open Run and Debug; no breakpoints to clear` when Clear Breakpoints will
   reveal the debug panel but has no breakpoint inventory to clear.

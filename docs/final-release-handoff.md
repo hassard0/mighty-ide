@@ -20,6 +20,17 @@ Linux must be reported as `unbuilt` unless native runners completed during this
 same pass; script checks from Windows are readiness evidence, not binary
 evidence.
 
+The stop-pass order is fixed:
+
+1. Commit the final source-controlled README, changelog, build notes, package
+   scripts, and release docs.
+2. Build the Windows package from that clean commit.
+3. Verify the generated Windows package directory, ZIP, manifest, and packaged
+   launch.
+4. Record macOS and Linux as `unbuilt` unless matching native runners produced
+   and launched those packages during this same pass.
+5. Report the artifact-scoped evidence and stop.
+
 ## Publish Decisions
 
 | Platform | Decision from this Windows pass | Required native binary evidence |
@@ -187,6 +198,11 @@ changelog, package scripts, and release docs. The binary deliverable that can be
 cleanly produced on this host is the Windows x64 ZIP only. macOS and Linux are
 clean release paths, but their binary decisions remain `unbuilt` until native
 runners produce and launch those archives from this same source commit.
+
+Generated archive hashes, generated timestamps, payload hashes, and launch
+results are not committed back into this document after packaging. They are
+artifact evidence for the ignored package directory, final upload note, and
+final handoff response.
 
 Use the final response, the generated Windows `PACKAGE-MANIFEST.txt`, and the
 Windows ZIP hash/size as the artifact-scoped evidence for this pass. Do not

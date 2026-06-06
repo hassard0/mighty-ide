@@ -33,6 +33,12 @@ repository. A clean release package must be built on the same operating system
 that will run it because Mighty IDE ships a native executable plus a native
 `mighty-ui-sys` shim.
 
+This stop pass is source-final first, artifact-final second. The committed
+source tree contains the README, build notes, changelog, package scripts, and
+release docs. The generated release evidence for this pass is created only
+after that commit by the native package script, the packaged launch, and the
+final handoff values.
+
 Final stop-pass rule: finish the source, README, and docs; commit them; rebuild
 the Windows package from that exact commit; record the Windows ZIP size and
 SHA-256; verify that the packaged Windows executable launches; record macOS and
@@ -683,6 +689,11 @@ Stop-pass checklist:
 7. Record the ZIP size and SHA-256 in the final handoff, then stop. macOS and
    Linux remain `unbuilt` until their own native runners produce and smoke-test
    Mach-O and ELF archives.
+
+Do not commit generated archive hashes, generated timestamps, or package
+manifest values back into this README. Those values belong to the ignored
+package directory, external release upload note, and final handoff response for
+the package run that produced them.
 
 ## Dogfooding Mighty
 
