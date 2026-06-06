@@ -1399,7 +1399,14 @@ impl PaletteEngine {
                 .unwrap_or_else(|| "tab".to_string());
             return Cow::Owned(close_dirty_tab_desc(&name));
         }
-        if matches!(id, CMD_SAVE | CMD_SAVE_AS | CMD_RENAME_ACTIVE_FILE | CMD_DELETE_ACTIVE_FILE)
+        if matches!(
+            id,
+            CMD_SAVE
+                | CMD_SAVE_AS
+                | CMD_RENAME_ACTIVE_FILE
+                | CMD_DELETE_ACTIVE_FILE
+                | CMD_RENAME_SYMBOL
+        )
             && active_read_only
         {
             let name = ctx
@@ -5740,6 +5747,12 @@ mod tests {
         assert_eq!(
             engine
                 .contextual_desc(&ctx, CMD_DELETE_ACTIVE_FILE, "base")
+                .as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_RENAME_SYMBOL, "base")
                 .as_ref(),
             "asset.bin is read-only in the text editor"
         );

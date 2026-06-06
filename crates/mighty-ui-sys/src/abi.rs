@@ -11691,7 +11691,7 @@ pub extern "C" fn mui_rename_commit(handle: i64, line: i32, col: i32) -> i32 {
         ctx.rename.cancel();
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Rename is unavailable in read-only previews",
+            read_only_active_file_message(ctx),
         );
         return -1;
     }

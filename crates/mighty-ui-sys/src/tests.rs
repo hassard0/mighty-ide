@@ -15808,7 +15808,7 @@ fn rename_commit_rejects_read_only_binary_preview_before_fallback_edit() {
     assert_eq!(crate::mui_rename_active(h), 0);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Rename is unavailable in read-only previews");
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
