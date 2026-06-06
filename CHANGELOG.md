@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Find & Replace mouse close is quiet**: clicking the close affordance on the
+  Find & Replace bar now dismisses it without a `Find & Replace closed` toast;
+  Escape and the explicit close command still report close feedback.
 - **Branch switcher pointer dismissal is quiet**: clicking outside the Git branch
   switcher or using its pointer close path now closes it without a
   `Branch switcher closed` toast; Escape and the explicit close command still

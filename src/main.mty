@@ -156,6 +156,7 @@ extern c {
   fn mui_replace_toggle_focus(handle: I64) -> I32
   fn mui_replace_focus(handle: I64) -> I32
   fn mui_replace_cancel(handle: I64) -> I32
+  fn mui_replace_dismiss(handle: I64) -> I32
   fn mui_replace_close_at_click(handle: I64) -> I32
   fn mui_replace_can_next(handle: I64) -> I32
   fn mui_replace_can_all(handle: I64) -> I32
@@ -2876,7 +2877,7 @@ fn main() {
           }
         } else if tag == ev_mouse_down() {
           if mui_replace_close_at_click(h) == 1 {
-            let _repc = mui_replace_cancel(h)
+            let _repd = mui_replace_dismiss(h)
             replacing = false
             run_focus = false
             web_focus = false

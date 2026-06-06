@@ -17326,6 +17326,20 @@ pub extern "C" fn mui_replace_cancel(handle: i64) -> i32 {
     }
 }
 
+/// Silently close the replace bar for incidental UI dismissal.
+#[no_mangle]
+pub extern "C" fn mui_replace_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.replace_bar.is_active() {
+        ctx.replace_bar.cancel();
+        1
+    } else {
+        0
+    }
+}
+
 /// `1` when the latest mouse-down hit the replace bar's close button.
 #[no_mangle]
 pub extern "C" fn mui_replace_close_at_click(handle: i64) -> i32 {

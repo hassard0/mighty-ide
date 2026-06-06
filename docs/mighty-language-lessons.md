@@ -14122,3 +14122,17 @@ click-away interaction produce `Branch switcher closed`.
 - **Language note:** no compiler gap surfaced. Modal overlays should separate
   pointer dismissal from command cancellation even when both end in the same
   closed state.
+
+## L1113 - Inline Toolbars Also Need Silent Pointer Dismissal
+
+Find & Replace has both command-like exits and ordinary pointer exits. Escape
+and the Command Palette close row are explicit commands, but the toolbar close
+button is part of incidental focus cleanup while editing. Reusing the same
+cancel ABI made the pointer close emit `Find & Replace closed`.
+
+- **IDE note:** the Find & Replace mouse close path now calls
+  `mui_replace_dismiss`. `mui_replace_cancel` remains the explicit close
+  command and still reports active and no-open states.
+- **Language note:** no compiler gap surfaced. Inline toolbars should get the
+  same command-versus-dismiss split as modal overlays when a close affordance is
+  primarily focus management.

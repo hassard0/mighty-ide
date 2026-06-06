@@ -18266,6 +18266,15 @@ fn find_replace_close_command_clears_active_bar() {
     );
     ctx.toasts.clear();
 
+    assert_eq!(crate::mui_replace_dismiss(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    crate::mui_replace_open(handle);
+    assert_eq!(crate::mui_replace_active(handle), 1);
+    assert_eq!(crate::mui_replace_dismiss(handle), 1);
+    assert_eq!(crate::mui_replace_active(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
     assert_eq!(crate::mui_replace_close_at_click(handle), 0);
     assert_eq!(ctx.toasts.toasts().len(), 1);
     assert_eq!(
@@ -22884,10 +22893,12 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
         .map(|i| replace_start + i)
         .expect("Find & Replace branch should precede prompt branch");
     let replace_branch = &main[replace_start..replace_end];
-    let replace_local_cleanup = "let _repc = mui_replace_cancel(h)\n            replacing = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let replace_escape_cleanup = "let _repc = mui_replace_cancel(h)\n            replacing = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
+    let replace_mouse_cleanup = "let _repd = mui_replace_dismiss(h)\n            replacing = false\n            run_focus = false\n            web_focus = false\n            test_focus = false\n            term_focus = false\n            ai_focus = false\n            agents_focus = false\n            find_nav = false\n            typing = false";
     assert!(
-        replace_branch.matches(replace_local_cleanup).count() >= 2,
-        "Find & Replace local Escape and close-click routes must release stale focus"
+        replace_branch.contains(replace_escape_cleanup)
+            && replace_branch.contains(replace_mouse_cleanup),
+        "Find & Replace local Escape and close-click routes must release stale focus with explicit versus silent cleanup"
     );
     let prompt_start = main
         .find("} else if prompt_kind != 0 {")
