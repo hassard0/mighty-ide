@@ -1346,6 +1346,22 @@ impl PaletteEngine {
                 ctx.shortcuts.overrides().is_empty(),
             );
         }
+        if matches!(
+            id,
+            CMD_SETTINGS_CLOSE
+                | CMD_DIFF_CLOSE_VIEW
+                | CMD_PEEK_CLOSE
+                | CMD_MARKDOWN_CLOSE_PREVIEW
+        ) {
+            return close_surface_contextual_desc(
+                id,
+                base,
+                ctx.settings_panel.is_active(),
+                ctx.diff.is_active(),
+                ctx.peek.is_active(),
+                ctx.md_preview.is_open() || ctx.md_pane.is_some(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1771,6 +1787,25 @@ fn keyboard_shortcuts_contextual_desc<'a>(
         }
         CMD_KEYBOARD_SHORTCUTS_RESET_ALL if overrides_empty => {
             Cow::Borrowed("Keyboard Shortcuts already use defaults")
+        }
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn close_surface_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    settings_open: bool,
+    diff_open: bool,
+    peek_open: bool,
+    markdown_open: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_SETTINGS_CLOSE if !settings_open => Cow::Borrowed("Settings panel is already closed"),
+        CMD_DIFF_CLOSE_VIEW if !diff_open => Cow::Borrowed("Diff view is already closed"),
+        CMD_PEEK_CLOSE if !peek_open => Cow::Borrowed("Peek view is already closed"),
+        CMD_MARKDOWN_CLOSE_PREVIEW if !markdown_open => {
+            Cow::Borrowed("Markdown preview is already closed")
         }
         _ => Cow::Borrowed(base),
     }
@@ -2960,6 +2995,98 @@ mod tests {
                 true,
                 true,
                 false
+            ),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn close_surface_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_SETTINGS_CLOSE,
+                "base",
+                false,
+                true,
+                true,
+                true
+            ),
+            Cow::Borrowed("Settings panel is already closed")
+        );
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_DIFF_CLOSE_VIEW,
+                "base",
+                true,
+                false,
+                true,
+                true
+            ),
+            Cow::Borrowed("Diff view is already closed")
+        );
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_PEEK_CLOSE,
+                "base",
+                true,
+                true,
+                false,
+                true
+            ),
+            Cow::Borrowed("Peek view is already closed")
+        );
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_MARKDOWN_CLOSE_PREVIEW,
+                "base",
+                true,
+                true,
+                true,
+                false
+            ),
+            Cow::Borrowed("Markdown preview is already closed")
+        );
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_SETTINGS_CLOSE,
+                "base",
+                true,
+                false,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_DIFF_CLOSE_VIEW,
+                "base",
+                false,
+                true,
+                false,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_PEEK_CLOSE,
+                "base",
+                false,
+                false,
+                true,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            close_surface_contextual_desc(
+                CMD_MARKDOWN_CLOSE_PREVIEW,
+                "base",
+                false,
+                false,
+                false,
+                true
             ),
             Cow::Borrowed("base")
         );

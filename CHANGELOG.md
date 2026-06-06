@@ -99,6 +99,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Close Keyboard Shortcuts, Reset Selected, and Reset All now mirror runtime
   feedback for closed overlays, selected shortcuts already using defaults, and
   empty override sets.
+- **Command Palette close-surface rows explain no-op states**: Settings Close,
+  Diff Close View, Peek Close View, and Markdown Close Preview now mirror
+  already-closed runtime feedback before dispatch.
 - **Smart edit ABIs report read-only previews directly**: bracket/quote
   smart-insert and pair-backspace entry points now reject binary previews
   themselves instead of depending on a fallback edit route for the warning.
