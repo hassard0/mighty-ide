@@ -359,8 +359,9 @@ source commit and report only the archive produced by that run.
   the file-backed tab from disk, while refusing directory targets before any
   dirty buffer is discarded
 - Project-wide Search panel (Ctrl+Shift+F), with stale directory targets
-  rejected before opening a tab and Replace All reporting dirty, changed,
-  missing, or failed-write files instead of silently skipping them
+  rejected before opening a tab, files above 4 MiB skipped before scanning, and
+  Replace All reporting dirty, changed, missing, or failed-write files instead
+  of silently skipping them
 - Search closed-panel input, focus, run/replace, click, row-hit, and row-open
   routes report that the panel is already closed instead of mutating retained
   hidden results

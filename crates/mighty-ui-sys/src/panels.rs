@@ -1816,13 +1816,20 @@ pub extern "C" fn mui_search_open(handle: i64, i: i32) -> i32 {
     };
     let name = crate::abi::file_target_name(&path);
     let bytes = match search_target_kind(&path) {
-        SearchTargetKind::File => match std::fs::read(&path) {
+        SearchTargetKind::File => match crate::search::read_search_file_bytes(&path) {
             Ok(bytes) => bytes,
-            Err(_) => {
+            Err(crate::search::SearchFileReadError::Missing) => {
                 return refresh_bad_search_target(
                     ctx,
                     format!("Search target missing: {name}"),
                     true,
+                );
+            }
+            Err(crate::search::SearchFileReadError::Oversized) => {
+                return refresh_bad_search_target(
+                    ctx,
+                    format!("Search result changed: {name}; results refreshed"),
+                    false,
                 );
             }
         },

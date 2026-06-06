@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1207).
+(lessons L1-L1208).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Project search skips oversized files before reading**: workspace search now
+  checks candidate file metadata and skips files above 4 MiB before scanning,
+  keeping search and replace-all from allocating large generated artifacts.
 - **Oversized file opens become read-only previews**: file-backed tabs now check
   metadata before reading and open files above 16 MiB as lightweight read-only
   previews instead of allocating the full file into the text editor.

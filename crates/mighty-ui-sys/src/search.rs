@@ -17,6 +17,9 @@ use std::path::{Path, PathBuf};
 
 /// Directory names never descended into during the walk.
 const SKIP_DIRS: &[&str] = &[".git", "target", "node_modules", "dist", "build", ".cargo"];
+/// Project search reads many files on the UI path, so each candidate gets a
+/// smaller budget than the explicit editor open path.
+pub(crate) const MAX_SEARCH_FILE_BYTES: u64 = 4 * 1024 * 1024;
 
 /// One match within a file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -107,6 +110,24 @@ pub fn search_text(text: &str, needle: &str, file: usize, out: &mut Vec<SearchMa
 fn looks_binary(bytes: &[u8]) -> bool {
     let n = bytes.len().min(8192);
     bytes[..n].contains(&0)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SearchFileReadError {
+    Missing,
+    Oversized,
+}
+
+pub(crate) fn read_search_file_bytes(path: &Path) -> Result<Vec<u8>, SearchFileReadError> {
+    match std::fs::metadata(path) {
+        Ok(meta) if !meta.is_file() => return Err(SearchFileReadError::Missing),
+        Ok(meta) if meta.len() > MAX_SEARCH_FILE_BYTES => {
+            return Err(SearchFileReadError::Oversized);
+        }
+        Ok(_) => {}
+        Err(_) => return Err(SearchFileReadError::Missing),
+    }
+    std::fs::read(path).map_err(|_| SearchFileReadError::Missing)
 }
 
 pub(crate) fn content_fingerprint(bytes: &[u8]) -> u64 {
@@ -206,7 +227,7 @@ impl SearchState {
             if self.results.matches.len() >= MAX_MATCHES {
                 break;
             }
-            let bytes = match std::fs::read(&path) {
+            let bytes = match read_search_file_bytes(&path) {
                 Ok(b) => b,
                 Err(_) => continue,
             };
@@ -282,10 +303,14 @@ impl SearchState {
                 skipped += 1;
                 continue;
             }
-            let bytes = match std::fs::read(&path) {
+            let bytes = match read_search_file_bytes(&path) {
                 Ok(b) => b,
-                Err(_) => {
+                Err(SearchFileReadError::Missing) => {
                     missing += 1;
+                    continue;
+                }
+                Err(SearchFileReadError::Oversized) => {
+                    stale += 1;
                     continue;
                 }
             };
@@ -379,7 +404,10 @@ fn folded_match_ranges(text: &str, needle: &str) -> Vec<(usize, usize)> {
         {
             let start = folded[idx].byte_start;
             let end = folded[idx + needle_folded.len() - 1].byte_end;
-            if ranges.last().map_or(true, |&(_, prev_end)| start >= prev_end) {
+            if ranges
+                .last()
+                .map_or(true, |&(_, prev_end)| start >= prev_end)
+            {
                 ranges.push((start, end));
             }
             idx += needle_folded.len().max(1);
@@ -447,9 +475,7 @@ fn collect_files(root: &Path, max: usize) -> Vec<PathBuf> {
         }
         // Sort: files then subdirs, each alphabetical, so files near the root
         // surface first and the order is deterministic.
-        entries.sort_by(|a, b| {
-            a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0))
-        });
+        entries.sort_by(|a, b| a.1.cmp(&b.1).then_with(|| a.0.cmp(&b.0)));
         for (path, is_dir) in entries {
             if is_dir {
                 stack.push(path);
@@ -614,6 +640,66 @@ mod tests {
         assert_eq!(replaced, 3);
         let a = std::fs::read_to_string(root.join("a.txt")).unwrap();
         assert!(a.contains("got me"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn project_search_skips_oversized_files_before_reading() {
+        let root = std::env::temp_dir().join("mui_search_oversized_skip");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("small.txt"), b"needle\n").unwrap();
+        let large = root.join("large.txt");
+        let file = std::fs::File::create(&large).unwrap();
+        file.set_len(MAX_SEARCH_FILE_BYTES + 1).unwrap();
+
+        let mut state = SearchState::new();
+        for ch in "needle".chars() {
+            state.push_char(ch as u32);
+        }
+
+        assert_eq!(state.run(&root), 1);
+        assert_eq!(state.file_count(), 1);
+        assert_eq!(
+            state.file_at(0).unwrap().path.file_name().unwrap(),
+            "small.txt"
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn replace_all_treats_grown_oversized_files_as_stale() {
+        let root = std::env::temp_dir().join("mui_search_oversized_replace");
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("a.txt");
+        std::fs::write(&path, b"needle\n").unwrap();
+
+        let mut state = SearchState::new();
+        for ch in "needle".chars() {
+            state.push_char(ch as u32);
+        }
+        state.replace_focus = true;
+        for ch in "replacement".chars() {
+            state.push_char(ch as u32);
+        }
+        state.replace_focus = false;
+        assert_eq!(state.run(&root), 1);
+
+        let file = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+        file.set_len(MAX_SEARCH_FILE_BYTES + 1).unwrap();
+
+        let (replaced, changed, dirty, stale, missing, write_failed) =
+            state.replace_all_with_changed_paths_skipping(&root, |_| false);
+
+        assert_eq!(replaced, 0);
+        assert!(changed.is_empty());
+        assert_eq!(dirty, 0);
+        assert_eq!(stale, 1);
+        assert_eq!(missing, 0);
+        assert_eq!(write_failed, 0);
+
         let _ = std::fs::remove_dir_all(&root);
     }
 
