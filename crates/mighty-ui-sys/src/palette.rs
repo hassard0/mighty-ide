@@ -1314,6 +1314,9 @@ impl PaletteEngine {
             CMD_DEBUG_STOP
                 | CMD_DEBUG_PAUSE
                 | CMD_DEBUG_RESTART
+                | CMD_DEBUG_STEP_OVER
+                | CMD_DEBUG_STEP_INTO
+                | CMD_DEBUG_STEP_OUT
                 | CMD_DEBUG_CLEAR_BREAKPOINTS
                 | CMD_DEBUG_CLEAR_SESSION
                 | CMD_DEBUG_CLOSE
@@ -1830,6 +1833,15 @@ fn debug_contextual_desc<'a>(
         }
         CMD_DEBUG_PAUSE if !matches!(state, crate::dap::DebugState::Running) => {
             Cow::Borrowed("Pause is available while running")
+        }
+        CMD_DEBUG_STEP_OVER if !matches!(state, crate::dap::DebugState::Stopped) => {
+            Cow::Borrowed("Step Over is available when paused")
+        }
+        CMD_DEBUG_STEP_INTO if !matches!(state, crate::dap::DebugState::Stopped) => {
+            Cow::Borrowed("Step Into is available when paused")
+        }
+        CMD_DEBUG_STEP_OUT if !matches!(state, crate::dap::DebugState::Stopped) => {
+            Cow::Borrowed("Step Out is available when paused")
         }
         CMD_DEBUG_RESTART if !has_program => Cow::Borrowed("No debug target to restart"),
         CMD_DEBUG_CLEAR_BREAKPOINTS if breakpoint_count == 0 => {
@@ -3084,6 +3096,42 @@ mod tests {
         );
         assert_eq!(
             debug_contextual_desc(
+                CMD_DEBUG_STEP_OVER,
+                "base",
+                true,
+                crate::dap::DebugState::Idle,
+                false,
+                0,
+                true
+            ),
+            Cow::Borrowed("Step Over is available when paused")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_STEP_INTO,
+                "base",
+                true,
+                crate::dap::DebugState::Running,
+                false,
+                0,
+                true
+            ),
+            Cow::Borrowed("Step Into is available when paused")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_STEP_OUT,
+                "base",
+                true,
+                crate::dap::DebugState::Terminated,
+                false,
+                0,
+                true
+            ),
+            Cow::Borrowed("Step Out is available when paused")
+        );
+        assert_eq!(
+            debug_contextual_desc(
                 CMD_DEBUG_CLEAR_BREAKPOINTS,
                 "base",
                 true,
@@ -3136,6 +3184,42 @@ mod tests {
                 "base",
                 true,
                 crate::dap::DebugState::Running,
+                true,
+                1,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_STEP_OVER,
+                "base",
+                true,
+                crate::dap::DebugState::Stopped,
+                true,
+                1,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_STEP_INTO,
+                "base",
+                true,
+                crate::dap::DebugState::Stopped,
+                true,
+                1,
+                false
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            debug_contextual_desc(
+                CMD_DEBUG_STEP_OUT,
+                "base",
+                true,
+                crate::dap::DebugState::Stopped,
                 true,
                 1,
                 false

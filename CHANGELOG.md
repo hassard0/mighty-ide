@@ -80,9 +80,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Command Palette Web lifecycle rows explain no-op states**: Web Stop, Open in
   Browser, Clear Output, and Close Panel now mirror Web Playground runtime
   feedback for idle servers, missing URLs, empty output, and closed panels.
-- **Command Palette Debug controls explain no-op states**: Pause, Restart, and
-  Clear Breakpoints now mirror Run and Debug runtime feedback for non-running
-  debug sessions, missing restart targets, and empty breakpoint inventories.
+- **Command Palette Debug controls explain no-op states**: Pause, Step Over,
+  Step Into, Step Out, Restart, and Clear Breakpoints now mirror Run and Debug
+  runtime feedback for non-running or non-paused debug sessions, missing restart
+  targets, and empty breakpoint inventories.
 - **Command Palette Agents lifecycle rows explain no-op states**: Clear Run
   Output and Close Panel now mirror Mighty Agents runtime feedback for empty
   run transcripts and closed panels.

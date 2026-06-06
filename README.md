@@ -119,8 +119,8 @@ source state and requires a new package run.
 - Command Palette Search and Outline lifecycle rows mirror Search and Outline
   no-op states, including empty result/symbol lists and closed panels
 - Command Palette Debug lifecycle rows mirror Run and Debug no-op states,
-  including unavailable pause/restart/clear-breakpoint actions, idle stops,
-  empty sessions, and closed panel
+  including unavailable pause, step, restart, and clear-breakpoint actions,
+  idle stops, empty sessions, and closed panel
 - Command Palette Source Control and Explorer lifecycle rows mirror no-op
   states, including empty commit-message drafts and closed panels
 - Command Palette Keyboard Shortcuts lifecycle rows mirror no-op states,
