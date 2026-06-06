@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews stale reload/revert targets**: Reload Active File
+  and Revert Active File now report missing or directory-backed active paths
+  before dispatch instead of first promising a disk reload.
 - **Command Palette previews Agents compiler blockers**: Mighty Agents open and
   refresh rows now report when `MIGHTY_MTY` points to a missing compiler before
   dispatch, while Clear Run Output and Close Panel keep their no-op state

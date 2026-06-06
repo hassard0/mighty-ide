@@ -1335,6 +1335,15 @@ impl PaletteEngine {
                 welcome_visible,
             );
         }
+        if matches!(id, CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE)
+            && !(id == CMD_RELOAD_ACTIVE_FILE && ctx.tabs.is_dirty(ctx.tabs.active()))
+        {
+            if let Some(path) = ctx.tabs.active_path() {
+                if let Some(desc) = reload_revert_stale_target_desc(id, &path) {
+                    return Cow::Owned(desc);
+                }
+            }
+        }
         if matches!(id, CMD_RUN_STOP | CMD_RUN_CLEAR_OUTPUT | CMD_RUN_CLOSE) {
             return run_contextual_desc(
                 id,
@@ -2529,6 +2538,26 @@ fn command_contextual_desc_with_workspace<'a>(
             Cow::Borrowed("Needs a file-backed tab")
         }
         _ => Cow::Borrowed(base),
+    }
+}
+
+fn palette_basename(path: &std::path::Path) -> String {
+    path.file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.to_string_lossy().into_owned())
+}
+
+fn reload_revert_stale_target_desc(id: u32, path: &std::path::Path) -> Option<String> {
+    let action = match id {
+        CMD_RELOAD_ACTIVE_FILE => "Reload",
+        CMD_REVERT_ACTIVE_FILE => "Revert",
+        _ => return None,
+    };
+    let name = palette_basename(path);
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => None,
+        Ok(_) => Some(format!("{action} failed: {name}: not a file")),
+        Err(e) => Some(format!("{action} failed: {name}: {e}")),
     }
 }
 
@@ -5160,6 +5189,41 @@ mod tests {
             ),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn reload_revert_descriptions_report_stale_targets() {
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_reload_revert_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let missing = root.join("gone.mty");
+        let reload_missing = reload_revert_stale_target_desc(CMD_RELOAD_ACTIVE_FILE, &missing)
+            .expect("missing reload target should report");
+        assert!(
+            reload_missing.starts_with("Reload failed: gone.mty: "),
+            "{reload_missing}"
+        );
+
+        let blocked = root.join("blocked.mty");
+        std::fs::create_dir_all(&blocked).unwrap();
+        assert_eq!(
+            reload_revert_stale_target_desc(CMD_REVERT_ACTIVE_FILE, &blocked),
+            Some("Revert failed: blocked.mty: not a file".to_string())
+        );
+
+        let file = root.join("ok.mty");
+        std::fs::write(&file, "ok").unwrap();
+        assert_eq!(
+            reload_revert_stale_target_desc(CMD_RELOAD_ACTIVE_FILE, &file),
+            None
+        );
+        assert_eq!(reload_revert_stale_target_desc(CMD_SAVE, &missing), None);
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

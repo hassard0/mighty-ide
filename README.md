@@ -258,7 +258,8 @@ and the final handoff response after packaging.
   close-right cleanup remove tab clutter while preserving dirty buffers
 - Command Palette tab-management rows for moving, sorting, closing saved tabs,
   closing duplicate tabs, reload, and revert mirror their no-op runtime feedback
-  before dispatch
+  before dispatch, including stale missing or directory-backed reload/revert
+  targets
 - Unsaved-changes confirmation stale click, cancel, save, and discard routes
   report when the confirmation has already closed
 - Bottom dock stale close, preset, and resize affordances report when no dock is
