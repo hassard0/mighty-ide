@@ -980,6 +980,11 @@ fn read_json_id_at(bytes: &[u8], pos: usize) -> Option<(String, usize)> {
     if j == start || (bytes[start] == b'-' && j == start + 1) {
         return None;
     }
+    if j < bytes.len()
+        && !matches!(bytes[j], b' ' | b'\t' | b'\r' | b'\n' | b',' | b'}' | b']')
+    {
+        return None;
+    }
     Some((String::from_utf8_lossy(&bytes[start..j]).into_owned(), j))
 }
 
@@ -1525,6 +1530,16 @@ mod tests {
     }
 
     #[test]
+    fn response_id_wait_rejects_fractional_numeric_prefix() {
+        let fractional = br#"{"jsonrpc":"2.0","id":2.5,"result":{"contents":"wrong"}}"#;
+        let stream = br#"{"jsonrpc":"2.0","id":2.5,"result":{"contents":"wrong"}}
+{"jsonrpc":"2.0","id":2,"result":{"contents":"right"}}"#;
+
+        assert!(!has_response_id(fractional, "2"));
+        assert!(has_response_id(stream, "2"));
+    }
+
+    #[test]
     fn response_isolation_skips_progress_metadata_id() {
         let stream = r#"{"jsonrpc":"2.0","method":"$/progress","params":{"metadata":{"id":2,"result":{"contents":"wrong"}}}}{"jsonrpc":"2.0","id":2,"result":{"contents":"right"}}"#;
         let response = crate::nav::lsp::isolate_response_id(stream, 2);
@@ -1604,6 +1619,14 @@ mod tests {
             apply_edit_request_id(stream),
             Some(r#""cmd-8""#.to_string())
         );
+    }
+
+    #[test]
+    fn apply_edit_request_id_rejects_fractional_numeric_prefix() {
+        let stream = br#"{"jsonrpc":"2.0","id":8.5,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}
+{"jsonrpc":"2.0","id":9,"method":"workspace/applyEdit","params":{"edit":{"changes":{}}}}"#;
+
+        assert_eq!(apply_edit_request_id(stream), Some("9".to_string()));
     }
 
     #[test]
