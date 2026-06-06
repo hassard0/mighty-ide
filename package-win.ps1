@@ -12,6 +12,46 @@ param(
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
+$MinMtyVersion = [version]"0.47.0"
+
+function Resolve-MtyCompiler {
+  param([string]$Requested)
+
+  if (-not [string]::IsNullOrWhiteSpace($Requested)) {
+    if (Test-Path -LiteralPath $Requested -PathType Leaf) {
+      return (Resolve-Path -LiteralPath $Requested).Path
+    }
+    throw "mty compiler not found: $Requested"
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($env:MIGHTY_MTY)) {
+    if (Test-Path -LiteralPath $env:MIGHTY_MTY -PathType Leaf) {
+      return (Resolve-Path -LiteralPath $env:MIGHTY_MTY).Path
+    }
+    throw "MIGHTY_MTY points to a missing compiler: $env:MIGHTY_MTY"
+  }
+
+  $cmd = Get-Command mty -ErrorAction SilentlyContinue
+  if ($cmd) { return $cmd.Source }
+
+  throw "mty compiler not found. Set -Mty, set MIGHTY_MTY, or put mty on PATH."
+}
+
+function Assert-MtyCompilerVersion {
+  param([Parameter(Mandatory = $true)][string]$Compiler)
+
+  $mtyVersionText = (& $Compiler --version) -join " "
+  if ($LASTEXITCODE -ne 0) {
+    throw "failed to run '$Compiler --version'; cannot verify Mighty compiler version"
+  }
+  if ($mtyVersionText -notmatch '(\d+)\.(\d+)\.(\d+)') {
+    throw "unable to parse Mighty compiler version from '$mtyVersionText'"
+  }
+  $mtyVersion = [version]$Matches[0]
+  if ($mtyVersion -lt $MinMtyVersion) {
+    throw "mty compiler $mtyVersion is too old for Mighty IDE; require $MinMtyVersion or newer. Set -Mty or MIGHTY_MTY to a current compiler."
+  }
+}
 
 if ((Test-Path ".git") -and (Get-Command git -ErrorAction SilentlyContinue)) {
   $gitStatus = & git status --porcelain
@@ -20,6 +60,9 @@ if ((Test-Path ".git") -and (Get-Command git -ErrorAction SilentlyContinue)) {
     throw "package-win.ps1 requires a clean git worktree before building release artifacts"
   }
 }
+
+$ResolvedMty = Resolve-MtyCompiler $Mty
+Assert-MtyCompilerVersion $ResolvedMty
 
 $pkg = "mighty-ide-win64"
 $dist = Join-Path "dist" $pkg

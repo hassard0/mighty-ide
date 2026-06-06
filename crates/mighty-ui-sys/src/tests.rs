@@ -165,6 +165,34 @@ fn package_scripts_scan_finished_archives_for_sidecars_and_foreign_payloads() {
 }
 
 #[test]
+fn build_and_package_scripts_reject_stale_mty_compilers() {
+    for script in [
+        "build-ide.ps1",
+        "build-ide.sh",
+        "package-win.ps1",
+        "package-win.sh",
+        "package-macos.sh",
+        "package-linux.sh",
+    ] {
+        let body = std::fs::read_to_string(repo_file(script)).unwrap_or_else(|e| {
+            panic!("failed to read {script}: {e}");
+        });
+        assert!(
+            body.contains("0.47.0"),
+            "{script} must pin the minimum Mighty compiler version"
+        );
+        assert!(
+            body.contains("--version"),
+            "{script} must inspect `mty --version` before compiling src/main.mty"
+        );
+        assert!(
+            body.contains("too old for Mighty IDE"),
+            "{script} must fail stale compilers with an actionable error"
+        );
+    }
+}
+
+#[test]
 fn initial_file_path_requires_existing_file() {
     let root = std::env::temp_dir().join(format!("mui_initial_file_path_{}", std::process::id()));
     let dir = root.join("dir");
