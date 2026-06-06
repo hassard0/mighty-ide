@@ -86,6 +86,8 @@ Mach-O or ELF manifests from the same pass.
   read-only previews as unavailable before the command is launched
 - Command Palette Run lifecycle rows mirror Run panel no-op states, including
   no process to stop, empty output, and closed panel
+- Command Palette Testing lifecycle rows mirror Testing panel no-op states,
+  including no test run to stop, empty results, and closed panel
 - Command Palette Web lifecycle rows mirror Web Playground no-op states,
   including no running server, missing URL, empty output, and closed panel
 - Scalar clipboard feedback from Mighty coalesces with ordinary copy/cut/paste

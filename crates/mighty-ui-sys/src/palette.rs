@@ -1254,6 +1254,18 @@ impl PaletteEngine {
                 ctx.run.line_count(),
             );
         }
+        if matches!(
+            id,
+            CMD_TEST_STOP | CMD_TEST_CLEAR_RESULTS | CMD_TEST_CLOSE
+        ) {
+            return test_contextual_desc(
+                id,
+                base,
+                ctx.tests_panel.is_active(),
+                ctx.tests_panel.is_running(),
+                ctx.tests_panel.row_count(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1523,6 +1535,21 @@ fn run_contextual_desc<'a>(
         CMD_RUN_STOP if !running => Cow::Borrowed("No run process to stop"),
         CMD_RUN_CLEAR_OUTPUT if line_count == 0 => Cow::Borrowed("Run output already empty"),
         CMD_RUN_CLOSE if !active => Cow::Borrowed("Run panel is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn test_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    running: bool,
+    row_count: usize,
+) -> Cow<'a, str> {
+    match id {
+        CMD_TEST_STOP if !running => Cow::Borrowed("No test run to stop"),
+        CMD_TEST_CLEAR_RESULTS if row_count == 0 => Cow::Borrowed("Test results already empty"),
+        CMD_TEST_CLOSE if !active => Cow::Borrowed("Testing panel is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -2419,6 +2446,34 @@ mod tests {
         );
         assert_eq!(
             run_contextual_desc(CMD_RUN_CLOSE, "base", true, false, 0),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn test_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            test_contextual_desc(CMD_TEST_STOP, "base", false, false, 0),
+            Cow::Borrowed("No test run to stop")
+        );
+        assert_eq!(
+            test_contextual_desc(CMD_TEST_CLEAR_RESULTS, "base", true, true, 0),
+            Cow::Borrowed("Test results already empty")
+        );
+        assert_eq!(
+            test_contextual_desc(CMD_TEST_CLOSE, "base", false, false, 0),
+            Cow::Borrowed("Testing panel is already closed")
+        );
+        assert_eq!(
+            test_contextual_desc(CMD_TEST_STOP, "base", true, true, 6),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            test_contextual_desc(CMD_TEST_CLEAR_RESULTS, "base", true, true, 6),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            test_contextual_desc(CMD_TEST_CLOSE, "base", true, false, 0),
             Cow::Borrowed("base")
         );
     }
