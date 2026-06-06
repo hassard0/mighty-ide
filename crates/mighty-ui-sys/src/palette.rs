@@ -1235,6 +1235,19 @@ impl PaletteEngine {
         if id == CMD_AUTOCOMPLETE && active_has_path && !active_read_only {
             return autocomplete_contextual_desc(base, ctx.language);
         }
+        if matches!(
+            id,
+            CMD_RUN_FILE | CMD_RUN_IN_BROWSER | CMD_RUN_TESTS | CMD_RUN_TEST_AT_CURSOR
+        )
+            && active_has_path
+            && !active_read_only
+        {
+            if let Some(path) = ctx.tabs.active_path() {
+                if let Some(desc) = active_launch_stale_target_desc(id, &path) {
+                    return Cow::Owned(desc);
+                }
+            }
+        }
         if id == CMD_DEBUG_START_CONTINUE && active_has_path && !active_read_only {
             if let Some(path) = ctx.tabs.active_path() {
                 if let Some(desc) = debug_stale_target_desc("Debug unavailable", &path) {
@@ -2842,6 +2855,21 @@ fn blame_stale_target_desc(path: &std::path::Path) -> Option<String> {
 }
 
 fn debug_stale_target_desc(prefix: &str, path: &std::path::Path) -> Option<String> {
+    let name = palette_basename(path);
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => None,
+        Ok(_) => Some(format!("{prefix}: target is not a file: {name}")),
+        Err(_) => Some(format!("{prefix}: target missing: {name}")),
+    }
+}
+
+fn active_launch_stale_target_desc(id: u32, path: &std::path::Path) -> Option<String> {
+    let prefix = match id {
+        CMD_RUN_FILE => "Run unavailable",
+        CMD_RUN_IN_BROWSER => "Browser run unavailable",
+        CMD_RUN_TESTS | CMD_RUN_TEST_AT_CURSOR => "Tests unavailable",
+        _ => return None,
+    };
     let name = palette_basename(path);
     match std::fs::metadata(path) {
         Ok(meta) if meta.is_file() => None,
@@ -4660,6 +4688,81 @@ mod tests {
                 .as_ref(),
             "Debug unavailable: target is not a file: blocked.mty"
         );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn launch_command_descriptions_report_stale_active_targets() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_launch_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let missing = root.join("missing.mty");
+        std::fs::write(&missing, "fn main() {}\n").unwrap();
+        ctx.tabs.open_path(missing.clone());
+        std::fs::remove_file(&missing).unwrap();
+
+        let engine = PaletteEngine::new();
+        for (id, base, expected) in [
+            (
+                CMD_RUN_FILE,
+                "Run file",
+                "Run unavailable: target missing: missing.mty",
+            ),
+            (
+                CMD_RUN_IN_BROWSER,
+                "Run in browser",
+                "Browser run unavailable: target missing: missing.mty",
+            ),
+            (
+                CMD_RUN_TESTS,
+                "Run tests",
+                "Tests unavailable: target missing: missing.mty",
+            ),
+            (
+                CMD_RUN_TEST_AT_CURSOR,
+                "Run test at cursor",
+                "Tests unavailable: target missing: missing.mty",
+            ),
+        ] {
+            assert_eq!(engine.contextual_desc(&ctx, id, base).as_ref(), expected);
+        }
+
+        let blocked = root.join("blocked.mty");
+        std::fs::create_dir_all(&blocked).unwrap();
+        ctx.tabs.set_active_path(blocked);
+
+        for (id, base, expected) in [
+            (
+                CMD_RUN_FILE,
+                "Run file",
+                "Run unavailable: target is not a file: blocked.mty",
+            ),
+            (
+                CMD_RUN_IN_BROWSER,
+                "Run in browser",
+                "Browser run unavailable: target is not a file: blocked.mty",
+            ),
+            (
+                CMD_RUN_TESTS,
+                "Run tests",
+                "Tests unavailable: target is not a file: blocked.mty",
+            ),
+            (
+                CMD_RUN_TEST_AT_CURSOR,
+                "Run test at cursor",
+                "Tests unavailable: target is not a file: blocked.mty",
+            ),
+        ] {
+            assert_eq!(engine.contextual_desc(&ctx, id, base).as_ref(), expected);
+        }
 
         let _ = std::fs::remove_dir_all(&root);
     }
