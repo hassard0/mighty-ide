@@ -151,11 +151,20 @@ pub fn parse_body(body: &str) -> Vec<Segment> {
             if chars[i + 1].is_ascii_digit() {
                 let mut j = i + 1;
                 let mut n = 0u32;
+                let mut overflowed = false;
                 while j < chars.len() && chars[j].is_ascii_digit() {
-                    n = n
-                        .saturating_mul(10)
-                        .saturating_add(chars[j] as u32 - '0' as u32);
+                    let digit = chars[j] as u32 - '0' as u32;
+                    if let Some(next) = n.checked_mul(10).and_then(|v| v.checked_add(digit)) {
+                        n = next;
+                    } else {
+                        overflowed = true;
+                    }
                     j += 1;
+                }
+                if overflowed {
+                    text.push(c);
+                    i += 1;
+                    continue;
                 }
                 flush(&mut segs, &mut text);
                 segs.push(Segment::Stop {
@@ -196,9 +205,8 @@ fn parse_braced(chars: &[char]) -> Option<(u32, String, usize)> {
     let mut n = 0u32;
     let start_digits = j;
     while j < chars.len() && chars[j].is_ascii_digit() {
-        n = n
-            .saturating_mul(10)
-            .saturating_add(chars[j] as u32 - '0' as u32);
+        let digit = chars[j] as u32 - '0' as u32;
+        n = n.checked_mul(10)?.checked_add(digit)?;
         j += 1;
     }
     if j == start_digits {
@@ -708,14 +716,17 @@ fn expand_transform_format(format: &str, caps: &regex::Captures<'_>) -> String {
         if chars[i] == '$' {
             if chars.get(i + 1).is_some_and(|ch| ch.is_ascii_digit()) {
                 let mut j = i + 1;
-                let mut n = 0usize;
+                let mut n = Some(0usize);
                 while j < chars.len() && chars[j].is_ascii_digit() {
-                    n = n
-                        .saturating_mul(10)
-                        .saturating_add(chars[j] as usize - '0' as usize);
+                    let digit = chars[j] as usize - '0' as usize;
+                    n = n.and_then(|v| v.checked_mul(10).and_then(|v| v.checked_add(digit)));
                     j += 1;
                 }
-                out.push_str(caps.get(n).map(|m| m.as_str()).unwrap_or(""));
+                out.push_str(
+                    n.and_then(|n| caps.get(n))
+                        .map(|m| m.as_str())
+                        .unwrap_or(""),
+                );
                 i = j;
                 continue;
             }
@@ -769,9 +780,8 @@ fn parse_transform_capture(chars: &[char]) -> Option<(usize, TransformCaptureFor
     let digit_start = j;
     let mut capture = 0usize;
     while j < chars.len() && chars[j].is_ascii_digit() {
-        capture = capture
-            .saturating_mul(10)
-            .saturating_add(chars[j] as usize - '0' as usize);
+        let digit = chars[j] as usize - '0' as usize;
+        capture = capture.checked_mul(10)?.checked_add(digit)?;
         j += 1;
     }
     if j == digit_start {
@@ -1974,6 +1984,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_overflow_bare_tab_stop_as_literal_text() {
+        let body = "a$999999999999999999999999999999b";
+        assert_eq!(parse_body(body), vec![Segment::Text(body.into())]);
+    }
+
+    #[test]
     fn parse_placeholders() {
         let segs = parse_body("fn ${1:name}(${2:args})");
         assert_eq!(
@@ -1992,6 +2008,12 @@ mod tests {
                 Segment::Text(")".into()),
             ]
         );
+    }
+
+    #[test]
+    fn parse_overflow_braced_tab_stop_as_literal_text() {
+        let body = "fn ${999999999999999999999999999999:name}()";
+        assert_eq!(parse_body(body), vec![Segment::Text(body.into())]);
     }
 
     #[test]
@@ -2288,6 +2310,23 @@ mod tests {
             &ctx,
         );
         assert_eq!(exp.text, "my-component.test|my_component|MyComponentTest");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_variable_transform_rejects_overflow_capture_indexes() {
+        let ctx = SnippetContext::from_path_and_selection(None, "alpha");
+        let exp = expand_with_context(
+            concat!(
+                "${TM_SELECTED_TEXT/^(alpha)$/$999999999999999999999999999999/}|",
+                "${TM_SELECTED_TEXT/^(alpha)$/${999999999999999999999999999999:/upcase}/}"
+            ),
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "|${999999999999999999999999999999:/upcase}");
         assert!(exp.stops.is_empty());
     }
 
