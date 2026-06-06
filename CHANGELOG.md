@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette previews broken Mighty compiler overrides**: Run, Test,
+  Debug, and Run in Browser rows now report when `MIGHTY_MTY` points to a
+  missing compiler before dispatch, while preserving read-only and unsaved
+  scratch-buffer explanations.
 - **Command Palette previews autocomplete fallback**: Trigger Autocomplete now
   reports when the configured/default semantic language server is unavailable
   and the command will rely on buffer-word completions.

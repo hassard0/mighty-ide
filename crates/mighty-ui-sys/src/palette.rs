@@ -2470,6 +2470,12 @@ fn command_contextual_desc_with_workspace<'a>(
         };
     }
 
+    if active_has_path || (id == CMD_RUN_TESTS && workspace_test_target) {
+        if let Some(desc) = configured_mty_missing_desc(id) {
+            return Cow::Owned(desc);
+        }
+    }
+
     match id {
         CMD_COPY_SELECTION_OR_LINE if active_has_selection => Cow::Borrowed("Copy the active selection to the clipboard"),
         CMD_COPY_SELECTION_OR_LINE if active_can_copy => Cow::Borrowed("Copy the current line to the clipboard"),
@@ -2515,6 +2521,45 @@ fn command_contextual_desc_with_workspace<'a>(
         }
         _ => Cow::Borrowed(base),
     }
+}
+
+fn configured_mty_missing_desc(id: u32) -> Option<String> {
+    let needs_mty = matches!(
+        id,
+        CMD_RUN_FILE
+            | CMD_RUN_TESTS
+            | CMD_RUN_TEST_AT_CURSOR
+            | CMD_DEBUG_START_CONTINUE
+            | CMD_RUN_IN_BROWSER
+    );
+    if !needs_mty {
+        return None;
+    }
+
+    let raw = std::env::var("MIGHTY_MTY").ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let path = std::path::Path::new(trimmed);
+    if path.is_file() {
+        return None;
+    }
+    let name = path
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(trimmed);
+    let action = match id {
+        CMD_RUN_FILE => "Run",
+        CMD_RUN_TESTS | CMD_RUN_TEST_AT_CURSOR => "Tests",
+        CMD_DEBUG_START_CONTINUE => "Debug",
+        CMD_RUN_IN_BROWSER => "Browser run",
+        _ => "Command",
+    };
+    Some(format!(
+        "{action} unavailable: MIGHTY_MTY points to missing {name}"
+    ))
 }
 
 #[cfg(test)]
@@ -3293,6 +3338,100 @@ mod tests {
             ),
             Cow::Borrowed("Run the package's tests (mty test)")
         );
+    }
+
+    #[test]
+    fn mty_override_command_descriptions_report_missing_configured_tool() {
+        let _guard = crate::settings::TEST_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let old_mty = std::env::var_os("MIGHTY_MTY");
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_missing_mty_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let missing_mty = root.join("missing-mty.exe");
+        std::env::set_var("MIGHTY_MTY", &missing_mty);
+
+        assert_eq!(
+            command_contextual_desc(CMD_RUN_FILE, "base", true, false, false, 0, false, false)
+                .as_ref(),
+            "Run unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_RUN_TEST_AT_CURSOR,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false,
+            )
+            .as_ref(),
+            "Tests unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_DEBUG_START_CONTINUE,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false,
+            )
+            .as_ref(),
+            "Debug unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_RUN_IN_BROWSER,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false,
+            )
+            .as_ref(),
+            "Browser run unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_RUN_FILE, "base", false, false, false, 0, false, false),
+            Cow::Borrowed("Save this untitled file before running")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_RUN_FILE, "base", true, true, false, 0, false, false),
+            Cow::Borrowed("Read-only preview: Run is unavailable")
+        );
+        assert_eq!(
+            command_contextual_desc_with_workspace(
+                CMD_RUN_TESTS,
+                "base",
+                false,
+                false,
+                false,
+                0,
+                false,
+                false,
+                true,
+            )
+            .as_ref(),
+            "Tests unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+
+        if let Some(v) = old_mty {
+            std::env::set_var("MIGHTY_MTY", v);
+        } else {
+            std::env::remove_var("MIGHTY_MTY");
+        }
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
