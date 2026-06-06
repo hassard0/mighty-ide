@@ -37,6 +37,20 @@ Start-Process -FilePath "dist\mighty-ide-win64\mighty-ide.exe" `
   -WorkingDirectory "dist\mighty-ide-win64"
 ```
 
+Final artifact fields to record after the package run:
+
+```text
+Source commit:
+Windows archive: dist\mighty-ide-v0.3.0-win64.zip
+Windows archive size:
+Windows SHA-256:
+Windows native payloads: PE mighty-ide.exe; PE mighty_ui_sys.dll
+Windows clean-binary scans: package directory and ZIP passed
+Windows packaged launch: launched from dist\mighty-ide-win64
+macOS decision: unbuilt - native macOS runner unavailable for this pass
+Linux decision: unbuilt - native Linux runner unavailable for this pass
+```
+
 The package script verifies PE headers for both native payloads, rejects
 compiler/linker sidecars, rejects `.dylib` and `.so` payloads, scans the
 finished ZIP, and writes `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`. It

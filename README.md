@@ -10,6 +10,26 @@ The entire UI is drawn each frame as a Vello scene — smooth gradients, true ro
 
 Full keybinding reference: [KEYBINDINGS.md](KEYBINDINGS.md). Release history: [CHANGELOG.md](CHANGELOG.md).
 
+## Release Binaries
+
+Release archives are generated under `dist/` and are not committed to the
+repository. A clean release package must be built on the same operating system
+that will run it because Mighty IDE ships a native executable plus a native
+`mighty-ui-sys` shim.
+
+| Platform | Package command | Archive | Clean-binary requirement |
+|----------|-----------------|---------|--------------------------|
+| Windows x64 | `.\package-win.ps1` | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`, no sidecars, no `.dylib` or `.so` payloads, packaged launch from `dist\mighty-ide-win64` |
+| macOS | `./package-macos.sh` on macOS | `dist/mighty-ide-v0.3.0-macos.tar.gz` | Mach-O app executable and Mach-O `.dylib`, no sidecars, no `.exe`, `.dll`, or `.so` payloads, packaged app launch |
+| Linux x64 | `./package-linux.sh` on Linux | `dist/mighty-ide-v0.3.0-linux-x64.tar.gz` | ELF executable and ELF `.so`, no sidecars, no `.exe`, `.dll`, or `.dylib` payloads, packaged launch |
+
+The package scripts remove the previous same-version archive before building,
+write `PACKAGE-MANIFEST.txt` with source commit and native payload hashes, scan
+the finished archive for build byproducts and foreign native files, and bundle
+the README, build notes, keybindings, changelog, release verification docs, and
+samples. Do not publish placeholder archives or rename a package from another
+OS; record unavailable native runners as `unbuilt`.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`
