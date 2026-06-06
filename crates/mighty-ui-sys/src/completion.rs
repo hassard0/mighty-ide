@@ -14,8 +14,8 @@
 //!   thoroughly unit-tested ([`buffer_words`], [`filter_by_prefix`]).
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
-//!   parse `CompletionItem` insert/display/kind/sort text, and merge them ahead
-//!   of the buffer words.
+//!   parse `CompletionItem` insert/display/kind/detail/docs/sort text, and
+//!   merge them ahead of the buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
 //!
@@ -35,6 +35,8 @@ pub struct Candidate {
     pub display_text: Option<String>,
     /// Optional provider detail shown beside the row and in the footer.
     pub detail_text: Option<String>,
+    /// Optional provider documentation shown in the footer when detail is absent.
+    pub documentation_text: Option<String>,
     /// Optional provider kind label shown in the right metadata column.
     pub kind_label: Option<&'static str>,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
@@ -53,6 +55,8 @@ pub struct SemanticCandidate {
     pub display_text: Option<String>,
     /// Optional LSP `detail` text.
     pub detail_text: Option<String>,
+    /// Optional LSP `documentation` text.
+    pub documentation_text: Option<String>,
     /// Optional LSP `kind` mapped to a stable display label.
     pub kind_label: Option<&'static str>,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
@@ -222,6 +226,7 @@ impl CompletionEngine {
                 text: text.clone(),
                 display_text: None,
                 detail_text: None,
+                documentation_text: None,
                 kind_label: None,
                 filter_text: None,
                 sort_text: None,
@@ -267,6 +272,7 @@ impl CompletionEngine {
                     text: item.text.clone(),
                     display_text: item.display_text.clone(),
                     detail_text: item.detail_text.clone(),
+                    documentation_text: item.documentation_text.clone(),
                     kind_label: item.kind_label,
                     semantic: true,
                     snippet: false,
@@ -282,6 +288,7 @@ impl CompletionEngine {
                     text: w,
                     display_text: None,
                     detail_text: None,
+                    documentation_text: None,
                     kind_label: None,
                     semantic: false,
                     snippet: false,
@@ -308,6 +315,7 @@ impl CompletionEngine {
                     text: p.clone(),
                     display_text: None,
                     detail_text: None,
+                    documentation_text: None,
                     kind_label: Some("snippet"),
                     semantic: false,
                     snippet: true,
@@ -656,6 +664,10 @@ impl Candidate {
     fn detail_text(&self) -> &str {
         self.detail_text.as_deref().unwrap_or("")
     }
+
+    fn documentation_text(&self) -> &str {
+        self.documentation_text.as_deref().unwrap_or("")
+    }
 }
 
 fn semantic_candidate_matches_prefix(item: &SemanticCandidate, prefix: &str) -> bool {
@@ -867,6 +879,8 @@ fn completion_row_detail_visible(detail: &str) -> bool {
 fn completion_footer_tail(cand: &Candidate) -> &str {
     if completion_row_detail_visible(cand.detail_text()) {
         cand.detail_text()
+    } else if completion_row_detail_visible(cand.documentation_text()) {
+        cand.documentation_text()
     } else if cand.semantic {
         "  \u{00B7} semantic symbol"
     } else {
@@ -932,7 +946,8 @@ pub mod lsp {
     /// snippet-formatted insert text to plain text before it reaches the editor.
     /// Preserves `filterText` so prefix matching can follow the server's chosen
     /// key while accept still inserts the selected text, and `sortText` so the
-    /// dropdown can honor provider ranking.
+    /// dropdown can honor provider ranking. Preserves provider documentation for
+    /// the selected-row footer when no shorter detail string is present.
     /// Handles both `result: [items...]` and `result: { items: [items...] }`,
     /// plus a bare item array for tests.
     pub fn scrape_candidates(json: &str) -> Vec<SemanticCandidate> {
@@ -950,6 +965,7 @@ pub mod lsp {
                         text,
                         display_text,
                         detail_text: completion_item_detail_text(item),
+                        documentation_text: completion_item_documentation_text(item),
                         kind_label: completion_item_kind_label(item),
                         filter_text: completion_item_filter_text(item),
                         sort_text: completion_item_sort_text(item),
@@ -995,6 +1011,24 @@ pub mod lsp {
 
     fn completion_item_detail_text(item: &[u8]) -> Option<String> {
         top_level_string_value(item, b"detail").filter(|detail| !detail.trim().is_empty())
+    }
+
+    fn completion_item_documentation_text(item: &[u8]) -> Option<String> {
+        let at = top_level_field_value_start(item, b"documentation")?;
+        let doc = match item.get(at).copied()? {
+            b'"' => read_json_string_at(item, at).map(|(value, _)| value)?,
+            b'{' => {
+                let region = value_region(item, at)?;
+                top_level_string_value(region, b"value")?
+            }
+            _ => return None,
+        };
+        let cleaned = doc.trim();
+        if cleaned.is_empty() {
+            None
+        } else {
+            Some(cleaned.to_string())
+        }
     }
 
     fn completion_item_kind_label(item: &[u8]) -> Option<&'static str> {
@@ -1661,6 +1695,7 @@ mod tests {
             text: "numpy".to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             filter_text: Some("np".to_string()),
             sort_text: None,
@@ -1681,6 +1716,7 @@ mod tests {
             text: "println($1)".to_string(),
             display_text: Some("println!".to_string()),
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             filter_text: Some("println".to_string()),
             sort_text: None,
@@ -1702,6 +1738,7 @@ mod tests {
                 text: "printer".to_string(),
                 display_text: None,
                 detail_text: None,
+                documentation_text: None,
                 kind_label: None,
                 filter_text: None,
                 sort_text: Some("020".to_string()),
@@ -1710,6 +1747,7 @@ mod tests {
                 text: "printf".to_string(),
                 display_text: None,
                 detail_text: None,
+                documentation_text: None,
                 kind_label: None,
                 filter_text: None,
                 sort_text: Some("010".to_string()),
@@ -1718,6 +1756,7 @@ mod tests {
                 text: "prepend".to_string(),
                 display_text: None,
                 detail_text: None,
+                documentation_text: None,
                 kind_label: None,
                 filter_text: None,
                 sort_text: None,
@@ -1740,6 +1779,7 @@ mod tests {
             text: "println($1)".to_string(),
             display_text: Some("println!".to_string()),
             detail_text: Some("macro println!(...)".to_string()),
+            documentation_text: None,
             kind_label: None,
             semantic: true,
             snippet: false,
@@ -1755,6 +1795,7 @@ mod tests {
             text: "protocol".to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             semantic: true,
             snippet: false,
@@ -1765,11 +1806,30 @@ mod tests {
     }
 
     #[test]
+    fn semantic_completion_footer_uses_documentation_when_detail_is_absent() {
+        let cand = Candidate {
+            text: "collect".to_string(),
+            display_text: None,
+            detail_text: None,
+            documentation_text: Some("Collects an iterator into a collection.".to_string()),
+            kind_label: Some("method"),
+            semantic: true,
+            snippet: false,
+        };
+
+        assert_eq!(
+            completion_footer_tail(&cand),
+            "Collects an iterator into a collection."
+        );
+    }
+
+    #[test]
     fn semantic_completion_uses_provider_kind_label() {
         let cand = Candidate {
             text: "User".to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: Some("variable"),
             semantic: true,
             snippet: false,
@@ -1788,6 +1848,7 @@ mod tests {
             text: "let".to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             filter_text: Some("let".to_string()),
             sort_text: None,
@@ -1898,6 +1959,7 @@ mod tests {
             text: "protocol".to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             semantic: true,
             snippet: false,
@@ -2016,6 +2078,7 @@ mod tests {
             text: "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii".to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             semantic: false,
             snippet: false,
@@ -2024,6 +2087,7 @@ mod tests {
             text: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW".to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             semantic: false,
             snippet: false,
@@ -2055,6 +2119,7 @@ mod tests {
                 .to_string(),
             display_text: None,
             detail_text: None,
+            documentation_text: None,
             kind_label: None,
             semantic: true,
             snippet: false,
@@ -2216,6 +2281,23 @@ mod tests {
         assert_eq!(candidates[0].kind_label, Some("function"));
         assert_eq!(candidates[1].kind_label, Some("constant"));
         assert_eq!(candidates[2].kind_label, None);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_documentation_text() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"stringDoc","documentation":"plain docs"},{"label":"markupDoc","documentation":{"kind":"markdown","value":"**rich** docs"}},{"label":"emptyDoc","documentation":"   "}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(
+            candidates[0].documentation_text.as_deref(),
+            Some("plain docs")
+        );
+        assert_eq!(
+            candidates[1].documentation_text.as_deref(),
+            Some("**rich** docs")
+        );
+        assert_eq!(candidates[2].documentation_text, None);
     }
 
     #[test]
