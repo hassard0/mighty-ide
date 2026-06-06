@@ -13771,7 +13771,7 @@ fn save_active_current_path(ctx: &mut MuiContext) -> i32 {
         ctx.autosave.disarm();
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Save skipped: duplicate edits",
+            save_duplicate_edits_message(&path),
         );
         println!(
             "mui_ed_save: skipped dirty duplicate path={}",
@@ -13847,7 +13847,7 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
         ctx.autosave.disarm();
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Save skipped: duplicate edits",
+            save_duplicate_edits_message(&path),
         );
         println!(
             "mui_ed_save: skipped dirty duplicate path={}",
@@ -13927,6 +13927,13 @@ fn save_tab_to_path(ctx: &mut MuiContext, idx: usize, path: PathBuf, toast_succe
             -1
         }
     }
+}
+
+fn save_duplicate_edits_message(path: &std::path::Path) -> String {
+    format!(
+        "Save skipped: {} has duplicate unsaved edits",
+        basename(path)
+    )
 }
 
 /// Write the active model to its tab's file path. Returns `0` on success, `-1`

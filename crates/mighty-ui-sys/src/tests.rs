@@ -19725,7 +19725,10 @@ fn plain_save_skips_conflicting_dirty_duplicate_tab() {
     assert!(ctx.tabs.is_dirty(duplicate));
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(toast.message, "Save skipped: duplicate edits");
+    assert_eq!(
+        toast.message,
+        "Save skipped: same.mty has duplicate unsaved edits"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }

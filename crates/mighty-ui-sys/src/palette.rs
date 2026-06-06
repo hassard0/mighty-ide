@@ -1431,7 +1431,7 @@ impl PaletteEngine {
         if id == CMD_SAVE && !active_read_only {
             if let Some(path) = ctx.tabs.active_path() {
                 if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
-                    return Cow::Borrowed("Save skipped: duplicate edits");
+                    return Cow::Owned(save_duplicate_edits_desc(&path));
                 }
             }
         }
@@ -2723,6 +2723,13 @@ fn copy_active_file_missing_desc(id: u32) -> &'static str {
         CMD_COPY_ACTIVE_FILE_DIRECTORY => "No active file directory to copy: (scratch)",
         _ => "No active file to copy: (scratch)",
     }
+}
+
+fn save_duplicate_edits_desc(path: &std::path::Path) -> String {
+    format!(
+        "Save skipped: {} has duplicate unsaved edits",
+        palette_basename(path)
+    )
 }
 
 fn palette_basename(path: &std::path::Path) -> String {
@@ -5938,7 +5945,7 @@ mod tests {
         let engine = PaletteEngine::new();
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE, "Write the active file to disk"),
-            Cow::Borrowed("Save skipped: duplicate edits")
+            Cow::Borrowed("Save skipped: same.mty has duplicate unsaved edits")
         );
 
         let _ = std::fs::remove_dir_all(&root);
