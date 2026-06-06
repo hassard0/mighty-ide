@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Pane command palette mirrors split no-ops**: Command Palette now reports
+  `Editor is already split` and `Only one editor pane` before dispatch for
+  split, focus-next-pane, and close-pane commands that would no-op.
 - **Markdown preview palette reflects idempotent reopen**: Command Palette now
   describes Open Preview on an already-open Markdown preview as refreshing the
   open preview instead of implying the command is unavailable.

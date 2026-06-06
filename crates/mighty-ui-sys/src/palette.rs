@@ -1232,6 +1232,9 @@ impl PaletteEngine {
         if id == CMD_GHOST_COMPLETION_DISMISS {
             return dismiss_ghost_contextual_desc(base, ctx.ghost.has_ghost());
         }
+        if matches!(id, CMD_SPLIT_RIGHT | CMD_FOCUS_NEXT_PANE | CMD_CLOSE_PANE) {
+            return pane_contextual_desc(id, base, ctx.panes.count());
+        }
         if id == CMD_AUTOCOMPLETE && active_has_path && !active_read_only {
             return autocomplete_contextual_desc(base, ctx.language);
         }
@@ -2347,6 +2350,16 @@ fn markdown_preview_contextual_desc<'a>(
         Cow::Borrowed("Refresh the open Markdown preview")
     } else {
         Cow::Borrowed(base)
+    }
+}
+
+fn pane_contextual_desc<'a>(id: u32, base: &'a str, pane_count: usize) -> Cow<'a, str> {
+    match id {
+        CMD_SPLIT_RIGHT if pane_count > 1 => Cow::Borrowed("Editor is already split"),
+        CMD_FOCUS_NEXT_PANE | CMD_CLOSE_PANE if pane_count <= 1 => {
+            Cow::Borrowed("Only one editor pane")
+        }
+        _ => Cow::Borrowed(base),
     }
 }
 
@@ -5207,6 +5220,30 @@ mod tests {
 
         assert_eq!(
             open_surface_desc_for_flags(CMD_VIEW_WEB_PLAYGROUND, [false; 15]),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn pane_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            pane_contextual_desc(CMD_SPLIT_RIGHT, "base", 2),
+            Cow::Borrowed("Editor is already split")
+        );
+        assert_eq!(
+            pane_contextual_desc(CMD_FOCUS_NEXT_PANE, "base", 1),
+            Cow::Borrowed("Only one editor pane")
+        );
+        assert_eq!(
+            pane_contextual_desc(CMD_CLOSE_PANE, "base", 1),
+            Cow::Borrowed("Only one editor pane")
+        );
+        assert_eq!(
+            pane_contextual_desc(CMD_SPLIT_RIGHT, "base", 1),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            pane_contextual_desc(CMD_CLOSE_PANE, "base", 2),
             Cow::Borrowed("base")
         );
     }
