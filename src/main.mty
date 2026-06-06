@@ -328,6 +328,7 @@ extern c {
   // ---- autocomplete dropdown (shim-side engine) ----
   fn mui_complete_count(handle: I64) -> I32
   fn mui_complete_can_accept(handle: I64) -> I32
+  fn mui_complete_commits_char(handle: I64, cp: I32) -> I32
   fn mui_complete_sel(handle: I64) -> I32
   fn mui_complete_report_empty(handle: I64) -> I32
   fn mui_complete_move(handle: I64, delta: I32)
@@ -3198,9 +3199,22 @@ fn main() {
               if cnt == 0 { completing = false }
             }
           } else {
+            let committed = if cp >= 32 && cp < 127 && mui_complete_commits_char(h, cp) == 1 && mui_complete_can_accept(h) == 1 {
+              mui_ed_undo_record(h)
+              let accepted = mui_ed_complete_accept(h)
+              if accepted > 0 {
+                let _changed = mui_ed_insert_char(h, cp)
+                mui_tab_set_dirty(h, mui_tab_active(h), 1)
+                1
+              } else {
+                0
+              }
+            } else {
+              0
+            }
             let _cd = mui_complete_dismiss(h)
             completing = false
-            if cp >= 32 && cp < 127 {
+            if committed == 0 && cp >= 32 && cp < 127 {
               let changed = mui_ed_insert_char(h, cp)
               if changed == 1 {
                 mui_tab_set_dirty(h, mui_tab_active(h), 1)

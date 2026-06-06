@@ -15,7 +15,7 @@
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
 //!   parse `CompletionItem` insert/display/kind/detail/labelDetails/docs/sort/
-//!   deprecated text, and merge them ahead of the buffer words.
+//!   deprecated/commit characters text, and merge them ahead of the buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
 //!
@@ -43,6 +43,8 @@ pub struct Candidate {
     pub preselect: bool,
     /// `true` when the provider marked this item as deprecated.
     pub deprecated: bool,
+    /// Provider commit characters that accept this item before inserting the char.
+    pub commit_chars: Vec<char>,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
     /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
@@ -67,6 +69,8 @@ pub struct SemanticCandidate {
     pub preselect: bool,
     /// LSP `deprecated` or `tags: [1]` marker.
     pub deprecated: bool,
+    /// LSP `commitCharacters` for accepting this item while typing punctuation.
+    pub commit_chars: Vec<char>,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
@@ -238,6 +242,7 @@ impl CompletionEngine {
                 kind_label: None,
                 preselect: false,
                 deprecated: false,
+                commit_chars: Vec::new(),
                 filter_text: None,
                 sort_text: None,
             })
@@ -286,6 +291,7 @@ impl CompletionEngine {
                     kind_label: item.kind_label,
                     preselect: item.preselect,
                     deprecated: item.deprecated,
+                    commit_chars: item.commit_chars.clone(),
                     semantic: true,
                     snippet: false,
                 });
@@ -304,6 +310,7 @@ impl CompletionEngine {
                     kind_label: None,
                     preselect: false,
                     deprecated: false,
+                    commit_chars: Vec::new(),
                     semantic: false,
                     snippet: false,
                 });
@@ -336,6 +343,7 @@ impl CompletionEngine {
                     kind_label: Some("snippet"),
                     preselect: false,
                     deprecated: false,
+                    commit_chars: Vec::new(),
                     semantic: false,
                     snippet: true,
                 });
@@ -412,6 +420,16 @@ impl CompletionEngine {
             .get(self.sel)
             .map(|c| c.text.as_str())
             .unwrap_or("")
+    }
+
+    pub fn selected_commits_char(&self, ch: char) -> bool {
+        self.active
+            && self
+                .candidates
+                .get(self.sel)
+                .is_some_and(|candidate| {
+                    !candidate.snippet && candidate.commit_chars.contains(&ch)
+                })
     }
 
     /// Close the dropdown and clear its state.
@@ -1010,6 +1028,7 @@ pub mod lsp {
                         kind_label: completion_item_kind_label(item),
                         preselect: completion_item_preselect(item),
                         deprecated: completion_item_deprecated(item),
+                        commit_chars: completion_item_commit_chars(item),
                         filter_text: completion_item_filter_text(item),
                         sort_text: completion_item_sort_text(item),
                     });
@@ -1054,6 +1073,35 @@ pub mod lsp {
     fn completion_item_deprecated(item: &[u8]) -> bool {
         top_level_bool_value(item, b"deprecated").unwrap_or(false)
             || top_level_array_contains_number(item, b"tags", 1)
+    }
+
+    fn completion_item_commit_chars(item: &[u8]) -> Vec<char> {
+        let Some(at) = top_level_field_value_start(item, b"commitCharacters") else {
+            return Vec::new();
+        };
+        let Some(region) = value_region(item, at) else {
+            return Vec::new();
+        };
+        if region.first() != Some(&b'[') {
+            return Vec::new();
+        }
+        let mut out = Vec::new();
+        let mut i = 1usize;
+        while i < region.len().saturating_sub(1) {
+            if region[i] == b'"' {
+                if let Some((value, end)) = read_json_string_at(region, i) {
+                    if let Some(ch) = value.chars().next() {
+                        if !out.contains(&ch) {
+                            out.push(ch);
+                        }
+                    }
+                    i = end;
+                    continue;
+                }
+            }
+            i += 1;
+        }
+        out
     }
 
     fn completion_item_display_text(item: &[u8], insert_text: &str) -> Option<String> {
@@ -1820,6 +1868,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             filter_text: Some("np".to_string()),
             sort_text: None,
         }];
@@ -1843,6 +1892,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             filter_text: Some("println".to_string()),
             sort_text: None,
         }];
@@ -1867,6 +1917,7 @@ mod tests {
                 kind_label: None,
                 preselect: false,
                 deprecated: false,
+                commit_chars: Vec::new(),
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -1878,6 +1929,7 @@ mod tests {
                 kind_label: None,
                 preselect: false,
                 deprecated: false,
+                commit_chars: Vec::new(),
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1889,6 +1941,7 @@ mod tests {
                 kind_label: None,
                 preselect: false,
                 deprecated: false,
+                commit_chars: Vec::new(),
                 filter_text: None,
                 sort_text: None,
             },
@@ -1917,6 +1970,7 @@ mod tests {
                 kind_label: None,
                 preselect: false,
                 deprecated: false,
+                commit_chars: Vec::new(),
                 filter_text: None,
                 sort_text: Some("010".to_string()),
             },
@@ -1928,6 +1982,7 @@ mod tests {
                 kind_label: None,
                 preselect: true,
                 deprecated: false,
+                commit_chars: Vec::new(),
                 filter_text: None,
                 sort_text: Some("020".to_string()),
             },
@@ -1938,6 +1993,51 @@ mod tests {
         assert_eq!(n, 2);
         assert_eq!(e.selection(), 1);
         assert_eq!(e.accepted_text(), "printer");
+    }
+
+    #[test]
+    fn request_semantic_matches_selected_commit_character() {
+        let mut e = CompletionEngine::new();
+        let src = b"pri";
+        let semantic = vec![SemanticCandidate {
+            text: "println".to_string(),
+            display_text: None,
+            detail_text: None,
+            documentation_text: None,
+            kind_label: None,
+            preselect: false,
+            deprecated: false,
+            commit_chars: vec!['.', '('],
+            filter_text: None,
+            sort_text: None,
+        }];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 1);
+        assert!(e.selected_commits_char('.'));
+        assert!(e.selected_commits_char('('));
+        assert!(!e.selected_commits_char(';'));
+    }
+
+    #[test]
+    fn snippet_completion_does_not_match_commit_character() {
+        let mut e = CompletionEngine::new();
+        e.candidates = vec![Candidate {
+            text: "for".to_string(),
+            display_text: None,
+            detail_text: None,
+            documentation_text: None,
+            kind_label: Some("snippet"),
+            preselect: false,
+            deprecated: false,
+            commit_chars: vec!['('],
+            semantic: false,
+            snippet: true,
+        }];
+        e.active = true;
+
+        assert!(!e.selected_commits_char('('));
     }
 
     #[test]
@@ -1952,6 +2052,7 @@ mod tests {
             kind_label: None,
             preselect: true,
             deprecated: false,
+            commit_chars: Vec::new(),
             filter_text: None,
             sort_text: None,
         }];
@@ -1975,6 +2076,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: true,
             snippet: false,
         };
@@ -1993,6 +2095,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: true,
             snippet: false,
         };
@@ -2011,6 +2114,7 @@ mod tests {
             kind_label: Some("method"),
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: true,
             snippet: false,
         };
@@ -2031,6 +2135,7 @@ mod tests {
             kind_label: Some("function"),
             preselect: false,
             deprecated: true,
+            commit_chars: Vec::new(),
             semantic: true,
             snippet: false,
         };
@@ -2052,6 +2157,7 @@ mod tests {
             kind_label: Some("variable"),
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: true,
             snippet: false,
         };
@@ -2073,6 +2179,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             filter_text: Some("let".to_string()),
             sort_text: None,
         }];
@@ -2186,6 +2293,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: true,
             snippet: false,
         };
@@ -2307,6 +2415,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: false,
             snippet: false,
         }];
@@ -2318,6 +2427,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: false,
             snippet: false,
         }];
@@ -2352,6 +2462,7 @@ mod tests {
             kind_label: None,
             preselect: false,
             deprecated: false,
+            commit_chars: Vec::new(),
             semantic: true,
             snippet: false,
         }];
@@ -2574,6 +2685,16 @@ mod tests {
         assert!(candidates[0].deprecated);
         assert!(candidates[1].deprecated);
         assert!(!candidates[2].deprecated);
+    }
+
+    #[test]
+    fn lsp_scrape_candidates_preserves_commit_characters() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"println","commitCharacters":[".","(","."]},{"label":"plain","commitCharacters":"."}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].commit_chars, vec!['.', '(']);
+        assert!(candidates[1].commit_chars.is_empty());
     }
 
     #[test]

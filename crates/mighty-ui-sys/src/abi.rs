@@ -171,6 +171,7 @@ fn lsp_semantic_candidates_with_notice(
                     kind_label: None,
                     preselect: false,
                     deprecated: false,
+                    commit_chars: Vec::new(),
                     filter_text: None,
                     sort_text: None,
                 })
@@ -9423,6 +9424,15 @@ pub extern "C" fn mui_complete_accept_char(handle: i64, i: i32) -> i32 {
             .nth(i as usize)
             .map_or(-1, |ch| ch as i32)
     })
+}
+
+/// `1` when the selected completion should be accepted before inserting `cp`.
+#[no_mangle]
+pub extern "C" fn mui_complete_commits_char(handle: i64, cp: i32) -> i32 {
+    let Some(ch) = char::from_u32(cp as u32) else {
+        return 0;
+    };
+    unsafe { ctx(handle) }.map_or(0, |c| i32::from(c.complete.selected_commits_char(ch)))
 }
 
 /// Close the dropdown and clear its state.
