@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1172).
+(lessons L1-L1173).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Agents inspect counters reject overflow**: live `mty inspect --json`
+  worker counts, agent IDs, mailbox depths, and high-water counters now reject
+  overflowing numeric tokens instead of saturating them into impossible rows.
 - **LSP navigation coordinates reject overflow**: hover/definition response IDs
   and definition target ranges now reject overflowing numeric tokens instead of
   saturating them into bogus Go to Definition destinations.

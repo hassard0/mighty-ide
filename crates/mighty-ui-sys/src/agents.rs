@@ -651,7 +651,8 @@ fn top_level_uint_field(region: &[u8], field: &[u8]) -> Option<u64> {
     let start = j;
     let mut v: u64 = 0;
     while j < region.len() && region[j].is_ascii_digit() {
-        v = v.saturating_mul(10).saturating_add((region[j] - b'0') as u64);
+        v = v.checked_mul(10)?;
+        v = v.checked_add((region[j] - b'0') as u64)?;
         j += 1;
     }
     if j == start {
@@ -1103,9 +1104,28 @@ fn main() {
     }
 
     #[test]
+    fn parse_snapshot_rejects_overflow_worker_count() {
+        let s = parse_snapshot(r#"{"worker_count":999999999999999999999999999999,"agents":[]}"#)
+            .expect("snapshot");
+        assert_eq!(s.worker_count, 0);
+    }
+
+    #[test]
     fn parse_snapshot_skips_fractional_agent_id_prefix() {
         let raw = r#"{"worker_count":1,"agents":[
           {"agent_id":7.5,"agent_type":"Bad","mailbox_depth":9},
+          {"agent_id":8,"agent_type":"Good","mailbox_depth":1}
+        ]}"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!(s.agents[0].agent_id, 8);
+        assert_eq!(s.agents[0].agent_type, "Good");
+    }
+
+    #[test]
+    fn parse_snapshot_skips_overflow_agent_id() {
+        let raw = r#"{"worker_count":1,"agents":[
+          {"agent_id":999999999999999999999999999999,"agent_type":"Bad","mailbox_depth":9},
           {"agent_id":8,"agent_type":"Good","mailbox_depth":1}
         ]}"#;
         let s = parse_snapshot(raw).expect("snapshot");
@@ -1122,6 +1142,22 @@ fn main() {
             "agent_type":"Counter",
             "mailbox_depth":2.5,
             "mailbox_high_water":7e1
+          }
+        ]}"#;
+        let s = parse_snapshot(raw).expect("snapshot");
+        assert_eq!(s.agents.len(), 1);
+        assert_eq!(s.agents[0].mailbox_depth, 0);
+        assert_eq!(s.agents[0].mailbox_high_water, 0);
+    }
+
+    #[test]
+    fn parse_snapshot_rejects_overflow_counters() {
+        let raw = r#"{"worker_count":1,"agents":[
+          {
+            "agent_id":8,
+            "agent_type":"Counter",
+            "mailbox_depth":999999999999999999999999999999,
+            "mailbox_high_water":999999999999999999999999999999
           }
         ]}"#;
         let s = parse_snapshot(raw).expect("snapshot");
