@@ -4,6 +4,13 @@ This repository does not commit release binaries. Packages are generated under
 `dist/`, which is ignored by git, and uploaded separately by release automation
 or a release operator.
 
+Release documentation is part of the artifact contract. Update and commit the
+README, changelog, build notes, and files in this `docs/` release set before
+building a publishable archive. The package manifest records the exact source
+commit used for the archive; if any tracked source or documentation file changes
+after packaging, the archive is stale and must be rebuilt on that platform
+before upload.
+
 ## Clean Artifact Rules
 
 1. Start from a clean worktree.

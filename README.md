@@ -30,6 +30,14 @@ the README, build notes, keybindings, changelog, release verification docs, and
 samples. Do not publish placeholder archives or rename a package from another
 OS; record unavailable native runners as `unbuilt`.
 
+Final release handoff is source-to-artifact strict. Commit the README,
+changelog, build notes, and release docs first; then run the native package
+script from that clean commit. If any source file changes afterward, rebuild the
+affected platform archive before publishing it. From a Windows-only pass, the
+only locally clean binary is the Windows PE ZIP after `.\package-win.ps1` and a
+packaged launch succeed; macOS and Linux stay `unbuilt` until their native
+runners produce and launch the Mach-O and ELF packages.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`

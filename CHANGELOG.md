@@ -54,6 +54,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   contents with explicit feedback.
 
 ### Release packaging
+- **Final package docs are source-to-artifact strict**: README and release
+  verification docs now state that release documentation must be committed
+  before package generation, and any later source or doc change requires
+  rebuilding the affected native archive before upload.
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight
   `mty --version` and require v0.47.0 or newer, so release packaging reports a
   direct toolchain error instead of cascading parser errors from `src/main.mty`.

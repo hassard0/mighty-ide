@@ -6,6 +6,11 @@ runner, the finished archive passed the archive-level clean-binary scan, and
 the packaged app launched from inside the assembled package directory or app
 bundle.
 
+Build publishable archives only after the release documentation commit is in
+place. `PACKAGE-MANIFEST.txt` must name that commit. If README, changelog,
+build notes, package scripts, or release docs change after a package run, discard
+the old archive result and rebuild before upload.
+
 Do not derive one platform from another platform's package. Windows requires PE
 payloads, macOS requires Mach-O payloads, and Linux requires ELF payloads.
 The concise final stop/pass record is maintained in
