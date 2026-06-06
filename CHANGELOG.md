@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1146).
+(lessons L1-L1147).
 
 ## v0.3.0
 
@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Generic LSP clients advertise protocol parity**: the registry-backed
+  multi-language client now advertises the same rich completion item support as
+  the completion-only path, and the Mighty hover/definition client advertises
+  markdown/plaintext hover content plus definition link support instead of an
+  empty capability set.
 - **Generic LSP completion advertises supported item capabilities**: the
   completion handshake now declares snippet, commit-character, deprecated,
   preselect, label-details, insert/replace edit, kind, documentation, and list

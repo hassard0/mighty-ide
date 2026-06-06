@@ -1019,7 +1019,7 @@ pub mod lsp {
             Req::Definition => "textDocument/definition",
         };
 
-        let initialize = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}"#.to_string();
+        let initialize = initialize_msg();
         let initialized = r#"{"jsonrpc":"2.0","method":"initialized","params":{}}"#.to_string();
         let did_open = format!(
             r#"{{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{{"textDocument":{{"uri":"{}","languageId":"mighty","version":1,"text":"{}"}}}}}}"#,
@@ -1107,6 +1107,10 @@ pub mod lsp {
         // payload (e.g. the server's own `serverInfo` or capability strings).
         let text = String::from_utf8_lossy(&raw).into_owned();
         isolate_response_id(&text, 2)
+    }
+
+    pub fn initialize_msg() -> String {
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{"textDocument":{"hover":{"contentFormat":["markdown","plaintext"]},"definition":{"linkSupport":true}}}}}"#.to_string()
     }
 
     pub(crate) fn has_response_id(stream: &[u8], wanted_id: u32) -> bool {
@@ -1601,6 +1605,15 @@ mod tests {
         assert!(!lsp::has_response_id(server_request, 2));
         assert!(!lsp::has_response_id(server_request_with_result, 2));
         assert!(lsp::has_response_id(response_error, 2));
+    }
+
+    #[test]
+    fn nav_lsp_initialize_advertises_hover_and_definition_capabilities() {
+        let msg = lsp::initialize_msg();
+
+        assert!(msg.contains(r#""hover":{"contentFormat":["markdown","plaintext"]}"#));
+        assert!(msg.contains(r#""definition":{"linkSupport":true}"#));
+        assert!(msg.contains(r#""textDocument":{"#));
     }
 
     #[test]

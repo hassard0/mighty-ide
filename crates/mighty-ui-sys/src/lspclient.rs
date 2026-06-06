@@ -172,7 +172,7 @@ fn initialize_msg(root: &Path) -> String {
     let root_uri = file_uri(root);
     let pid = std::process::id();
     format!(
-        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"workspace":{{"applyEdit":true}},"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":true}}}},"hover":{{}},"definition":{{}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
+        r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"processId":{pid},"rootUri":"{}","capabilities":{{"workspace":{{"applyEdit":true}},"textDocument":{{"completion":{{"completionItem":{{"snippetSupport":true,"commitCharactersSupport":true,"deprecatedSupport":true,"preselectSupport":true,"tagSupport":{{"valueSet":[1]}},"insertReplaceSupport":true,"labelDetailsSupport":true,"documentationFormat":["markdown","plaintext"]}},"completionItemKind":{{"valueSet":[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]}},"completionList":{{"itemDefaults":["commitCharacters","editRange"]}}}},"hover":{{"contentFormat":["markdown","plaintext"]}},"definition":{{"linkSupport":true}},"signatureHelp":{{}},"rename":{{}},"codeAction":{{}},"documentSymbol":{{}},"publishDiagnostics":{{}}}}}},"workspaceFolders":null}}}}"#,
         json_escape(&root_uri)
     )
 }
@@ -1462,9 +1462,22 @@ mod tests {
     }
 
     #[test]
-    fn initialize_advertises_completion_snippet_support() {
+    fn initialize_advertises_supported_language_capabilities() {
         let msg = initialize_msg(Path::new("C:/repo"));
-        assert!(msg.contains(r#""completion":{"completionItem":{"snippetSupport":true}}"#));
+        assert!(msg.contains(r#""workspace":{"applyEdit":true}"#));
+        assert!(msg.contains(r#""completionItem":{"#));
+        assert!(msg.contains(r#""snippetSupport":true"#));
+        assert!(msg.contains(r#""commitCharactersSupport":true"#));
+        assert!(msg.contains(r#""deprecatedSupport":true"#));
+        assert!(msg.contains(r#""preselectSupport":true"#));
+        assert!(msg.contains(r#""tagSupport":{"valueSet":[1]}"#));
+        assert!(msg.contains(r#""insertReplaceSupport":true"#));
+        assert!(msg.contains(r#""labelDetailsSupport":true"#));
+        assert!(msg.contains(r#""documentationFormat":["markdown","plaintext"]"#));
+        assert!(msg.contains(r#""completionItemKind":{"valueSet":[1,2,3"#));
+        assert!(msg.contains(r#""completionList":{"itemDefaults":["commitCharacters","editRange"]}"#));
+        assert!(msg.contains(r#""hover":{"contentFormat":["markdown","plaintext"]}"#));
+        assert!(msg.contains(r#""definition":{"linkSupport":true}"#));
     }
 
     #[test]
