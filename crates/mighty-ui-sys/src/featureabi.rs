@@ -83,10 +83,7 @@ fn run_output_location_label(text: &str) -> Option<String> {
 }
 
 fn parse_positive_decimal_u32(text: &str) -> Option<u32> {
-    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    text.parse::<u32>().ok().filter(|value| *value > 0)
+    crate::parse_unsigned_decimal_u32_token(text).filter(|value| *value > 0)
 }
 
 fn run_command_display() -> String {

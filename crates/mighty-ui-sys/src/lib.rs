@@ -183,6 +183,12 @@ mod env_numeric_token_tests {
     }
 
     #[test]
+    fn unsigned_decimal_u32_tokens_reject_overflow() {
+        assert_eq!(parse_unsigned_decimal_u32_token("4294967295"), Some(u32::MAX));
+        assert_eq!(parse_unsigned_decimal_u32_token("4294967296"), None);
+    }
+
+    #[test]
     fn signed_env_tokens_reject_plus_prefixes_and_partial_numbers() {
         assert_eq!(parse_signed_decimal_i32_token("240"), Some(240));
         assert_eq!(parse_signed_decimal_i32_token("-1"), Some(-1));

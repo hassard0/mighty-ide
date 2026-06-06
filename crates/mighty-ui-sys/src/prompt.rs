@@ -191,13 +191,10 @@ impl PromptState {
         if t.is_empty() {
             return -1;
         }
-        if !t.bytes().all(|b| b.is_ascii_digit()) {
-            return -1;
-        }
-        match t.parse::<i32>() {
-            Ok(n) if n >= 1 => n,
-            _ => -1,
-        }
+        crate::parse_unsigned_decimal_u32_token(t)
+            .filter(|&n| n >= 1 && n <= i32::MAX as u32)
+            .map(|n| n as i32)
+            .unwrap_or(-1)
     }
 }
 
@@ -498,6 +495,13 @@ mod tests {
         // non-digit -> -1
         p.open(PromptKind::Goto as i32);
         for c in "4a".bytes() {
+            p.push(c as u32);
+        }
+        assert_eq!(p.goto_target(), -1);
+
+        // signed-looking -> -1
+        p.open(PromptKind::Goto as i32);
+        for c in "+42".bytes() {
             p.push(c as u32);
         }
         assert_eq!(p.goto_target(), -1);
