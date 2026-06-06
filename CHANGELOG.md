@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1198).
+(lessons L1-L1199).
 
 ## v0.3.0
 
@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Inline diff output is byte-capped**: Source Control inline `git diff`
+  output now streams through 8 MiB per-stream caps and fails closed instead of
+  allocating unbounded patch text before parsing hunks.
 - **Agents inspect output is byte-capped**: `mty inspect --json` stdout/stderr
   now stream through 4 MiB per-stream caps and report live inspect as
   unavailable instead of allocating unbounded runtime JSON or error output.

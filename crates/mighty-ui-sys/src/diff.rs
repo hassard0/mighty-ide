@@ -17,8 +17,16 @@
 
 #![allow(dead_code)]
 
-use std::process::Command;
+use std::io::Read;
 use std::path::Path;
+use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
+
+pub(crate) const MAX_DIFF_OUTPUT_BYTES: usize = 8 * 1024 * 1024;
 
 /// The kind of a parsed diff line (mirrors the scalar `mui_diff_line_kind` ABI).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -409,11 +417,94 @@ pub fn run_diff(root: &Path, path: &str, staged: bool) -> String {
         cmd.arg("--cached");
     }
     cmd.args(["--", path]);
-    cmd.output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-        .unwrap_or_default()
+    match run_diff_command(cmd) {
+        Ok(Some(stdout)) => String::from_utf8_lossy(&stdout).into_owned(),
+        Ok(None) | Err(()) => String::new(),
+    }
+}
+
+fn run_diff_command(mut cmd: Command) -> Result<Option<Vec<u8>>, ()> {
+    let mut child = cmd
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|_| ())?;
+    let stdout = child.stdout.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+    })?;
+    let stderr = child.stderr.take().ok_or_else(|| {
+        let _ = child.kill();
+        let _ = child.wait();
+    })?;
+    let exceeded = Arc::new(AtomicBool::new(false));
+    let stdout_exceeded = Arc::clone(&exceeded);
+    let stderr_exceeded = Arc::clone(&exceeded);
+    let stdout_reader = std::thread::spawn(move || {
+        read_diff_stream_capped(stdout, MAX_DIFF_OUTPUT_BYTES, stdout_exceeded)
+    });
+    let stderr_reader = std::thread::spawn(move || {
+        read_diff_stream_capped(stderr, MAX_DIFF_OUTPUT_BYTES, stderr_exceeded)
+    });
+
+    let status = loop {
+        if exceeded.load(Ordering::Relaxed) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Ok(None);
+        }
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                let _ = stdout_reader.join();
+                let _ = stderr_reader.join();
+                return Err(());
+            }
+        }
+    };
+
+    let stdout = stdout_reader.join().unwrap_or_default();
+    let _ = stderr_reader.join();
+    if exceeded.load(Ordering::Relaxed) || !status.success() {
+        return Ok(None);
+    }
+    Ok(Some(stdout))
+}
+
+fn append_diff_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if buf.len().saturating_add(chunk.len()) > cap {
+        buf.clear();
+        return false;
+    }
+    buf.extend_from_slice(chunk);
+    true
+}
+
+fn read_diff_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_diff_output_with_cap(&mut buf, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    buf
 }
 
 #[cfg(test)]
@@ -432,6 +523,35 @@ index 83db48f..f735c2d 100644
 +    println!(\"added\");
  }
 ";
+
+    #[test]
+    fn diff_output_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"@@");
+
+        assert!(append_diff_output_with_cap(&mut buf, b"\n", 3));
+        assert_eq!(buf, b"@@\n");
+    }
+
+    #[test]
+    fn diff_output_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"diff:");
+
+        assert!(!append_diff_output_with_cap(&mut buf, b"overflow", 8));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn diff_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_diff_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
+    }
 
     #[test]
     fn parses_single_hunk_with_line_numbers() {
