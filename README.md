@@ -106,6 +106,9 @@ and the final handoff response after packaging.
 - Command Palette language and AI edit rows report read-only previews up front:
   Find remains available while Replace, autocomplete acceptance, Rename Symbol,
   code-action edits, and inline AI edits are unavailable
+- Hover, Go to Definition, Signature Help, and explicit completion requests
+  report missing configured language servers with actionable `lsp.toml`
+  feedback instead of collapsing the state into generic empty-result messages
 - Command Palette Force Ghost Completion mirrors Inline AI runtime availability,
   including disabled settings, missing `ANTHROPIC_API_KEY`, and in-flight
   requests before the command is launched

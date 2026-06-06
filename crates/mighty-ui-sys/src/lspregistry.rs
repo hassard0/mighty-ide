@@ -233,6 +233,32 @@ pub fn server_for(lang: Language) -> Option<ServerSpec> {
     resolve_spec(lang, load_override(lang))
 }
 
+/// User-facing reason that a language with LSP support has no resolved server.
+/// Returns `None` for languages that intentionally have no LSP default.
+pub fn unavailable_reason(lang: Language) -> Option<String> {
+    if lang == Language::Mighty {
+        return None;
+    }
+    let override_cmd = load_override(lang);
+    if matches!(override_cmd, Some(None)) {
+        return Some(format!(
+            "{} language server disabled in lsp.toml",
+            lang.display_name()
+        ));
+    }
+    if default_command(lang).is_none() && override_cmd.is_none() {
+        return None;
+    }
+    if resolve_spec(lang, override_cmd).is_none() {
+        return Some(format!(
+            "{} language server unavailable; configure {} in lsp.toml",
+            lang.display_name(),
+            lang.slug()
+        ));
+    }
+    None
+}
+
 /// The testable core of [`server_for`]: resolve a [`ServerSpec`] given an
 /// explicit `override_cmd` (the result of [`load_override`] — `None` = no entry,
 /// `Some(None)` = disabled, `Some(Some(cmd))` = override). Verifies the program

@@ -119,18 +119,14 @@ fn lsp_semantic_labels_with_notice(
             None,
         );
     }
+    if let Some(reason) = crate::lspregistry::unavailable_reason(lang) {
+        return (Vec::new(), Some(reason));
+    }
     if !crate::lspregistry::has_default_server(lang) {
         return (Vec::new(), None);
     }
     let Some(spec) = crate::lspregistry::server_for(lang) else {
-        return (
-            Vec::new(),
-            Some(format!(
-                "{} language server unavailable; configure {} in lsp.toml",
-                lang.display_name(),
-                lang.slug()
-            )),
-        );
+        return (Vec::new(), None);
     };
     let root = workspace_root(path);
     let raw = crate::lspclient::request(
@@ -10748,6 +10744,10 @@ pub extern "C" fn mui_hover_request(handle: i64, line: i32, col: i32) -> i32 {
         }
     };
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
+    if let Some(reason) = crate::lspregistry::unavailable_reason(ctx.language) {
+        ctx.push_toast(crate::toast::Kind::Warn, reason);
+        return 0;
+    }
     let raw = lsp_hover_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);
     let available = match crate::nav::parse_hover_value(&raw) {
         Some(v) => ctx.hover.set_text(&v),
@@ -10846,6 +10846,10 @@ pub extern "C" fn mui_def_request(handle: i64, line: i32, col: i32) -> i32 {
         }
     };
     let source = String::from_utf8_lossy(&ctx.nav_buf).into_owned();
+    if let Some(reason) = crate::lspregistry::unavailable_reason(ctx.language) {
+        ctx.push_toast(crate::toast::Kind::Warn, reason);
+        return 0;
+    }
     let raw = lsp_def_raw(ctx.language, &path, &source, line.max(0) as u32, col.max(0) as u32);
     let found = match crate::nav::parse_definition(&raw) {
         Some((uri, tline, tcol)) => {
@@ -11083,6 +11087,10 @@ pub extern "C" fn mui_sig_request(handle: i64, line: i32, col: i32) -> i32 {
         }
     };
     let (source, _, _) = active_source_and_cursor(ctx);
+    if let Some(reason) = crate::lspregistry::unavailable_reason(ctx.language) {
+        ctx.push_toast(crate::toast::Kind::Warn, reason);
+        return 0;
+    }
     let raw = lsp_signature_raw(
         ctx.language,
         &path,
