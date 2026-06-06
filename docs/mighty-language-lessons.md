@@ -14400,3 +14400,20 @@ suffixes, or separators from filenames and matched groups.
 - **Language note:** no compiler gap surfaced. Small parser enums are a better
   fit than string flags when a user-facing compatibility syntax has several
   related but distinct branches.
+
+## L1131 - Imported Snippet Regex Options Need Editor-Scale Inputs
+
+Snippet transforms were already honoring `g` and `i`, but copied snippets that
+process selected blocks often rely on `/m` for per-line anchors and `/s` for
+dot-matching across newlines. Without those flags, imported snippets could work
+on filenames while still failing on the larger editor selections users expect
+snippet transforms to reshape.
+
+- **IDE note:** transform expansion now maps `m` to multiline regex mode and
+  `s` to dot-matches-newline mode, alongside the existing global and
+  case-insensitive options. Tests cover quoting every selected line with
+  `^...$` under `/gm` and collapsing a two-line selection under `/s`.
+- **Language note:** no compiler gap surfaced. Compatibility tests should use
+  realistic editor inputs such as multi-line selections, not only path strings,
+  because the same snippet syntax has different failure modes depending on the
+  variable source.

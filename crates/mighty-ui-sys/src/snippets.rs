@@ -678,6 +678,8 @@ fn apply_variable_modifier(value: &str, modifier: &str) -> String {
 fn apply_variable_transform(value: &str, pattern: &str, format: &str, options: &str) -> String {
     let mut builder = RegexBuilder::new(pattern);
     builder.case_insensitive(options.contains('i'));
+    builder.multi_line(options.contains('m'));
+    builder.dot_matches_new_line(options.contains('s'));
     let Ok(regex) = builder.build() else {
         return value.to_string();
     };
@@ -2297,6 +2299,34 @@ mod tests {
             &ctx,
         );
         assert_eq!(exp.text, "my_component_test|my-component.test");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_variable_transform_honors_multiline_regex_option() {
+        let ctx = SnippetContext::from_path_and_selection(None, "alpha\nbeta\ngamma");
+        let exp = expand_with_context(
+            "${TM_SELECTED_TEXT/^(.+)$/> $1/gm}",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "> alpha\n> beta\n> gamma");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_variable_transform_honors_dotall_regex_option() {
+        let ctx = SnippetContext::from_path_and_selection(None, "alpha\nbeta");
+        let exp = expand_with_context(
+            "${TM_SELECTED_TEXT/^alpha.*beta$/joined/s}",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "joined");
         assert!(exp.stops.is_empty());
     }
 

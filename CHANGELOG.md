@@ -4,14 +4,18 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1130).
+(lessons L1-L1131).
 
 ## v0.3.0
 
 A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
-driven by `src/main.mty`. ~2,026 shim tests; clean `clippy -D warnings`.
+driven by `src/main.mty`. ~2,028 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Imported snippet transforms support multiline and dotall regex options**:
+  copied VS Code snippets that use `/m` anchors or `/s` dot matching in
+  variable transforms now apply those regex flags, so selected multi-line text
+  can be quoted, wrapped, or collapsed without losing imported snippet intent.
 - **Imported snippet transforms support conditional replacements**: VS Code
   snippet replacement formats such as `${1:+text}`, `${1:-fallback}`,
   `${1:?yes:no}`, and `${1:fallback}` now branch on whether a regex capture
