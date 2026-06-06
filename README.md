@@ -404,11 +404,13 @@ source commit and report only the archive produced by that run.
   `textEditText`, safe same-line `textEdit.range` /
   `InsertReplaceEdit.insert` spans, `CompletionList.itemDefaults` for commit
   characters and edit ranges, snippet bodies, provider `detail`,
-  `labelDetails`, and provider `documentation`, and advertises those supported
-  completion-item capabilities during LSP initialization, so generic server
-  results can match, classify, rank, choose an initial row, display warnings,
-  commit through punctuation, replace qualified prefixes, insert, and describe
-  different text without placeholder signatures
+  `labelDetails`, and provider `documentation`; malformed plus-prefixed numeric
+  fields cannot claim snippet format, kind labels, or replacement ranges, and
+  the client advertises those supported completion-item capabilities during LSP
+  initialization, so generic server results can match, classify, rank, choose
+  an initial row, display warnings, commit through punctuation, replace
+  qualified prefixes, insert, and describe different text without placeholder
+  signatures
 - Semantic autocomplete treats `CompletionItem.tags` entries as deprecated
   markers only when the array value is a complete integer token, so malformed
   numeric prefixes cannot mark fresh completion rows as deprecated
@@ -651,7 +653,7 @@ Two layers, one clean boundary:
 - **The IDE itself — `src/main.mty`, written in Mighty.** It owns the main event loop, input routing, command dispatch, and editor orchestration, driving the shim each frame via scalar `extern c` calls.
 - **`crates/mighty-ui-sys` — a Rust `cdylib` shim.** It owns the window (winit), GPU surface (wgpu), the **Vello** vector scene (gradients / rounded rects / shadows / glyph runs), text shaping, file I/O, the integrated terminal (`portable-pty`), the `mty-lsp` client, git/diff, the Run process, and the Anthropic AI client. Each frame, Mighty's draw calls build a display list that is replayed into one `vello::Scene` (`src/vello_ui.rs`).
 
-**Why a scalar-only ABI:** Mighty v0.36's `extern c` can pass only scalars — no strings, pointers, or structs across the boundary. So strings, pixels, paths, and buffers live shim-side and are driven by scalar getters/setters. See the lessons doc (L17-L25, with ongoing notes through L1178) for the language constraints that shaped this design.
+**Why a scalar-only ABI:** Mighty v0.36's `extern c` can pass only scalars — no strings, pointers, or structs across the boundary. So strings, pixels, paths, and buffers live shim-side and are driven by scalar getters/setters. See the lessons doc (L17-L25, with ongoing notes through L1179) for the language constraints that shaped this design.
 
 ## Build & Run
 
@@ -792,7 +794,7 @@ the package run that produced them.
 
 ## Dogfooding Mighty
 
-The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1178) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
+The IDE is the **forcing function** for maturing Mighty: every place the language fights us while building real native software is logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md), so each friction point can be promoted into a Mighty issue / RFC. That feedback loop (lessons L1-L1179) has already driven real fixes in the Mighty compiler — for example the native `Vec`-growth codegen bug ([L28](docs/mighty-language-lessons.md)), the `extern c` scalar ABI (L17), the LSP-client discipline (L24–L25), the parse-stack ceiling worked around by the `mui_chord` router (L37–L38, and the `!fn_call(args)` precedence trap found wiring the shortcuts overlay, L46), the native runtime/linking gaps captured while hardening Windows packaging (L50–L51), and the repeated prompt-string staging pressure from file-operation commands (L52).
 
 ## Status & known caveats
 

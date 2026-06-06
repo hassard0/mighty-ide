@@ -1375,7 +1375,23 @@ pub mod lsp {
         let at = top_level_field_value_start(obj, field)?;
         let region = value_region(obj, at)?;
         let text = std::str::from_utf8(region).ok()?.trim();
+        if !is_lsp_integer_token(text) {
+            return None;
+        }
         text.parse::<i64>().ok()
+    }
+
+    fn is_lsp_integer_token(text: &str) -> bool {
+        let bytes = text.as_bytes();
+        if bytes.is_empty() {
+            return false;
+        }
+        let digits = if bytes[0] == b'-' {
+            &bytes[1..]
+        } else {
+            bytes
+        };
+        !digits.is_empty() && digits.iter().all(|b| b.is_ascii_digit())
     }
 
     fn top_level_bool_value(obj: &[u8], field: &[u8]) -> Option<bool> {
@@ -2940,6 +2956,16 @@ mod tests {
     }
 
     #[test]
+    fn lsp_scrape_candidates_rejects_plus_prefixed_kind() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"plusKind","kind":+3},{"label":"function","kind":3}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].kind_label, None);
+        assert_eq!(candidates[1].kind_label, Some("function"));
+    }
+
+    #[test]
     fn lsp_scrape_candidates_preserves_documentation_text() {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"stringDoc","documentation":"plain docs"},{"label":"markupDoc","documentation":{"kind":"markdown","value":"**rich** docs"}},{"label":"emptyDoc","documentation":"   "}]}"#;
         let candidates = super::lsp::scrape_candidates(json);
@@ -3015,6 +3041,24 @@ mod tests {
             })
         );
         assert_eq!(labels, vec!["Console.WriteLine($1)".to_string()]);
+    }
+
+    #[test]
+    fn lsp_scrape_rejects_plus_prefixed_text_edit_range_numbers() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"bad","textEdit":{"range":{"start":{"line":+0,"character":0},"end":{"line":0,"character":2}},"newText":"bad"}},{"label":"good","textEdit":{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":2}},"newText":"good"}}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].edit_range, None);
+        assert_eq!(
+            candidates[1].edit_range,
+            Some(CompletionEditRange {
+                start_line: 0,
+                start_col_utf16: 0,
+                end_line: 0,
+                end_col_utf16: 2,
+            })
+        );
     }
 
     #[test]
@@ -3135,6 +3179,17 @@ mod tests {
         assert_eq!(
             labels,
             vec!["for item in items {\n\t\n}".to_string(), "red".to_string()]
+        );
+    }
+
+    #[test]
+    fn lsp_scrape_rejects_plus_prefixed_insert_text_format() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"plus","insertTextFormat":+2,"insertText":"for ${1:item}"},{"label":"snippet","insertTextFormat":2,"insertText":"for ${1:item}"}]}"#;
+        let labels = super::lsp::scrape_labels(json);
+
+        assert_eq!(
+            labels,
+            vec!["for ${1:item}".to_string(), "for item".to_string()]
         );
     }
 
