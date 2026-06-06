@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1187).
+(lessons L1-L1188).
 
 ## v0.3.0
 
@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Git blame timestamps require token boundaries**: porcelain `author-time`
+  headers now accept only unsigned decimal timestamp tokens that fit `i64`, so
+  plus-prefixed, signed, suffixed, or overflowing blame metadata cannot replace
+  cached commit dates.
 - **Markdown overflow fallback numbering is one-based**: ordered-list markers
   whose typed number cannot fit in `u64` now render with their one-based list
   position instead of `0.`.

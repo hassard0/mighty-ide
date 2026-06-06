@@ -115,7 +115,7 @@ pub fn parse_porcelain(out: &str) -> Vec<BlameLine> {
         if let Some(v) = raw.strip_prefix("author ") {
             cur.author = v.trim().to_string();
         } else if let Some(v) = raw.strip_prefix("author-time ") {
-            cur.author_time = v.trim().parse().ok();
+            cur.author_time = parse_author_time(v);
         } else if let Some(v) = raw.strip_prefix("author-tz ") {
             cur.author_tz_seconds = parse_tz_seconds(v);
         }
@@ -127,6 +127,14 @@ pub fn parse_porcelain(out: &str) -> Vec<BlameLine> {
 /// Is `tok` a git blame sha token (40 hex chars, or all-zero uncommitted)?
 fn is_sha_token(tok: &str) -> bool {
     tok.len() == 40 && tok.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+fn parse_author_time(raw: &str) -> Option<i64> {
+    let t = raw.trim();
+    if t.is_empty() || !t.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    t.parse::<i64>().ok()
 }
 
 /// Format a Unix `author-time` plus a parsed tz offset into a short `YYYY-MM-DD`
@@ -384,6 +392,49 @@ filename src/main.rs
             lines[1].date, "2023-11-14",
             "malformed repeat headers must not clear cached commit dates"
         );
+        assert_eq!(lines[2].date, "2023-11-14");
+    }
+
+    #[test]
+    fn author_time_tokens_reject_signs_suffixes_and_overflow() {
+        assert_eq!(parse_author_time("1700000000"), Some(1_700_000_000));
+        assert_eq!(parse_author_time(&i64::MAX.to_string()), Some(i64::MAX));
+        assert_eq!(parse_author_time("+1700000000"), None);
+        assert_eq!(parse_author_time("-1700000000"), None);
+        assert_eq!(parse_author_time("1700000000s"), None);
+        assert_eq!(parse_author_time("9223372036854775808"), None);
+    }
+
+    #[test]
+    fn malformed_author_time_does_not_replace_cached_date() {
+        let blob = "\
+4444444444444444444444444444444444444444 1 1 1
+author Emmy Noether
+author-time 1700000000
+author-tz +0000
+summary first sighting
+filename src/main.rs
+\tlet first = true;
+4444444444444444444444444444444444444444 2 2 1
+author Emmy Noether
+author-time +1700000001
+author-tz +0000
+summary plus-prefixed repeat
+filename src/main.rs
+\tlet second = true;
+4444444444444444444444444444444444444444 3 3 1
+author Emmy Noether
+author-time 9223372036854775808
+author-tz +0000
+summary overflowing repeat
+filename src/main.rs
+\tlet third = true;
+";
+        let lines = parse_porcelain(blob);
+
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].date, "2023-11-14");
+        assert_eq!(lines[1].date, "2023-11-14");
         assert_eq!(lines[2].date, "2023-11-14");
     }
 
