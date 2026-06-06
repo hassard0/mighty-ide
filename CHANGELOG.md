@@ -305,6 +305,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   sidecar scans, foreign-payload rejection, and native-host smoke testing.
 
 ### Editing & layout
+- **Scalar `Saved` feedback is save feedback**: the predefined Mighty-side
+  `Saved` toast now replaces stale save warnings instead of stacking as a
+  generic notification.
 - **Scalar `Copied` feedback is clipboard feedback**: the predefined Mighty-side
   `Copied` toast now replaces stale copy/cut/paste toasts instead of stacking as
   a generic notification.

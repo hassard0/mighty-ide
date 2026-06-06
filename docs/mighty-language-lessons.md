@@ -13907,3 +13907,16 @@ cut results.
 - **Language note:** no compiler gap surfaced. Scalar fallback messages should
   keep enough semantic ownership in the shim classifier to behave like their
   richer string-producing counterparts.
+
+## L1099 - Scalar Save Toasts Need Operation Ownership
+
+The scalar Mighty toast table also includes exact `Saved`. It has no filename
+payload, but it still represents a completed save action and should replace the
+stale save warning that led to it.
+
+- **IDE note:** exact `Saved` now coalesces with the Save operation family,
+  matching `Saved <file>`, save skips, Save As feedback, Save All feedback, and
+  auto-save messages.
+- **Language note:** no compiler gap surfaced. When scalar ABI fallbacks drop
+  payload detail, the shim-side classifier should preserve the operation's
+  semantic lane.

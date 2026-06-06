@@ -670,6 +670,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "Choose a file name"
         || m == "Target file is already open"
         || m.ends_with(" is read-only in the text editor")
+        || m == "Saved"
         || m.starts_with("Saved ")
         || m.starts_with("Save skipped:")
         || (m.starts_with("Save failed") && !m.starts_with("Save failed before code action"))
@@ -1328,6 +1329,12 @@ mod tests {
         q.push_at(Kind::Success, "Saved main.mty", t0 + Duration::from_millis(500));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Saved main.mty");
+        assert_eq!(q.toasts()[0].kind, Kind::Success);
+
+        q.push_at(Kind::Warn, "No file path to save", t0 + Duration::from_millis(525));
+        q.push_at(Kind::Success, "Saved", t0 + Duration::from_millis(540));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Saved");
         assert_eq!(q.toasts()[0].kind, Kind::Success);
 
         q.push_at(Kind::Warn, "No file path to save", t0 + Duration::from_millis(550));
