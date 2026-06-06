@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (snippet random and UUID variables - L1126; snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14317,3 +14317,19 @@ snippets using `$CURRENT_MILLISECOND`, `$CURRENT_SECONDS_UNIX`, or
 - **Language note:** no compiler gap surfaced. Imported editor data formats
   should treat common compatibility variables as part of the user-facing
   contract, not as optional parser trivia.
+
+## L1126 - Imported Snippets Need Random And UUID Variables
+
+Many copied VS Code snippet packs use `$RANDOM`, `$RANDOM_HEX`, or `$UUID` for
+temporary identifiers, DOM ids, fixture names, and generated test data. Without
+these variables, expansion preserved raw marker text and made imported snippets
+look partially broken even when tab stops and date variables worked.
+
+- **IDE note:** snippet expansion now resolves `$RANDOM` as six digits,
+  `$RANDOM_HEX` as six hex digits, and `$UUID` as a UUID v4-shaped string.
+  Tests pin the public shapes and UUID version/variant bits while avoiding
+  brittle assertions about exact random values. `$CLIPBOARD` remains separate
+  until snippet expansion carries an explicit clipboard source.
+- **Language note:** no compiler gap surfaced. Non-deterministic imported
+  snippet variables still need deterministic shape tests so compatibility can
+  improve without turning the test suite flaky.

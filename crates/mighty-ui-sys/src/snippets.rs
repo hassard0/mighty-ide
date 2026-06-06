@@ -31,6 +31,7 @@
 use crate::editor::TextModel;
 use crate::langdetect::Language;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// One parsed piece of a snippet body.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -689,6 +690,9 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
         "CURRENT_MILLISECOND" => Some(format!("{:03}", date_parts(context).millisecond)),
         "CURRENT_SECONDS_UNIX" => Some((date_parts(context).unix_millis / 1000).to_string()),
         "CURRENT_MILLISECONDS_UNIX" => Some(date_parts(context).unix_millis.to_string()),
+        "RANDOM" => Some(random_digits(6)),
+        "RANDOM_HEX" => Some(format!("{:06x}", random_u64() & 0x00ff_ffff)),
+        "UUID" => Some(random_uuid_v4()),
         "TM_FILENAME" => context
             .active_path
             .as_deref()
@@ -717,6 +721,60 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
         "RELATIVE_FILEPATH" => relative_filepath(context),
         _ => None,
     }
+}
+
+static RANDOM_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn random_seed() -> u64 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos().min(u64::MAX as u128) as u64)
+        .unwrap_or(0);
+    let counter = RANDOM_COUNTER.fetch_add(0x9e37_79b9_7f4a_7c15, Ordering::Relaxed);
+    nanos ^ counter ^ ((std::process::id() as u64) << 32)
+}
+
+fn random_u64() -> u64 {
+    let mut x = random_seed();
+    x ^= x >> 30;
+    x = x.wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    x ^= x >> 27;
+    x = x.wrapping_mul(0x94d0_49bb_1331_11eb);
+    x ^ (x >> 31)
+}
+
+fn random_digits(width: usize) -> String {
+    let modulo = 10u64.saturating_pow(width.min(18) as u32);
+    format!("{:0width$}", random_u64() % modulo, width = width)
+}
+
+fn random_uuid_v4() -> String {
+    let mut bytes = [0u8; 16];
+    let a = random_u64().to_be_bytes();
+    let b = random_u64().to_be_bytes();
+    bytes[..8].copy_from_slice(&a);
+    bytes[8..].copy_from_slice(&b);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    format!(
+        "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0],
+        bytes[1],
+        bytes[2],
+        bytes[3],
+        bytes[4],
+        bytes[5],
+        bytes[6],
+        bytes[7],
+        bytes[8],
+        bytes[9],
+        bytes[10],
+        bytes[11],
+        bytes[12],
+        bytes[13],
+        bytes[14],
+        bytes[15]
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1562,6 +1620,21 @@ fn is_word_char(c: char) -> bool {
 mod tests {
     use super::*;
 
+    fn assert_uuid_v4(value: &str) {
+        assert_eq!(value.len(), 36, "{value}");
+        let chars: Vec<char> = value.chars().collect();
+        for idx in [8, 13, 18, 23] {
+            assert_eq!(chars[idx], '-', "{value}");
+        }
+        assert!(chars
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| ![8, 13, 18, 23].contains(idx))
+            .all(|(_, ch)| ch.is_ascii_hexdigit()), "{value}");
+        assert_eq!(chars[14], '4', "{value}");
+        assert!(matches!(chars[19], '8' | '9' | 'a' | 'b' | 'A' | 'B'), "{value}");
+    }
+
     // ---- body parsing ----
 
     #[test]
@@ -1995,6 +2068,23 @@ mod tests {
             &ctx,
         );
         assert_eq!(exp.text, "078|1717489107|1717489107078");
+    }
+
+    #[test]
+    fn random_variables_expand_with_vscode_shapes() {
+        let exp = expand("$RANDOM|$RANDOM_HEX|$UUID", "", 0, 0);
+        let parts: Vec<&str> = exp.text.split('|').collect();
+        assert_eq!(parts.len(), 3);
+        assert_eq!(parts[0].len(), 6);
+        assert!(parts[0].chars().all(|ch| ch.is_ascii_digit()), "{:?}", parts[0]);
+        assert_eq!(parts[1].len(), 6);
+        assert!(parts[1].chars().all(|ch| ch.is_ascii_hexdigit()), "{:?}", parts[1]);
+        assert_uuid_v4(parts[2]);
+    }
+
+    #[test]
+    fn random_uuid_helper_sets_version_and_variant_bits() {
+        assert_uuid_v4(&random_uuid_v4());
     }
 
     #[test]
