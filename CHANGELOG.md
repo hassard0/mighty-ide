@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1119).
+(lessons L1-L1120).
 
 ## v0.3.0
 
@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,012 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette unavailable states coalesce with owning workflows**: broken
+  compiler and stale-target preflight messages such as `Run unavailable: ...`,
+  `Tests unavailable: ...`, and `Debug unavailable: ...` now replace stale
+  feedback in their Run/Test/Debug/Web/Format/Agents/New Project lanes.
 - **Stale blame target failures coalesce as Git feedback**: `Blame target
   missing: ...` and `Blame failed: ...` now replace stale Git blame toasts
   instead of lingering as separate warnings.

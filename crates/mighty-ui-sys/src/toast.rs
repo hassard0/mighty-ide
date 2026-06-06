@@ -651,6 +651,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Git)
     } else if m == "Open a file before running Agents"
+        || m.starts_with("Mighty Agents unavailable:")
         || (m.starts_with("Save ") && m.ends_with(" before running Agents"))
         || m == "No agent node selected"
         || m == "Agent node no longer listed"
@@ -746,6 +747,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("New project parent missing:")
         || m.starts_with("New project parent is not a folder:")
         || m.starts_with("New project parent unavailable:")
+        || m.starts_with("New Project unavailable:")
         || m.starts_with("New project target is not a folder:")
     {
         Some(OperationKey::CreateProject)
@@ -840,6 +842,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Copy)
     } else if is_test_result_message(m)
+        || m.starts_with("Tests unavailable:")
         || m == "Open a Mighty file or folder before running tests"
         || m == "Open a Mighty file before running test at cursor"
         || (m.starts_with("Save ") && m.ends_with(" or open a Mighty folder before running tests"))
@@ -858,12 +861,14 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Test)
     } else if m.starts_with("Run in Browser:")
+        || m.starts_with("Browser run unavailable:")
         || m.starts_with("Web ")
         || m.starts_with("No web server ")
         || is_opened_url_message(m)
     {
         Some(OperationKey::WebRun)
     } else if m.starts_with("Run finished")
+        || m.starts_with("Run unavailable:")
         || m.starts_with("Run failed")
         || m.starts_with("Run stopped")
         || m == "Run process stopped"
@@ -908,6 +913,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::CodeAction)
     } else if m == "Formatted document"
+        || m.starts_with("Format unavailable:")
         || m.starts_with("Format failed")
         || m == "Save the file before formatting"
         || m == "Format is unavailable in read-only previews"
@@ -1053,6 +1059,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
     {
         Some(OperationKey::Terminal)
     } else if m.starts_with("Debug session ")
+        || m.starts_with("Debug unavailable:")
         || m == "Open a file before starting debug"
         || (m.starts_with("Save ")
             && (m.ends_with("before starting debug")
@@ -1064,6 +1071,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m == "No debug session to stop"
         || m == "Pause is available while running"
         || m.starts_with("Debug restart failed")
+        || m.starts_with("Debug restart unavailable:")
         || m == "No debug target to restart"
         || m.starts_with("Start debug before restarting:")
         || m == "Step Over is available when paused"
@@ -1463,10 +1471,15 @@ mod tests {
             "New project target is not a folder: existing_project",
             t0 + Duration::from_millis(1675),
         );
+        q.push_at(
+            Kind::Warn,
+            "New Project unavailable: MIGHTY_MTY points to missing missing-mty.exe",
+            t0 + Duration::from_millis(1685),
+        );
         assert_eq!(q.len(), 3);
         assert_eq!(
             q.toasts()[2].message,
-            "New project target is not a folder: existing_project"
+            "New Project unavailable: MIGHTY_MTY points to missing missing-mty.exe"
         );
         assert!(!q
             .toasts()
@@ -1480,6 +1493,10 @@ mod tests {
             .toasts()
             .iter()
             .any(|t| t.message == "New project parent is not a folder: parent.txt"));
+        assert!(!q
+            .toasts()
+            .iter()
+            .any(|t| t.message == "New project target is not a folder: existing_project"));
 
         q.push_at(Kind::Info, "Closed 1 saved tab", t0 + Duration::from_millis(1700));
         q.push_at(Kind::Warn, "No tab at that position", t0 + Duration::from_millis(1800));
@@ -2974,6 +2991,28 @@ mod tests {
 
         q.push_at(
             Kind::Warn,
+            "Debug unavailable: MIGHTY_MTY points to missing missing-mty.exe",
+            t0 + Duration::from_millis(675),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Debug unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+
+        q.push_at(
+            Kind::Warn,
+            "Debug restart unavailable: target missing: again.mty",
+            t0 + Duration::from_millis(690),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Debug restart unavailable: target missing: again.mty"
+        );
+
+        q.push_at(
+            Kind::Warn,
             "Save (scratch) before setting breakpoints",
             t0 + Duration::from_millis(700),
         );
@@ -3090,6 +3129,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Run output row no longer listed");
+
+        q.push_at(
+            Kind::Warn,
+            "Run unavailable: MIGHTY_MTY points to missing missing-mty.exe",
+            t0 + Duration::from_millis(900),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Run unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
     }
 
     #[test]
@@ -3121,6 +3171,22 @@ mod tests {
             "Run in Browser: failed to start: target missing: webspin.mty (see panel)"
         );
         assert_eq!(q.toasts()[1].message, "Run output already empty");
+
+        q.push_at(
+            Kind::Warn,
+            "Browser run unavailable: MIGHTY_MTY points to missing missing-mty.exe",
+            t0 + Duration::from_millis(300),
+        );
+        assert_eq!(q.len(), 2);
+        assert_eq!(
+            q.toasts()[1].message,
+            "Browser run unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(q.toasts()[0].message, "Run output already empty");
+        assert!(!q.toasts().iter().any(|t| {
+            t.message
+                == "Run in Browser: failed to start: target missing: webspin.mty (see panel)"
+        }));
     }
 
     #[test]
@@ -3152,6 +3218,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Testing panel is already closed");
+
+        q.push_at(
+            Kind::Warn,
+            "Tests unavailable: MIGHTY_MTY points to missing missing-mty.exe",
+            t0 + Duration::from_millis(400),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Tests unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
     }
 
     #[test]
@@ -4062,6 +4139,18 @@ mod tests {
         assert_eq!(q.toasts()[0].kind, Kind::Error);
 
         q.push_at(
+            Kind::Warn,
+            "Format unavailable: MIGHTY_MTY points to missing missing-mty.exe",
+            t0 + Duration::from_millis(250),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Format unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
+        assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
             Kind::Success,
             "Formatted document",
             t0 + Duration::from_millis(300),
@@ -4193,6 +4282,17 @@ mod tests {
             "Live inspect unavailable: MIGHTY_MTY points to missing missing-mty"
         );
         assert_eq!(q.toasts()[0].kind, Kind::Warn);
+
+        q.push_at(
+            Kind::Warn,
+            "Mighty Agents unavailable: MIGHTY_MTY points to missing missing-mty.exe",
+            t0 + Duration::from_millis(375),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Mighty Agents unavailable: MIGHTY_MTY points to missing missing-mty.exe"
+        );
 
         q.push_at(
             Kind::Info,
