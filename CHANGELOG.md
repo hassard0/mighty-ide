@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Word-delete palette mirrors edit preflights**: Command Palette now reports
+  active-selection deletion and start/end word-delete no-ops before dispatch,
+  using the same clone-based mutation checks as the editor undo preflight.
 - **Selection palette names cursor-state outcomes**: Command Palette now reports
   no-word Select Word targets, selection-clearing collapse, already-single
   cursor collapse, and multi-cursor collapse counts before dispatch.

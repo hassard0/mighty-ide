@@ -1316,6 +1316,31 @@ impl PaletteEngine {
                 crate::layout::dock_preset_index(),
             );
         }
+        if matches!(id, CMD_DELETE_PREVIOUS_WORD | CMD_DELETE_NEXT_WORD) && !active_read_only {
+            let can_delete_previous_word = if id == CMD_DELETE_PREVIOUS_WORD {
+                let mut probe = model.clone();
+                let before = probe.as_text().to_string();
+                probe.delete_word_left_multi();
+                probe.as_text() != before
+            } else {
+                true
+            };
+            let can_delete_next_word = if id == CMD_DELETE_NEXT_WORD {
+                let mut probe = model.clone();
+                let before = probe.as_text().to_string();
+                probe.delete_word_right_multi();
+                probe.as_text() != before
+            } else {
+                true
+            };
+            return word_delete_contextual_desc(
+                id,
+                base,
+                active_has_selection,
+                can_delete_previous_word,
+                can_delete_next_word,
+            );
+        }
         if matches!(
             id,
             CMD_SELECT_WORD
@@ -2402,6 +2427,25 @@ fn pane_contextual_desc<'a>(id: u32, base: &'a str, pane_count: usize) -> Cow<'a
         CMD_FOCUS_NEXT_PANE | CMD_CLOSE_PANE if pane_count <= 1 => {
             Cow::Borrowed("Only one editor pane")
         }
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn word_delete_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    has_selection: bool,
+    can_delete_previous_word: bool,
+    can_delete_next_word: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_DELETE_PREVIOUS_WORD | CMD_DELETE_NEXT_WORD if has_selection => {
+            Cow::Borrowed("Delete the active selection")
+        }
+        CMD_DELETE_PREVIOUS_WORD if !can_delete_previous_word => {
+            Cow::Borrowed("No previous word to delete")
+        }
+        CMD_DELETE_NEXT_WORD if !can_delete_next_word => Cow::Borrowed("No next word to delete"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -5389,6 +5433,90 @@ mod tests {
             pane_contextual_desc(CMD_CLOSE_PANE, "base", 2),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn word_delete_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            word_delete_contextual_desc(CMD_DELETE_PREVIOUS_WORD, "base", true, true, true),
+            Cow::Borrowed("Delete the active selection")
+        );
+        assert_eq!(
+            word_delete_contextual_desc(CMD_DELETE_NEXT_WORD, "base", true, true, true),
+            Cow::Borrowed("Delete the active selection")
+        );
+        assert_eq!(
+            word_delete_contextual_desc(CMD_DELETE_PREVIOUS_WORD, "base", false, false, true),
+            Cow::Borrowed("No previous word to delete")
+        );
+        assert_eq!(
+            word_delete_contextual_desc(CMD_DELETE_NEXT_WORD, "base", false, true, false),
+            Cow::Borrowed("No next word to delete")
+        );
+        assert_eq!(
+            word_delete_contextual_desc(CMD_DELETE_PREVIOUS_WORD, "base", false, true, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            word_delete_contextual_desc(CMD_DELETE_NEXT_WORD, "base", false, true, true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn word_delete_palette_descriptions_probe_active_editor_state() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+
+        ctx.tabs
+            .active_model_mut()
+            .set_text_preserving_cursor("alpha beta");
+        ctx.tabs.active_model_mut().move_to(0, 0);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DELETE_PREVIOUS_WORD, "base")
+                .as_ref(),
+            "No previous word to delete"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DELETE_NEXT_WORD, "base")
+                .as_ref(),
+            "base"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "alpha beta");
+
+        ctx.tabs.active_model_mut().move_to(0, "alpha beta".len() as i32);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DELETE_NEXT_WORD, "base")
+                .as_ref(),
+            "No next word to delete"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DELETE_PREVIOUS_WORD, "base")
+                .as_ref(),
+            "base"
+        );
+        assert_eq!(ctx.tabs.active_model().as_text(), "alpha beta");
+
+        ctx.tabs.active_model_mut().select_word();
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DELETE_PREVIOUS_WORD, "base")
+                .as_ref(),
+            "Delete the active selection"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DELETE_NEXT_WORD, "base")
+                .as_ref(),
+            "Delete the active selection"
+        );
+        assert!(ctx.tabs.active_model().has_selection());
     }
 
     #[test]
