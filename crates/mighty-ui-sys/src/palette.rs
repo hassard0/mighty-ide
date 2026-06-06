@@ -1453,6 +1453,9 @@ fn command_contextual_desc<'a>(
         CMD_COPY_SELECTION_OR_LINE if active_has_selection => Cow::Borrowed("Copy the active selection to the clipboard"),
         CMD_COPY_SELECTION_OR_LINE if active_can_copy => Cow::Borrowed("Copy the current line to the clipboard"),
         CMD_COPY_SELECTION_OR_LINE => Cow::Borrowed("No selection or line text to copy"),
+        CMD_CUT_SELECTION_OR_LINE if active_has_selection => Cow::Borrowed("Cut the active selection to the clipboard"),
+        CMD_CUT_SELECTION_OR_LINE if active_can_copy => Cow::Borrowed("Cut the current line to the clipboard"),
+        CMD_CUT_SELECTION_OR_LINE => Cow::Borrowed("No selection or line text to cut"),
         CMD_SAVE if active_has_path => Cow::Borrowed("Write the active file to disk"),
         CMD_SAVE => Cow::Borrowed("Choose a path before saving this untitled file"),
         CMD_SAVE_AS if active_has_path => Cow::Borrowed("Choose a new path or filename for this file"),
@@ -2004,6 +2007,45 @@ mod tests {
                 false
             ),
             Cow::Borrowed("Read-only preview has no text to copy")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_CUT_SELECTION_OR_LINE,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                true,
+                true
+            ),
+            Cow::Borrowed("Cut the active selection to the clipboard")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_CUT_SELECTION_OR_LINE,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                true
+            ),
+            Cow::Borrowed("Cut the current line to the clipboard")
+        );
+        assert_eq!(
+            command_contextual_desc(
+                CMD_CUT_SELECTION_OR_LINE,
+                "base",
+                true,
+                false,
+                false,
+                0,
+                false,
+                false
+            ),
+            Cow::Borrowed("No selection or line text to cut")
         );
         assert_eq!(
             command_contextual_desc(
