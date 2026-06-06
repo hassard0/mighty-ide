@@ -14209,10 +14209,14 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     match (saved, failed, untitled, read_only + dirty_conflicts) {
         (0, 0, 0, skipped) if skipped > 0 => {
             let message = if read_only == 0 && dirty_conflict_names.len() == 1 {
-                format!(
-                    "Save All skipped {}: duplicate unsaved edits",
-                    dirty_conflict_names.iter().next().unwrap()
-                )
+                dirty_conflict_names
+                    .iter()
+                    .next()
+                    .map(|name| format!("Save All skipped {name}: duplicate unsaved edits"))
+                    .unwrap_or_else(|| {
+                        let noun = if skipped == 1 { "file" } else { "files" };
+                        format!("{skipped} {noun} skipped")
+                    })
             } else {
                 let noun = if skipped == 1 { "file" } else { "files" };
                 format!("{skipped} {noun} skipped")

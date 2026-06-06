@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14150,3 +14150,18 @@ feedback, so incidental mouse cleanup and command cancellation shared one ABI.
 - **Language note:** no compiler gap surfaced. Even quiet active-close commands
   should split incidental cleanup from explicit stale-state feedback so local UI
   flags cannot turn pointer misses into command-like toasts.
+
+## L1115 - Preflight Message Invariants Should Not Panic
+
+Save All duplicate-dirty detection keeps a set of conflicting basenames so it
+can say `Save All skipped <file>: duplicate unsaved edits` when all skipped tabs
+belong to one file. That name is expected to exist whenever the set length is
+one, but the user-facing message path should not depend on an unchecked
+`unwrap()` at runtime.
+
+- **IDE note:** runtime Save All and the Command Palette preflight now preserve
+  the filename-specific duplicate message when the basename is present, and
+  fall back to the generic skipped-count message if the invariant is ever empty.
+- **Language note:** no compiler gap surfaced. Command preflight code should
+  treat derived diagnostic strings as fallible data, even when upstream state
+  tracking currently makes the empty case unreachable.

@@ -3369,10 +3369,16 @@ fn save_all_dirty_conflict_desc(
         None
     } else if dirty_conflicts == dirty_count {
         if dirty_conflict_names.len() == 1 {
-            Some(Cow::Owned(format!(
-                "Save All skipped {}: duplicate unsaved edits",
-                dirty_conflict_names.iter().next().unwrap()
-            )))
+            Some(Cow::Owned(
+                dirty_conflict_names
+                    .iter()
+                    .next()
+                    .map(|name| format!("Save All skipped {name}: duplicate unsaved edits"))
+                    .unwrap_or_else(|| {
+                        let noun = if dirty_conflicts == 1 { "file" } else { "files" };
+                        format!("{dirty_conflicts} {noun} skipped")
+                    }),
+            ))
         } else {
             let noun = if dirty_conflicts == 1 { "file" } else { "files" };
             Some(Cow::Owned(format!("{dirty_conflicts} {noun} skipped")))

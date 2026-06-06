@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1114).
+(lessons L1-L1115).
 
 ## v0.3.0
 
@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,012 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Save All duplicate-skip messaging avoids a panic edge**: the runtime Save
+  All path and Command Palette preflight now use the generic skipped-count
+  fallback if duplicate-conflict names are unavailable, while preserving the
+  exact filename-specific message for normal duplicate dirty tabs.
 - **Prompt mouse dismissal uses silent cleanup**: clicking the prompt close
   affordance or outside the prompt now releases Prompt state through
   `mui_prompt_dismiss`, keeping `No prompt input open` scoped to explicit
