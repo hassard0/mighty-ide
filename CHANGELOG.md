@@ -189,6 +189,10 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 - **Recent persistence warnings replace Open Recent feedback**: those
   file/folder persistence warnings now coalesce with stale recent-row and other
   Open Recent toasts instead of stacking as unrelated warnings.
+- **Typed Open Folder failures replace stale Open feedback**: missing folder
+  paths and existing non-folder paths now coalesce with the Open workflow, so
+  `No such folder: ...` and `Not a folder: ...` replace older open-file,
+  open-folder, or Open Recent toasts instead of lingering beside them.
 - **Theme preference failures are visible**: Color Theme applies still take
   effect immediately, but failed config writes now report a warning instead of
   implying the selected theme will survive restart.

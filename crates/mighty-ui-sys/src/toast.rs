@@ -688,6 +688,8 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Recent files not saved")
         || m.starts_with("Recent folders not saved")
         || m == "Enter a folder path"
+        || m.starts_with("No such folder:")
+        || m.starts_with("Not a folder:")
         || m.starts_with("Open failed")
         || m == "No file path entered"
         || m.starts_with("Recent file missing")
@@ -1910,6 +1912,22 @@ mod tests {
         q.push_at(Kind::Warn, "Enter a folder path", t0 + Duration::from_millis(450));
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Enter a folder path");
+
+        q.push_at(
+            Kind::Warn,
+            "No such folder: C:\\missing\\workspace",
+            t0 + Duration::from_millis(455),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "No such folder: C:\\missing\\workspace");
+
+        q.push_at(
+            Kind::Warn,
+            "Not a folder: C:\\tmp\\main.mty",
+            t0 + Duration::from_millis(456),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Not a folder: C:\\tmp\\main.mty");
 
         q.push_at(
             Kind::Info,

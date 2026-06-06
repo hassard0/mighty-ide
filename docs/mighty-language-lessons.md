@@ -13948,3 +13948,17 @@ workflow.
 - **Language note:** no compiler gap surfaced. Configuration persistence errors
   should inherit the UI surface that triggered them, not only the storage layer
   that reported them.
+
+## L1102 - Typed Folder Validation Is Open Feedback
+
+Typed Open Folder fallback validation reports `No such folder: <path>` and
+`Not a folder: <path>` from the workspace validator. Those strings are not
+prefixed with `Open`, but they still belong to the user's Open Folder workflow
+and should replace stale open-file, open-folder, or Open Recent feedback.
+
+- **IDE note:** missing-folder and non-folder typed Open Folder failures now
+  coalesce with the Open operation family alongside dialog cancellation,
+  unavailable picker, blank path, and recent-row feedback.
+- **Language note:** no compiler gap surfaced. Validator-owned message text
+  still needs an explicit UI operation owner when it crosses into shared
+  notification behavior.
