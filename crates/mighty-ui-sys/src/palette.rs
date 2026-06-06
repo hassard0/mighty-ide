@@ -1245,6 +1245,15 @@ impl PaletteEngine {
                 ctx.web.line_count(),
             );
         }
+        if matches!(id, CMD_RUN_STOP | CMD_RUN_CLEAR_OUTPUT | CMD_RUN_CLOSE) {
+            return run_contextual_desc(
+                id,
+                base,
+                ctx.run.is_active(),
+                ctx.run.is_running(),
+                ctx.run.line_count(),
+            );
+        }
         command_contextual_desc_with_workspace(
             id,
             base,
@@ -1499,6 +1508,21 @@ fn web_contextual_desc<'a>(
         CMD_WEB_OPEN_BROWSER if url_empty => Cow::Borrowed("Web URL not ready"),
         CMD_WEB_CLEAR_OUTPUT if line_count == 0 => Cow::Borrowed("Web output already empty"),
         CMD_WEB_CLOSE if !active => Cow::Borrowed("Web Playground is already closed"),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn run_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    running: bool,
+    line_count: usize,
+) -> Cow<'a, str> {
+    match id {
+        CMD_RUN_STOP if !running => Cow::Borrowed("No run process to stop"),
+        CMD_RUN_CLEAR_OUTPUT if line_count == 0 => Cow::Borrowed("Run output already empty"),
+        CMD_RUN_CLOSE if !active => Cow::Borrowed("Run panel is already closed"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -2367,6 +2391,34 @@ mod tests {
         );
         assert_eq!(
             web_contextual_desc(CMD_WEB_CLOSE, "base", true, true, false, 6),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn run_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            run_contextual_desc(CMD_RUN_STOP, "base", false, false, 0),
+            Cow::Borrowed("No run process to stop")
+        );
+        assert_eq!(
+            run_contextual_desc(CMD_RUN_CLEAR_OUTPUT, "base", true, true, 0),
+            Cow::Borrowed("Run output already empty")
+        );
+        assert_eq!(
+            run_contextual_desc(CMD_RUN_CLOSE, "base", false, false, 0),
+            Cow::Borrowed("Run panel is already closed")
+        );
+        assert_eq!(
+            run_contextual_desc(CMD_RUN_STOP, "base", true, true, 6),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            run_contextual_desc(CMD_RUN_CLEAR_OUTPUT, "base", true, true, 6),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            run_contextual_desc(CMD_RUN_CLOSE, "base", true, false, 0),
             Cow::Borrowed("base")
         );
     }
