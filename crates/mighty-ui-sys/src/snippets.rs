@@ -394,7 +394,9 @@ pub struct DateParts {
     hour: u8,
     minute: u8,
     second: u8,
+    millisecond: u16,
     weekday: u8,
+    unix_millis: i64,
 }
 
 impl DateParts {
@@ -684,6 +686,9 @@ fn resolve_snippet_variable(name: &str, context: &SnippetContext) -> Option<Stri
         "CURRENT_HOUR" => Some(format!("{:02}", date_parts(context).hour)),
         "CURRENT_MINUTE" => Some(format!("{:02}", date_parts(context).minute)),
         "CURRENT_SECOND" => Some(format!("{:02}", date_parts(context).second)),
+        "CURRENT_MILLISECOND" => Some(format!("{:03}", date_parts(context).millisecond)),
+        "CURRENT_SECONDS_UNIX" => Some((date_parts(context).unix_millis / 1000).to_string()),
+        "CURRENT_MILLISECONDS_UNIX" => Some(date_parts(context).unix_millis.to_string()),
         "TM_FILENAME" => context
             .active_path
             .as_deref()
@@ -784,6 +789,13 @@ fn day_name(weekday: u8, short: bool) -> &'static str {
     if short { SHORT[idx] } else { LONG[idx] }
 }
 
+fn unix_millis_now() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis().min(i64::MAX as u128) as i64)
+        .unwrap_or(0)
+}
+
 #[cfg(windows)]
 fn local_date_parts() -> DateParts {
     let mut t = windows_sys::Win32::Foundation::SYSTEMTIME::default();
@@ -795,16 +807,16 @@ fn local_date_parts() -> DateParts {
         hour: t.wHour as u8,
         minute: t.wMinute as u8,
         second: t.wSecond as u8,
+        millisecond: t.wMilliseconds,
         weekday: t.wDayOfWeek as u8,
+        unix_millis: unix_millis_now(),
     }
 }
 
 #[cfg(not(windows))]
 fn local_date_parts() -> DateParts {
-    let seconds = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+    let unix_millis = unix_millis_now();
+    let seconds = unix_millis.div_euclid(1000);
     let days = seconds.div_euclid(86_400);
     let seconds_of_day = seconds.rem_euclid(86_400);
     let (year, month, day) = civil_from_days(days);
@@ -815,7 +827,9 @@ fn local_date_parts() -> DateParts {
         hour: (seconds_of_day / 3600) as u8,
         minute: ((seconds_of_day % 3600) / 60) as u8,
         second: (seconds_of_day % 60) as u8,
+        millisecond: unix_millis.rem_euclid(1000) as u16,
         weekday: ((days + 4).rem_euclid(7)) as u8,
+        unix_millis,
     }
 }
 
@@ -1932,7 +1946,9 @@ mod tests {
                 hour: 9,
                 minute: 5,
                 second: 7,
+                millisecond: 78,
                 weekday: 4,
+                unix_millis: 1_717_489_107_078,
             }),
         );
         let exp = expand_with_context(
@@ -1948,6 +1964,37 @@ mod tests {
             &ctx,
         );
         assert_eq!(exp.text, "2026|26|06|June|Jun|04|Thursday|Thu|09|05|07");
+    }
+
+    #[test]
+    fn expand_current_timestamp_variables_from_context() {
+        let ctx = SnippetContext::from_editor_context(
+            None,
+            "",
+            None,
+            None,
+            None,
+            "",
+            Some(DateParts {
+                year: 2026,
+                month: 6,
+                day: 4,
+                hour: 9,
+                minute: 5,
+                second: 7,
+                millisecond: 78,
+                weekday: 4,
+                unix_millis: 1_717_489_107_078,
+            }),
+        );
+        let exp = expand_with_context(
+            "$CURRENT_MILLISECOND|$CURRENT_SECONDS_UNIX|$CURRENT_MILLISECONDS_UNIX",
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "078|1717489107|1717489107078");
     }
 
     #[test]

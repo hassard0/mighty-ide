@@ -9,7 +9,7 @@ can be promoted into a `stardust` issue / RFC.
 (verify before acting) · severity **[P0]** blocks native dogfooding, **[P1]** major
 ergonomics, **[P2]** papercut.
 
-_Last updated: 2026-06-06 (GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
+_Last updated: 2026-06-06 (snippet Unix timestamp variables - L1125; GPU surface alpha stability - L1124; Surface-open and zoom toast ownership - L1123; Editor preflight toast ownership - L1122; Line-edit toast grouping - L1121; Command Palette unavailable toast grouping - L1120; Git blame target toast grouping - L1119; Agents live-inspect toast grouping - L1118; transient popup auto-dismiss regression guard - L1117; Keyboard Shortcuts capture dismissal - L1116; Save All duplicate-skip hardening - L1115; incidental prompt and toolbar dismissal cleanup - L1113/L1114. Prior: persisted recent files - L54; snippet mirror placeholders - L53; Explorer file operations + prompt-string staging pressure - L52; Windows packaging/runtime ABI hardening - L50/L51; multi-language support: config-driven highlighting + a generic, registry-configurable LSP bridge for non-Mighty languages - L35; verified live against rust-analyzer 1.95.0. Developer-workflow features - Run panel + inline git diff + live Settings panel - L33/L34; LIVE EDITING via a shim-side authoritative text model - the L28 workaround; command palette shim-side registry; L27.)_
 
 > **Terminal note (no NEW limitation):** the integrated terminal (sub-project 5)
 > was built without hitting any new language friction — the existing constraints
@@ -14302,3 +14302,18 @@ feel less polished even when the first frame is correct.
 - **Language note:** no compiler gap surfaced. Platform capability choices
   should be promoted into named helpers and tested as invariants so resize,
   rescale, and startup paths cannot drift apart.
+
+## L1125 - Imported Snippets Need Unix Timestamp Variables
+
+VS Code snippet files commonly use the current-date variable family for headers,
+log tags, and generated identifiers. Mighty already resolved calendar fields
+such as `$CURRENT_YEAR`, `$CURRENT_MONTH`, and `$CURRENT_SECOND`, but imported
+snippets using `$CURRENT_MILLISECOND`, `$CURRENT_SECONDS_UNIX`, or
+`$CURRENT_MILLISECONDS_UNIX` kept the raw marker text in the editor.
+
+- **IDE note:** snippet expansion now tracks milliseconds and Unix epoch
+  milliseconds in the snippet date context, resolves all three timestamp
+  variables, and tests exact zero-padding plus seconds/milliseconds formatting.
+- **Language note:** no compiler gap surfaced. Imported editor data formats
+  should treat common compatibility variables as part of the user-facing
+  contract, not as optional parser trivia.
