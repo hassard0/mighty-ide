@@ -13609,10 +13609,7 @@ fn codeaction_apply_rejects_read_only_binary_preview_before_edit() {
     assert_eq!(crate::mui_codeaction_active(h), 1);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(
-        toast.message,
-        "Code action is unavailable in read-only previews"
-    );
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }
@@ -14890,10 +14887,7 @@ fn format_current_rejects_read_only_binary_preview_before_spawn() {
     assert_eq!(ctx.tabs.active_model().as_text(), before);
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Warn);
-    assert_eq!(
-        toast.message,
-        "Format is unavailable in read-only previews"
-    );
+    assert_eq!(toast.message, "asset.mty is read-only in the text editor");
 
     let _ = std::fs::remove_dir_all(root);
 }

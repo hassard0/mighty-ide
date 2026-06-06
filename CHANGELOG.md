@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Code Actions and Format name read-only preview targets**: applying a code
+  action or formatting a binary/read-only preview now reports the protected
+  target by name, matching the palette and other write guards.
 - **Symbol Rename names read-only preview targets**: committing a symbol rename
   in a binary/read-only preview now reports the protected target by name,
   matching the command palette and file-operation read-only guards.

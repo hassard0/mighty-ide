@@ -12416,7 +12416,7 @@ pub extern "C" fn mui_codeaction_apply(handle: i64) -> i32 {
     if ctx.tabs.active_read_only() {
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Code action is unavailable in read-only previews",
+            read_only_active_file_message(ctx),
         );
         return 0;
     }
@@ -12847,7 +12847,7 @@ pub extern "C" fn mui_format_current(handle: i64) -> i32 {
     if ctx.tabs.active_read_only() {
         ctx.push_toast(
             crate::toast::Kind::Warn,
-            "Format is unavailable in read-only previews",
+            read_only_active_file_message(ctx),
         );
         return -1;
     }

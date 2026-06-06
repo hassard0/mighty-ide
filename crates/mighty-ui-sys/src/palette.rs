@@ -1406,6 +1406,8 @@ impl PaletteEngine {
                 | CMD_RENAME_ACTIVE_FILE
                 | CMD_DELETE_ACTIVE_FILE
                 | CMD_RENAME_SYMBOL
+                | CMD_CODE_ACTIONS
+                | CMD_FORMAT_DOCUMENT
         )
             && active_read_only
         {
@@ -5753,6 +5755,16 @@ mod tests {
         assert_eq!(
             engine
                 .contextual_desc(&ctx, CMD_RENAME_SYMBOL, "base")
+                .as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_CODE_ACTIONS, "base").as_ref(),
+            "asset.bin is read-only in the text editor"
+        );
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_FORMAT_DOCUMENT, "base")
                 .as_ref(),
             "asset.bin is read-only in the text editor"
         );
