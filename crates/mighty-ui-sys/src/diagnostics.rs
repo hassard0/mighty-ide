@@ -154,8 +154,8 @@ fn parse_location(line: &str) -> Option<(u32, u32)> {
     if parts.len() < 2 {
         return None;
     }
-    let col: u32 = parts[parts.len() - 1].trim().parse().ok()?;
-    let line_no: u32 = parts[parts.len() - 2].trim().parse().ok()?;
+    let col = crate::parse_unsigned_decimal_u32_token(parts[parts.len() - 1].trim())?;
+    let line_no = crate::parse_unsigned_decimal_u32_token(parts[parts.len() - 2].trim())?;
     if line_no == 0 || col == 0 {
         return None;
     }
@@ -353,6 +353,41 @@ mod tests {
         assert_eq!(diags[0].message, "invalid reported location");
         assert_eq!(diags[0].line, 0);
         assert_eq!(diags[0].col_start, 0);
+    }
+
+    #[test]
+    fn plus_prefixed_location_does_not_attach_to_diagnostic() {
+        let raw = "\
+[MT2001] Error: plus-prefixed location
+   [/tmp/bad.mty:+2:7]
+";
+        let diags = parse_check_output(raw);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].message, "plus-prefixed location");
+        assert_eq!(diags[0].line, 0);
+        assert_eq!(diags[0].col_start, 0);
+        assert_eq!(diags[0].col_end, 1);
+    }
+
+    #[test]
+    fn overflowing_location_does_not_attach_to_diagnostic() {
+        let raw = "\
+[MT2001] Error: overflowing location
+   [/tmp/bad.mty:4294967296:7]
+
+[MT2001] Error: overflowing column
+   [/tmp/bad.mty:2:4294967296]
+";
+        let diags = parse_check_output(raw);
+        assert_eq!(diags.len(), 2);
+        assert_eq!(diags[0].message, "overflowing location");
+        assert_eq!(diags[0].line, 0);
+        assert_eq!(diags[0].col_start, 0);
+        assert_eq!(diags[0].col_end, 1);
+        assert_eq!(diags[1].message, "overflowing column");
+        assert_eq!(diags[1].line, 0);
+        assert_eq!(diags[1].col_start, 0);
+        assert_eq!(diags[1].col_end, 1);
     }
 
     #[test]
