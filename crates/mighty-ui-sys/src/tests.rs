@@ -4478,7 +4478,8 @@ fn account_utility_opens_settings_on_inline_ai_row() {
 #[test]
 fn settings_close_acknowledges_state() {
     use crate::featureabi::{
-        mui_settings_adjust, mui_settings_click, mui_settings_close, mui_settings_move,
+        mui_settings_adjust, mui_settings_click, mui_settings_close, mui_settings_dismiss,
+        mui_settings_move,
         mui_settings_open, mui_settings_sel, mui_settings_toggle,
     };
 
@@ -4499,6 +4500,18 @@ fn settings_close_acknowledges_state() {
     let toast = ctx.toasts.toasts().last().unwrap();
     assert_eq!(toast.kind, crate::toast::Kind::Info);
     assert_eq!(toast.message, "Settings panel is already closed");
+    ctx.toasts.clear();
+
+    assert_eq!(mui_settings_dismiss(handle), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+
+    assert_eq!(mui_settings_open(handle), 1);
+    assert!(ctx.settings_panel.is_active());
+    mui_settings_move(handle, 1);
+    assert_eq!(mui_settings_sel(handle), 1);
+    assert_eq!(mui_settings_dismiss(handle), 1);
+    assert!(!ctx.settings_panel.is_active());
+    assert!(ctx.toasts.toasts().is_empty());
 
     mui_settings_move(handle, 1);
     assert_eq!(mui_settings_sel(handle), 1);
@@ -22736,6 +22749,7 @@ fn mighty_enter_handlers_defer_to_single_command_dispatcher() {
     );
     for needle in [
         "let _sc = mui_settings_close(h)\n            settings_open = false",
+        "let _sd = mui_settings_dismiss(h)\n            settings_open = false",
         "if sc == 5",
         "} else if sc == 0",
     ] {

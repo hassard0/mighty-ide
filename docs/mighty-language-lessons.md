@@ -14076,3 +14076,18 @@ not a command that needs a toast.
 - **Language note:** no compiler gap surfaced. Event-loop code should encode
   user intent in the ABI it calls; the same visual close can be either an
   explicit command or incidental cleanup depending on how it was triggered.
+
+## L1110 - Overlay Misses Should Stay Out Of The Toast Queue
+
+The Settings panel can close from Escape, a Command Palette close row, its
+mouse close affordance, or an outside click. The first two are explicit close
+commands; the latter two are ordinary pointer dismissal. Using the same
+toast-producing ABI for all of them makes a click-away gesture produce
+`Settings panel closed`, which competes with the user's next action.
+
+- **IDE note:** Settings mouse close and outside-click paths now call
+  `mui_settings_dismiss`, a quiet close ABI. `mui_settings_close` remains the
+  explicit close-command API and still reports active and already-closed states.
+- **Language note:** no compiler gap surfaced. When a surface supports both
+  command closure and click-away dismissal, give each path a distinct ABI so
+  feedback belongs to the initiating intent.

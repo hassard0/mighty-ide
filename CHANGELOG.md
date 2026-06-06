@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Settings mouse dismissal is quiet**: clicking outside Settings or using the
+  panel's mouse close affordance now closes it without a `Settings panel closed`
+  toast; Escape and the explicit close command still report close feedback.
 - **Color theme mouse dismissal is quiet**: clicking outside the theme picker or
   using its mouse close affordance now reverts previews without adding
   `Color theme picker cancelled`; Escape and the explicit close command still

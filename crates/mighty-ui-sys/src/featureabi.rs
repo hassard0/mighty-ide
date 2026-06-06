@@ -1553,6 +1553,22 @@ pub extern "C" fn mui_settings_close(handle: i64) -> i32 {
     }
 }
 
+/// Close Settings for incidental mouse dismissal without user-visible feedback.
+#[no_mangle]
+pub extern "C" fn mui_settings_dismiss(handle: i64) -> i32 {
+    let Some(ctx) = (unsafe { ctx(handle) }) else {
+        return 0;
+    };
+    if ctx.settings_panel.is_active() {
+        ctx.settings_panel.close();
+        crate::abi::trace("settings_dismiss");
+        1
+    } else {
+        crate::abi::trace("settings_dismiss noop");
+        0
+    }
+}
+
 /// `1` if the Settings panel is open, else `0`.
 #[no_mangle]
 pub extern "C" fn mui_settings_active(handle: i64) -> i32 {

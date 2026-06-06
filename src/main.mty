@@ -680,6 +680,7 @@ extern c {
   fn mui_settings_open(handle: I64) -> I32
   fn mui_settings_open_account(handle: I64) -> I32
   fn mui_settings_close(handle: I64) -> I32
+  fn mui_settings_dismiss(handle: I64) -> I32
   fn mui_settings_active(handle: I64) -> I32
   fn mui_settings_move(handle: I64, delta: I32)
   fn mui_settings_sel(handle: I64) -> I32
@@ -2414,7 +2415,7 @@ fn main() {
         } else if tag == ev_mouse_down() {
           let sc = mui_settings_click(h)
           if sc == 5 {
-            let _sc = mui_settings_close(h)
+            let _sd = mui_settings_dismiss(h)
             settings_open = false
             run_focus = false
             web_focus = false
@@ -2425,7 +2426,7 @@ fn main() {
             find_nav = false
             typing = false
           } else if sc == 0 {
-            let _sc = mui_settings_close(h)
+            let _sd = mui_settings_dismiss(h)
             settings_open = false
             run_focus = false
             web_focus = false
