@@ -75,6 +75,20 @@ unless matching native runners produced those archives during the same pass.
 After those fields are recorded, stop; further implementation work starts a new
 source state and requires a new package run.
 
+Final release artifact status for this Windows-hosted pass:
+
+- Windows x64: build, scan, manifest, hash, and launch the clean PE archive
+  from the committed tree before publishing.
+- macOS: leave `unbuilt` until a native macOS host or matching CI runner builds,
+  scans, manifests, hashes, and launches the Mach-O app archive.
+- Linux x64: leave `unbuilt` until a native Linux host or matching CI runner
+  builds, scans, manifests, hashes, and launches the ELF tarball.
+
+Source-controlled docs define the release contract. Exact archive sizes,
+archive hashes, generated timestamps, and native payload hashes are generated
+artifact evidence and belong in `PACKAGE-MANIFEST.txt`, the release upload note,
+and the final handoff response after packaging.
+
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll
 - New File rejects existing directory targets with explicit `not a file`

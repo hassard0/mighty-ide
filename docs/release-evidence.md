@@ -88,6 +88,12 @@ succeeds, in the external upload note or release handoff. Do not edit the source
 tree after that package run unless the package is rebuilt from the new clean
 commit.
 
+The committed evidence file is a template, not the artifact record of generated
+hashes. The generated record for this pass is the combination of the committed
+source hash, `dist\mighty-ide-win64\PACKAGE-MANIFEST.txt`, the ZIP size,
+the ZIP SHA-256, and the packaged-launch result. macOS and Linux require their
+own native records before they can move out of `unbuilt`.
+
 For this stop pass, the source-controlled evidence remains a reusable template.
 The final generated values belong beside the uploaded artifact and in the final
 handoff response because inserting them here would change the source commit and

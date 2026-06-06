@@ -108,6 +108,22 @@ Windows package from that clean commit, confirm `PACKAGE-MANIFEST.txt` records
 that source commit, record the Windows archive hash and size, confirm the
 packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
+
+This final pass has no follow-on feature scope. The release boundary is the
+committed documentation plus the ignored platform artifacts generated from that
+commit. If another source edit is needed after packaging, the package evidence
+is stale until the affected platform package is rebuilt from the new commit.
+
+The publish matrix for a Windows-hosted pass is intentionally narrow:
+
+- Windows x64 may be `publish` only after the PowerShell packager succeeds, the
+  ZIP scan passes, `PACKAGE-MANIFEST.txt` exists, and the packaged executable
+  launches from `dist\mighty-ide-win64`.
+- macOS stays `unbuilt` unless a native macOS host or matching CI runner runs
+  `./package-macos.sh` and launches the app during this same pass.
+- Linux x64 stays `unbuilt` unless a native Linux host or matching CI runner
+  runs `./package-linux.sh` and launches the executable during this same pass.
+
 The final source-controlled docs should remain reusable release rules and
 templates. Generated archive hashes and sizes belong to the post-commit package
 manifest, final handoff response, and external upload note; committing them into

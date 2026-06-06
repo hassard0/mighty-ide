@@ -12,6 +12,11 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Final binary handoff matrix is explicit**: README and release docs now state
+  the final Windows-hosted publish decision for each platform: Windows x64 can
+  publish only after the PE package rebuild, ZIP scan, manifest, hash, and
+  packaged launch pass, while macOS and Linux remain `unbuilt` until matching
+  native runners produce and launch their Mach-O or ELF archives.
 - **Command Palette layout commands explain the next state**: sidebar toggle,
   sidebar width presets/cycle, and bottom-dock height presets now say whether
   they will open, hide, resize, cycle to the next preset, or are already at the

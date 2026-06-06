@@ -67,6 +67,12 @@ clean commit, record the ZIP size and SHA-256, launch the packaged Windows app
 from `dist\mighty-ide-win64`, record macOS and Linux as `unbuilt` unless native
 runners completed during the same pass, and stop.
 
+For this Windows-hosted pass, "clean binaries for Windows, macOS, and Linux"
+means clean platform decisions, not cross-built substitutes: Windows receives
+local PE evidence, while macOS and Linux remain explicitly `unbuilt` without
+matching native runners. A missing native runner is not a failed binary; it is a
+release decision that prevents publishing an unverifiable archive.
+
 If the source tree changes after a package is built, rebuild the package before
 publishing it.
 
