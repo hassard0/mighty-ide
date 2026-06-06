@@ -12,6 +12,8 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette contextual Save As names typed-path fallback**: Save As rows
+  now keep typed-path recovery visible for both file-backed and untitled tabs.
 - **Command Palette untitled Save names typed-path fallback**: Save now tells
   untitled tabs that typed-path recovery is available if the save picker cannot
   open.

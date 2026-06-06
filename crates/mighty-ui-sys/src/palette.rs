@@ -2643,8 +2643,8 @@ fn command_contextual_desc_with_workspace<'a>(
         CMD_CUT_SELECTION_OR_LINE => Cow::Borrowed("No selection or line text to cut"),
         CMD_SAVE if active_has_path => Cow::Borrowed("Write the active file to disk"),
         CMD_SAVE => Cow::Borrowed("Choose a path; typed path if picker is unavailable"),
-        CMD_SAVE_AS if active_has_path => Cow::Borrowed("Choose a new path or filename for this file"),
-        CMD_SAVE_AS => Cow::Borrowed("Choose where this untitled file should live"),
+        CMD_SAVE_AS if active_has_path => Cow::Borrowed("Choose a new path; typed path if picker is unavailable"),
+        CMD_SAVE_AS => Cow::Borrowed("Choose where this untitled file lives; typed path if picker is unavailable"),
         CMD_SAVE_ALL if dirty_count == 0 => Cow::Borrowed("No unsaved files"),
         CMD_SAVE_ALL if dirty_count == 1 => Cow::Borrowed("Write the one unsaved tab"),
         CMD_SAVE_ALL => Cow::Owned(format!("Write {dirty_count} unsaved tabs")),
@@ -3465,7 +3465,13 @@ mod tests {
         );
         assert_eq!(
             command_contextual_desc(CMD_SAVE_AS, "base", true, false, false, 0, false, false),
-            Cow::Borrowed("Choose a new path or filename for this file")
+            Cow::Borrowed("Choose a new path; typed path if picker is unavailable")
+        );
+        assert_eq!(
+            command_contextual_desc(CMD_SAVE_AS, "base", false, false, false, 0, false, false),
+            Cow::Borrowed(
+                "Choose where this untitled file lives; typed path if picker is unavailable"
+            )
         );
         assert_eq!(
             command_contextual_desc(CMD_RENAME_ACTIVE_FILE, "base", false, false, false, 0, false, false),
