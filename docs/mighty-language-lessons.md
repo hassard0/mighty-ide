@@ -14417,3 +14417,19 @@ snippet transforms to reshape.
   realistic editor inputs such as multi-line selections, not only path strings,
   because the same snippet syntax has different failure modes depending on the
   variable source.
+
+## L1132 - Imported Snippet Transform Delimiters Need Targeted Unescaping
+
+VS Code snippet transforms use `/` as the pattern and replacement delimiter, so
+copied snippets escape literal slashes as `\/`. Preserving that escape made
+path-oriented transforms fragile: the regex engine received an invalid or
+different pattern, and replacements that wanted to emit a slash inserted the
+backslash too.
+
+- **IDE note:** transform section parsing now treats `\/` as an escaped
+  delimiter and stores a literal `/` for both regex patterns and replacement
+  formats. Other backslash escapes are preserved, so regex escapes such as
+  `\\.` continue to reach the regex engine unchanged.
+- **Language note:** no compiler gap surfaced. Delimiter-aware parsers need
+  escape rules tied to the delimiter, not blanket unescaping, because copied
+  snippets mix syntax escapes and regex escapes in the same field.

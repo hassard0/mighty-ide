@@ -289,8 +289,12 @@ fn parse_transform_section(chars: &[char], allow_braced_format: bool) -> Option<
     let mut braced_depth = 0usize;
     while j < chars.len() {
         if chars[j] == '\\' && j + 1 < chars.len() {
-            out.push(chars[j]);
-            out.push(chars[j + 1]);
+            if chars[j + 1] == '/' {
+                out.push('/');
+            } else {
+                out.push(chars[j]);
+                out.push(chars[j + 1]);
+            }
             j += 2;
             continue;
         }
@@ -2284,6 +2288,23 @@ mod tests {
             &ctx,
         );
         assert_eq!(exp.text, "my-component.test|my_component|MyComponentTest");
+        assert!(exp.stops.is_empty());
+    }
+
+    #[test]
+    fn expand_variable_transform_unescapes_slash_delimiters() {
+        let ctx = SnippetContext::from_path_and_selection(None, "src/my-component.test");
+        let exp = expand_with_context(
+            concat!(
+                "${TM_SELECTED_TEXT/^src\\/(.+)$/$1/}|",
+                "${TM_SELECTED_TEXT/^(src)\\/(my)-(component).*$/$1\\/${2}_${3}/}"
+            ),
+            "",
+            0,
+            0,
+            &ctx,
+        );
+        assert_eq!(exp.text, "my-component.test|src/my_component");
         assert!(exp.stops.is_empty());
     }
 
