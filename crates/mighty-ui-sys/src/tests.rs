@@ -1303,6 +1303,31 @@ fn tab_abi_open_switch_close_and_byte_round_trip() {
 }
 
 #[test]
+fn tab_abi_open_binary_reports_read_only_preview() {
+    use crate::{mui_path_push, mui_tab_active, mui_tab_open_path};
+
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let handle = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let path = std::env::temp_dir().join("mui_tababi_asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    for b in path.to_string_lossy().as_bytes() {
+        mui_path_push(handle, *b as u32);
+    }
+
+    assert_eq!(mui_tab_open_path(handle), 1);
+    assert!(ctx.path_stage.is_empty());
+    assert_eq!(mui_tab_active(handle), 1);
+    assert!(ctx.tabs.active_read_only());
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "Opened mui_tababi_asset.bin as a read-only binary preview");
+
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
 fn tree_abi_scan_toggle_and_open_row() {
     use crate::{
         mui_tab_count, mui_tree_count, mui_tree_is_dir, mui_tree_open_row, mui_tree_refresh,

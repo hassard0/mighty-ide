@@ -668,6 +668,10 @@ fn open_failed_message(path: &std::path::Path, reason: &str) -> String {
     }
 }
 
+fn binary_preview_opened_message(path: &std::path::Path) -> String {
+    format!("Opened {} as a read-only binary preview", basename(path))
+}
+
 fn file_operation_failed_message(action: &str, path: &std::path::Path, e: &std::io::Error) -> String {
     let name = basename(path);
     let reason = e.to_string();
@@ -4660,10 +4664,17 @@ fn bind_active_tab_to_focused_pane(ctx: &mut MuiContext) {
 }
 
 pub(crate) fn open_path_in_focused_pane(ctx: &mut MuiContext, path: PathBuf) -> usize {
-    let idx = ctx.tabs.open_path(path);
+    let idx = ctx.tabs.open_path(path.clone());
+    let read_only_preview = ctx.tabs.get(idx).map(|t| t.read_only).unwrap_or(false);
     bind_active_tab_to_focused_pane(ctx);
     sync_active_path(ctx);
     ensure_tab_visible(ctx, idx);
+    if read_only_preview {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            binary_preview_opened_message(&path),
+        );
+    }
     idx
 }
 

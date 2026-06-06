@@ -11,6 +11,11 @@ logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
 A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
+### Workspace and file handling
+- **Binary previews explain read-only mode on open**: file-opening routes now
+  toast when a binary file is opened as a read-only preview, so the first edit
+  denial is not the user's first signal that the buffer is protected.
+
 ### Release packaging
 - **Stale Mighty compilers fail fast**: build and package scripts now preflight
   `mty --version` and require v0.47.0 or newer, so release packaging reports a
