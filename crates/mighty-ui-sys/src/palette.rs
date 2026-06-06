@@ -1353,7 +1353,10 @@ impl PaletteEngine {
                 ctx.tests_panel.row_count(),
             );
         }
-        if matches!(id, CMD_AGENTS_CLEAR_RUN_OUTPUT | CMD_AGENTS_CLOSE) {
+        if matches!(
+            id,
+            CMD_AGENTS_REFRESH | CMD_AGENTS_CLEAR_RUN_OUTPUT | CMD_AGENTS_CLOSE
+        ) {
             return agents_contextual_desc(
                 id,
                 base,
@@ -1372,12 +1375,16 @@ impl PaletteEngine {
                     .is_some_and(|terminal| terminal.has_visible_content()),
             );
         }
-        if matches!(id, CMD_PROBLEMS_CLEAR | CMD_PROBLEMS_CLOSE) {
+        if matches!(
+            id,
+            CMD_PROBLEMS_REFRESH | CMD_PROBLEMS_CLEAR | CMD_PROBLEMS_CLOSE
+        ) {
             return problems_contextual_desc(
                 id,
                 base,
                 ctx.problems.is_open(),
                 ctx.problems.count(),
+                active_has_path,
             );
         }
         if matches!(
@@ -1399,7 +1406,10 @@ impl PaletteEngine {
                 ctx.search.match_count(),
             );
         }
-        if matches!(id, CMD_OUTLINE_CLEAR_SYMBOLS | CMD_OUTLINE_CLOSE) {
+        if matches!(
+            id,
+            CMD_OUTLINE_REFRESH | CMD_OUTLINE_CLEAR_SYMBOLS | CMD_OUTLINE_CLOSE
+        ) {
             return outline_contextual_desc(
                 id,
                 base,
@@ -1435,6 +1445,7 @@ impl PaletteEngine {
                 | CMD_GIT_UNSTAGE_ALL
                 | CMD_GIT_COMMIT_STAGED
                 | CMD_GIT_CLEAR_COMMIT_MESSAGE
+                | CMD_GIT_REFRESH_SOURCE_CONTROL
                 | CMD_GIT_CLOSE_SOURCE_CONTROL
         ) {
             return source_control_contextual_desc(
@@ -1447,8 +1458,9 @@ impl PaletteEngine {
                 ctx.scm.message.is_empty(),
             );
         }
-        if id == CMD_EXPLORER_CLOSE {
+        if matches!(id, CMD_EXPLORER_REFRESH | CMD_EXPLORER_CLOSE) {
             return explorer_contextual_desc(
+                id,
                 base,
                 ctx.sidebar_visible && ctx.active_panel == crate::PANEL_EXPLORER,
             );
@@ -1886,6 +1898,9 @@ fn agents_contextual_desc<'a>(
     run_line_count: usize,
 ) -> Cow<'a, str> {
     match id {
+        CMD_AGENTS_REFRESH if !active => {
+            Cow::Borrowed("Open Mighty Agents and rescan workspace topology")
+        }
         CMD_AGENTS_CLEAR_RUN_OUTPUT if run_line_count == 0 => {
             Cow::Borrowed("Agents run output already empty")
         }
@@ -1915,8 +1930,15 @@ fn problems_contextual_desc<'a>(
     base: &'a str,
     open: bool,
     count: usize,
+    active_has_path: bool,
 ) -> Cow<'a, str> {
     match id {
+        CMD_PROBLEMS_REFRESH if !active_has_path => {
+            Cow::Borrowed("No file-backed tab; refresh clears diagnostics and opens Problems")
+        }
+        CMD_PROBLEMS_REFRESH if !open => {
+            Cow::Borrowed("Open Problems and refresh diagnostics")
+        }
         CMD_PROBLEMS_CLEAR if count == 0 => Cow::Borrowed("Problems diagnostics already empty"),
         CMD_PROBLEMS_CLOSE if !open => Cow::Borrowed("Problems panel is already closed"),
         _ => Cow::Borrowed(base),
@@ -1964,6 +1986,7 @@ fn outline_contextual_desc<'a>(
     symbol_count: usize,
 ) -> Cow<'a, str> {
     match id {
+        CMD_OUTLINE_REFRESH if !active => Cow::Borrowed("Open Outline and refresh symbols"),
         CMD_OUTLINE_CLEAR_SYMBOLS if symbol_count == 0 => {
             Cow::Borrowed("Outline symbols already empty")
         }
@@ -2022,8 +2045,16 @@ fn source_control_contextual_desc<'a>(
     message_empty: bool,
 ) -> Cow<'a, str> {
     match id {
-        CMD_GIT_STAGE_ALL | CMD_GIT_UNSTAGE_ALL | CMD_GIT_COMMIT_STAGED if !has_repo => {
+        CMD_GIT_STAGE_ALL
+        | CMD_GIT_UNSTAGE_ALL
+        | CMD_GIT_COMMIT_STAGED
+        | CMD_GIT_REFRESH_SOURCE_CONTROL
+            if !has_repo =>
+        {
             Cow::Borrowed("Not a git repository")
+        }
+        CMD_GIT_REFRESH_SOURCE_CONTROL if !active => {
+            Cow::Borrowed("Open Source Control and refresh git status")
         }
         CMD_GIT_STAGE_ALL if unstaged_count == 0 => Cow::Borrowed("Nothing to stage"),
         CMD_GIT_UNSTAGE_ALL if staged_count == 0 => Cow::Borrowed("Nothing to unstage"),
@@ -2041,11 +2072,11 @@ fn source_control_contextual_desc<'a>(
     }
 }
 
-fn explorer_contextual_desc(base: &str, active: bool) -> Cow<'_, str> {
-    if active {
-        Cow::Borrowed(base)
-    } else {
-        Cow::Borrowed("Explorer panel is already closed")
+fn explorer_contextual_desc(id: u32, base: &str, active: bool) -> Cow<'_, str> {
+    match id {
+        CMD_EXPLORER_REFRESH if !active => Cow::Borrowed("Open Explorer and refresh file tree"),
+        CMD_EXPLORER_CLOSE if !active => Cow::Borrowed("Explorer panel is already closed"),
+        _ => Cow::Borrowed(base),
     }
 }
 
@@ -3346,6 +3377,10 @@ mod tests {
     #[test]
     fn agents_command_descriptions_reflect_runtime_state() {
         assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_REFRESH, "base", false, 0),
+            Cow::Borrowed("Open Mighty Agents and rescan workspace topology")
+        );
+        assert_eq!(
             agents_contextual_desc(CMD_AGENTS_CLEAR_RUN_OUTPUT, "base", true, 0),
             Cow::Borrowed("Agents run output already empty")
         );
@@ -3359,6 +3394,10 @@ mod tests {
         );
         assert_eq!(
             agents_contextual_desc(CMD_AGENTS_CLOSE, "base", true, 0),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            agents_contextual_desc(CMD_AGENTS_REFRESH, "base", true, 0),
             Cow::Borrowed("base")
         );
     }
@@ -3394,19 +3433,31 @@ mod tests {
     #[test]
     fn problems_command_descriptions_reflect_runtime_state() {
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 0),
+            problems_contextual_desc(CMD_PROBLEMS_REFRESH, "base", true, 0, false),
+            Cow::Borrowed("No file-backed tab; refresh clears diagnostics and opens Problems")
+        );
+        assert_eq!(
+            problems_contextual_desc(CMD_PROBLEMS_REFRESH, "base", false, 0, true),
+            Cow::Borrowed("Open Problems and refresh diagnostics")
+        );
+        assert_eq!(
+            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 0, true),
             Cow::Borrowed("Problems diagnostics already empty")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", false, 2),
+            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", false, 2, true),
             Cow::Borrowed("Problems panel is already closed")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 2),
+            problems_contextual_desc(CMD_PROBLEMS_CLEAR, "base", true, 2, true),
             Cow::Borrowed("base")
         );
         assert_eq!(
-            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", true, 0),
+            problems_contextual_desc(CMD_PROBLEMS_CLOSE, "base", true, 0, true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            problems_contextual_desc(CMD_PROBLEMS_REFRESH, "base", true, 0, true),
             Cow::Borrowed("base")
         );
     }
@@ -3478,6 +3529,10 @@ mod tests {
     #[test]
     fn outline_command_descriptions_reflect_runtime_state() {
         assert_eq!(
+            outline_contextual_desc(CMD_OUTLINE_REFRESH, "base", false, 0),
+            Cow::Borrowed("Open Outline and refresh symbols")
+        );
+        assert_eq!(
             outline_contextual_desc(CMD_OUTLINE_CLEAR_SYMBOLS, "base", true, 0),
             Cow::Borrowed("Outline symbols already empty")
         );
@@ -3491,6 +3546,10 @@ mod tests {
         );
         assert_eq!(
             outline_contextual_desc(CMD_OUTLINE_CLOSE, "base", true, 0),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            outline_contextual_desc(CMD_OUTLINE_REFRESH, "base", true, 0),
             Cow::Borrowed("base")
         );
     }
@@ -3731,6 +3790,30 @@ mod tests {
         );
         assert_eq!(
             source_control_contextual_desc(
+                CMD_GIT_REFRESH_SOURCE_CONTROL,
+                "base",
+                true,
+                false,
+                0,
+                0,
+                true
+            ),
+            Cow::Borrowed("Not a git repository")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_REFRESH_SOURCE_CONTROL,
+                "base",
+                false,
+                true,
+                0,
+                0,
+                true
+            ),
+            Cow::Borrowed("Open Source Control and refresh git status")
+        );
+        assert_eq!(
+            source_control_contextual_desc(
                 CMD_GIT_STAGE_ALL,
                 "base",
                 true,
@@ -3861,15 +3944,38 @@ mod tests {
             ),
             Cow::Borrowed("base")
         );
+        assert_eq!(
+            source_control_contextual_desc(
+                CMD_GIT_REFRESH_SOURCE_CONTROL,
+                "base",
+                true,
+                true,
+                0,
+                0,
+                true
+            ),
+            Cow::Borrowed("base")
+        );
     }
 
     #[test]
     fn explorer_command_descriptions_reflect_runtime_state() {
         assert_eq!(
-            explorer_contextual_desc("base", false),
+            explorer_contextual_desc(CMD_EXPLORER_CLOSE, "base", false),
             Cow::Borrowed("Explorer panel is already closed")
         );
-        assert_eq!(explorer_contextual_desc("base", true), Cow::Borrowed("base"));
+        assert_eq!(
+            explorer_contextual_desc(CMD_EXPLORER_REFRESH, "base", false),
+            Cow::Borrowed("Open Explorer and refresh file tree")
+        );
+        assert_eq!(
+            explorer_contextual_desc(CMD_EXPLORER_CLOSE, "base", true),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            explorer_contextual_desc(CMD_EXPLORER_REFRESH, "base", true),
+            Cow::Borrowed("base")
+        );
     }
 
     #[test]

@@ -140,6 +140,9 @@ and the final handoff response after packaging.
 - Command Palette Search and Outline lifecycle rows mirror Search and Outline
   no-op states, including empty search queries, stale or missing replacement
   results, empty result/symbol lists, and closed panels
+- Command Palette refresh rows for Explorer, Problems, Outline, Source Control,
+  and Mighty Agents describe when they will reveal a panel, rescan live state,
+  clear scratch diagnostics, or hit a missing git repository
 - Command Palette Search toggle rows say which search field will receive focus
   when switching between query and replace
 - Command Palette Debug lifecycle rows mirror Run and Debug no-op states,
