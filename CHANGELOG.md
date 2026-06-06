@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette Debug preflight names stale targets**: Debug Start and
+  Debug Restart now report missing or directory-backed targets before dispatch,
+  matching the runtime guard that avoids spawning the adapter for stale files.
 - **Release docs now include a top-level documentation map**: README now points
   release operators directly to the build, packaging, verification, evidence,
   binary-status, and final-handoff documents bundled with each package.

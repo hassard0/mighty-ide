@@ -1235,6 +1235,13 @@ impl PaletteEngine {
         if id == CMD_AUTOCOMPLETE && active_has_path && !active_read_only {
             return autocomplete_contextual_desc(base, ctx.language);
         }
+        if id == CMD_DEBUG_START_CONTINUE && active_has_path && !active_read_only {
+            if let Some(path) = ctx.tabs.active_path() {
+                if let Some(desc) = debug_stale_target_desc("Debug unavailable", &path) {
+                    return Cow::Owned(desc);
+                }
+            }
+        }
         if id == CMD_GIT_TOGGLE_BLAME {
             if !ctx.blame.is_active() {
                 if let Some(path) = ctx.tabs.active_path() {
@@ -1569,12 +1576,13 @@ impl PaletteEngine {
                 | CMD_DEBUG_CLEAR_SESSION
                 | CMD_DEBUG_CLOSE
         ) {
-            return debug_contextual_desc(
+            return debug_contextual_desc_with_program(
                 id,
                 base,
                 ctx.active_panel == crate::PANEL_DEBUG || ctx.dbg.is_open(),
                 ctx.dbg.state(),
                 ctx.dbg.has_program(),
+                ctx.dbg.program(),
                 ctx.dbg.total_breakpoint_count(),
                 ctx.dbg.session_is_empty(),
             );
@@ -2162,12 +2170,35 @@ fn outline_contextual_desc<'a>(
     }
 }
 
+#[cfg(test)]
 fn debug_contextual_desc<'a>(
     id: u32,
     base: &'a str,
     active: bool,
     state: crate::dap::DebugState,
     has_program: bool,
+    breakpoint_count: usize,
+    session_empty: bool,
+) -> Cow<'a, str> {
+    debug_contextual_desc_with_program(
+        id,
+        base,
+        active,
+        state,
+        has_program,
+        None,
+        breakpoint_count,
+        session_empty,
+    )
+}
+
+fn debug_contextual_desc_with_program<'a>(
+    id: u32,
+    base: &'a str,
+    active: bool,
+    state: crate::dap::DebugState,
+    has_program: bool,
+    program: Option<&std::path::Path>,
     breakpoint_count: usize,
     session_empty: bool,
 ) -> Cow<'a, str> {
@@ -2193,6 +2224,14 @@ fn debug_contextual_desc<'a>(
             Cow::Borrowed("Step Out is available when paused")
         }
         CMD_DEBUG_RESTART if !has_program => Cow::Borrowed("No debug target to restart"),
+        CMD_DEBUG_RESTART => {
+            if let Some(program) = program {
+                if let Some(desc) = debug_stale_target_desc("Debug restart unavailable", program) {
+                    return Cow::Owned(desc);
+                }
+            }
+            Cow::Borrowed(base)
+        }
         CMD_DEBUG_CLEAR_BREAKPOINTS if breakpoint_count == 0 => {
             Cow::Borrowed("No breakpoints to clear")
         }
@@ -2799,6 +2838,15 @@ fn blame_stale_target_desc(path: &std::path::Path) -> Option<String> {
             Some(format!("Blame target missing: {name}"))
         }
         Err(e) => Some(format!("Blame failed: {name}: {e}")),
+    }
+}
+
+fn debug_stale_target_desc(prefix: &str, path: &std::path::Path) -> Option<String> {
+    let name = palette_basename(path);
+    match std::fs::metadata(path) {
+        Ok(meta) if meta.is_file() => None,
+        Ok(_) => Some(format!("{prefix}: target is not a file: {name}")),
+        Err(_) => Some(format!("{prefix}: target missing: {name}")),
     }
 }
 
@@ -4576,6 +4624,72 @@ mod tests {
             ),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn debug_start_description_reports_stale_active_target() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_debug_start_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let missing = root.join("missing.mty");
+        std::fs::write(&missing, "fn main() {}\n").unwrap();
+        ctx.tabs.open_path(missing.clone());
+        std::fs::remove_file(&missing).unwrap();
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DEBUG_START_CONTINUE, "Start debug")
+                .as_ref(),
+            "Debug unavailable: target missing: missing.mty"
+        );
+
+        let blocked = root.join("blocked.mty");
+        std::fs::create_dir_all(&blocked).unwrap();
+        ctx.tabs.set_active_path(blocked);
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DEBUG_START_CONTINUE, "Start debug")
+                .as_ref(),
+            "Debug unavailable: target is not a file: blocked.mty"
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn debug_restart_description_reports_stale_previous_target() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(480, 200) else {
+            return;
+        };
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_debug_restart_stale_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+
+        let program = root.join("again.mty");
+        std::fs::write(&program, "fn main() {}\n").unwrap();
+        ctx.dbg.seed_demo(&program.to_string_lossy());
+        std::fs::remove_file(&program).unwrap();
+
+        let engine = PaletteEngine::new();
+        assert_eq!(
+            engine
+                .contextual_desc(&ctx, CMD_DEBUG_RESTART, "Restart debug")
+                .as_ref(),
+            "Debug restart unavailable: target missing: again.mty"
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
