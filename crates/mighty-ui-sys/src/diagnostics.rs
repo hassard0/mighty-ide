@@ -34,8 +34,16 @@
 //! IDE can draw a minimal one-cell underline. The parser is tolerant: a header
 //! with no following location line still yields a [`Diag`] at line/col 0.
 
+use std::io::Read;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
+
+pub(crate) const MAX_CHECK_OUTPUT_BYTES: usize = 4 * 1024 * 1024;
 
 /// Severity of a diagnostic. Mirrors the scalar values exposed over the C ABI
 /// (`mui_diag_severity`): 0 = error, 1 = warning.
@@ -214,17 +222,71 @@ fn mty_path() -> String {
 /// Run `mty check <path>` and parse the result.
 pub fn run_check_result(path: &Path) -> Result<Vec<Diag>, String> {
     let mty = mty_path();
-    let output = Command::new(&mty)
+    let child = Command::new(&mty)
         .arg("check")
         .arg(path)
         .env("NO_COLOR", "1")
         .env("TERM", "dumb")
-        .output();
-    match output {
-        Ok(out) => {
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn();
+    match child {
+        Ok(mut child) => {
+            let stdout = child.stdout.take().ok_or_else(|| {
+                let _ = child.kill();
+                let _ = child.wait();
+                "Diagnostics failed: mty check stdout pipe unavailable".to_string()
+            })?;
+            let stderr = child.stderr.take().ok_or_else(|| {
+                let _ = child.kill();
+                let _ = child.wait();
+                "Diagnostics failed: mty check stderr pipe unavailable".to_string()
+            })?;
+            let exceeded = Arc::new(AtomicBool::new(false));
+            let stdout_exceeded = Arc::clone(&exceeded);
+            let stderr_exceeded = Arc::clone(&exceeded);
+            let stdout_reader = std::thread::spawn(move || {
+                read_check_stream_capped(stdout, MAX_CHECK_OUTPUT_BYTES, stdout_exceeded)
+            });
+            let stderr_reader = std::thread::spawn(move || {
+                read_check_stream_capped(stderr, MAX_CHECK_OUTPUT_BYTES, stderr_exceeded)
+            });
+
+            loop {
+                if exceeded.load(Ordering::Relaxed) {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    let _ = stdout_reader.join();
+                    let _ = stderr_reader.join();
+                    let reason = "Diagnostics failed: mty check output too large".to_string();
+                    eprintln!("{reason}");
+                    return Err(reason);
+                }
+                match child.try_wait() {
+                    Ok(Some(_status)) => break,
+                    Ok(None) => std::thread::sleep(Duration::from_millis(10)),
+                    Err(e) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        let _ = stdout_reader.join();
+                        let _ = stderr_reader.join();
+                        let reason = format!("Diagnostics failed: `{mty} check`: {e}");
+                        eprintln!("{reason}");
+                        return Err(reason);
+                    }
+                }
+            }
+
+            let stdout = stdout_reader.join().unwrap_or_default();
+            let stderr = stderr_reader.join().unwrap_or_default();
+            if exceeded.load(Ordering::Relaxed) {
+                let reason = "Diagnostics failed: mty check output too large".to_string();
+                eprintln!("{reason}");
+                return Err(reason);
+            }
             let mut combined = String::new();
-            combined.push_str(&String::from_utf8_lossy(&out.stdout));
-            combined.push_str(&String::from_utf8_lossy(&out.stderr));
+            combined.push_str(&String::from_utf8_lossy(&stdout));
+            combined.push_str(&String::from_utf8_lossy(&stderr));
             Ok(parse_check_output(&combined))
         }
         Err(e) => {
@@ -233,6 +295,37 @@ pub fn run_check_result(path: &Path) -> Result<Vec<Diag>, String> {
             Err(reason)
         }
     }
+}
+
+fn append_check_output_with_cap(buf: &mut Vec<u8>, chunk: &[u8], cap: usize) -> bool {
+    if buf.len().saturating_add(chunk.len()) > cap {
+        buf.clear();
+        return false;
+    }
+    buf.extend_from_slice(chunk);
+    true
+}
+
+fn read_check_stream_capped<R: Read>(
+    mut reader: R,
+    cap: usize,
+    exceeded: Arc<AtomicBool>,
+) -> Vec<u8> {
+    let mut buf = Vec::new();
+    let mut chunk = [0u8; 8192];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => {
+                if !append_check_output_with_cap(&mut buf, &chunk[..n], cap) {
+                    exceeded.store(true, Ordering::Relaxed);
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    buf
 }
 
 /// Run `mty check <path>` and parse the result. Existing broad refresh paths use
@@ -244,6 +337,35 @@ pub fn run_check(path: &Path) -> Vec<Diag> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn check_output_cap_accepts_exact_limit() {
+        let mut buf = Vec::from(b"ok");
+
+        assert!(append_check_output_with_cap(&mut buf, b":x", 4));
+        assert_eq!(buf, b"ok:x");
+    }
+
+    #[test]
+    fn check_output_cap_discards_oversized_stream() {
+        let mut buf = Vec::from(b"diag:");
+
+        assert!(!append_check_output_with_cap(&mut buf, b"overflow", 8));
+        assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn check_stream_reader_marks_oversized_output() {
+        let exceeded = Arc::new(AtomicBool::new(false));
+        let out = read_check_stream_capped(
+            std::io::Cursor::new(b"abcdef".to_vec()),
+            5,
+            Arc::clone(&exceeded),
+        );
+
+        assert!(out.is_empty());
+        assert!(exceeded.load(Ordering::Relaxed));
+    }
 
     #[test]
     fn clean_output_yields_no_diags() {
