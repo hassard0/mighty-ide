@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Fix All duplicate-skip feedback coalesces**: duplicate-edit skip messages
+  from Fix all (mty) now replace stale Code Action toasts instead of stacking
+  as unrelated feedback.
 - **Symbol Rename scopes workspace skip feedback**: skipped workspace-edit
   targets reported by Rename now use rename-scoped toast text, so stale rename
   feedback is replaced instead of leaving a generic Code Action warning beside

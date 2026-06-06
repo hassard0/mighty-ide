@@ -895,6 +895,7 @@ fn operation_key(message: &str) -> Option<OperationKey> {
         || m.starts_with("Save failed before code action")
         || m == "Applied Fix all (mty)"
         || m.starts_with("Fix all (mty) failed")
+        || m.starts_with("Fix all skipped ")
         || m == "Applied code action"
         || m == "Code action produced no edit"
         || m.starts_with("Skipped dirty file during workspace edit")
@@ -3582,6 +3583,17 @@ mod tests {
         );
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "Applied Fix all (mty)");
+
+        q.push_at(
+            Kind::Warn,
+            "Fix all skipped main.mty: duplicate unsaved edits",
+            t0 + Duration::from_millis(550),
+        );
+        assert_eq!(q.len(), 1);
+        assert_eq!(
+            q.toasts()[0].message,
+            "Fix all skipped main.mty: duplicate unsaved edits"
+        );
 
         q.push_at(
             Kind::Warn,
