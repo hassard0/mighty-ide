@@ -14,7 +14,7 @@
 //!   thoroughly unit-tested ([`buffer_words`], [`filter_by_prefix`]).
 //! * **mty-lsp semantic provider (best-effort):** spawn `mty lsp`, do the LSP
 //!   stdio JSON-RPC handshake, ask `textDocument/completion` at the cursor,
-//!   parse `CompletionItem` labels, and merge them ahead of the buffer words.
+//!   parse `CompletionItem` insert/display text, and merge them ahead of the buffer words.
 //!   If the server is absent / slow / errors, we silently fall back to the
 //!   buffer words — the editor never blocks ([`lsp::semantic_labels`]).
 //!
@@ -24,11 +24,14 @@ use crate::ffi::MuiColor;
 use crate::layout;
 use crate::theme;
 
-/// One completion candidate: the label/insert text plus where it came from.
+/// One completion candidate: the insert text, optional display label, and where
+/// it came from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Candidate {
-    /// The text inserted on accept (also what is shown in the dropdown).
+    /// The text inserted on accept.
     pub text: String,
+    /// Optional row label shown in the dropdown when it differs from `text`.
+    pub display_text: Option<String>,
     /// `true` for an LSP-provided semantic candidate, `false` for a buffer word.
     pub semantic: bool,
     /// `true` for a snippet prefix (shows a distinct "snippet" badge; accepting
@@ -36,11 +39,13 @@ pub struct Candidate {
     pub snippet: bool,
 }
 
-/// LSP semantic completion text plus the server's optional matching key.
+/// LSP semantic completion text plus the server's optional display and matching keys.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SemanticCandidate {
     /// The text inserted on accept.
     pub text: String,
+    /// Optional display label from LSP `label`.
+    pub display_text: Option<String>,
     /// Optional LSP `filterText`, used only to decide whether the row matches the
     /// current typed prefix.
     pub filter_text: Option<String>,
@@ -204,6 +209,7 @@ impl CompletionEngine {
             .iter()
             .map(|text| SemanticCandidate {
                 text: text.clone(),
+                display_text: None,
                 filter_text: None,
             })
             .collect();
@@ -236,6 +242,7 @@ impl CompletionEngine {
             if semantic_candidate_matches_prefix(item, &prefix) && seen.insert(item.text.clone()) {
                 self.candidates.push(Candidate {
                     text: item.text.clone(),
+                    display_text: item.display_text.clone(),
                     semantic: true,
                     snippet: false,
                 });
@@ -248,6 +255,7 @@ impl CompletionEngine {
             if seen.insert(w.clone()) {
                 self.candidates.push(Candidate {
                     text: w,
+                    display_text: None,
                     semantic: false,
                     snippet: false,
                 });
@@ -271,6 +279,7 @@ impl CompletionEngine {
             if !existing.contains(p) {
                 front.push(Candidate {
                     text: p.clone(),
+                    display_text: None,
                     semantic: false,
                     snippet: true,
                 });
@@ -547,7 +556,8 @@ impl CompletionEngine {
                 0.0
             };
             let name_budget = (kind_x - 10.0 - name_x - sig_gap - sig_w).max(0.0);
-            let shown_name = fit_completion_text(&mut ctx.text, &cand.text, name_budget, chrome);
+            let shown_name =
+                fit_completion_text(&mut ctx.text, cand.display_text(), name_budget, chrome);
             ctx.text
                 .queue_sized(name_x, ty, &shown_name, theme::TEXT(), chrome, clip);
             // Signature hint immediately after the name, when the provider has
@@ -591,7 +601,7 @@ impl CompletionEngine {
             let tail_w = ctx.text.measure_ui_sized(tail, chrome - 1.0).0;
             let name_budget = (box_x + box_w - 12.0 - tail_w - hx).max(0.0);
             let shown_name =
-                fit_completion_text(&mut ctx.text, &sel.text, name_budget, chrome - 1.0);
+                fit_completion_text(&mut ctx.text, sel.display_text(), name_budget, chrome - 1.0);
             ctx.text.queue_sized(
                 hx,
                 hy,
@@ -608,6 +618,12 @@ impl CompletionEngine {
                     .queue_sized(hx, hy, &shown_tail, theme::DIM(), chrome - 1.0, clip);
             }
         }
+    }
+}
+
+impl Candidate {
+    fn display_text(&self) -> &str {
+        self.display_text.as_deref().unwrap_or(&self.text)
     }
 }
 
@@ -655,7 +671,7 @@ fn completion_popup_width(
     let mut desired = row_min;
     for cand in candidates.iter().skip(top).take(shown) {
         let (_badge_bg, _badge_fg, _letter, kind, sig) = classify_candidate(cand);
-        let name_w = text.measure_ui_sized(&cand.text, chrome).0;
+        let name_w = text.measure_ui_sized(cand.display_text(), chrome).0;
         let sig_gap = if completion_row_signature_visible(sig) {
             2.0
         } else {
@@ -676,7 +692,7 @@ fn completion_popup_width(
             "  \u{00B7} local symbol"
         };
         let footer_w = 12.0
-            + text.measure_ui_sized(&sel.text, chrome - 1.0).0
+            + text.measure_ui_sized(sel.display_text(), chrome - 1.0).0
             + text.measure_ui_sized(tail, chrome - 1.0).0
             + right_pad;
         desired = desired.max(footer_w.min(420.0));
@@ -718,7 +734,7 @@ fn classify_candidate(
         "fn", "let", "mut", "while", "if", "else", "return", "match", "struct", "enum", "for",
         "in", "type", "true", "false", "await", "async", "pub", "import", "effect", "extern",
     ];
-    let t = cand.text.as_str();
+    let t = cand.display_text();
     // Snippet prefixes get a distinct badge regardless of how the text looks.
     if cand.snippet {
         return (
@@ -839,8 +855,10 @@ pub mod lsp {
                     continue;
                 };
                 if !text.is_empty() && seen.insert(text.clone()) {
+                    let display_text = completion_item_display_text(item, &text);
                     out.push(SemanticCandidate {
                         text,
+                        display_text,
                         filter_text: completion_item_filter_text(item),
                     });
                 }
@@ -871,6 +889,11 @@ pub mod lsp {
 
     fn completion_item_filter_text(item: &[u8]) -> Option<String> {
         top_level_string_value(item, b"filterText").filter(|filter| !filter.is_empty())
+    }
+
+    fn completion_item_display_text(item: &[u8], insert_text: &str) -> Option<String> {
+        top_level_string_value(item, b"label")
+            .filter(|label| !label.is_empty() && label != insert_text)
     }
 
     fn completion_text_edit_new_text(item: &[u8]) -> Option<String> {
@@ -1504,6 +1527,7 @@ mod tests {
         let src = b"np";
         let semantic = vec![SemanticCandidate {
             text: "numpy".to_string(),
+            display_text: None,
             filter_text: Some("np".to_string()),
         }];
 
@@ -1515,11 +1539,29 @@ mod tests {
     }
 
     #[test]
+    fn request_semantic_keeps_display_text_separate_from_insert_text() {
+        let mut e = CompletionEngine::new();
+        let src = b"print";
+        let semantic = vec![SemanticCandidate {
+            text: "println($1)".to_string(),
+            display_text: Some("println!".to_string()),
+            filter_text: Some("println".to_string()),
+        }];
+
+        let n = e.request_semantic(src, src.len(), &semantic);
+
+        assert_eq!(n, 1);
+        assert_eq!(e.accepted_text(), "println($1)");
+        assert_eq!(e.candidates[0].display_text(), "println!");
+    }
+
+    #[test]
     fn request_semantic_excludes_exact_text_even_when_filter_matches() {
         let mut e = CompletionEngine::new();
         let src = b"let";
         let semantic = vec![SemanticCandidate {
             text: "let".to_string(),
+            display_text: None,
             filter_text: Some("let".to_string()),
         }];
 
@@ -1626,6 +1668,7 @@ mod tests {
     fn semantic_completion_row_uses_readable_kind_label() {
         let cand = Candidate {
             text: "protocol".to_string(),
+            display_text: None,
             semantic: true,
             snippet: false,
         };
@@ -1741,11 +1784,13 @@ mod tests {
         let chrome = theme::CHROME_FONT_SIZE;
         let narrow = vec![Candidate {
             text: "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii".to_string(),
+            display_text: None,
             semantic: false,
             snippet: false,
         }];
         let wide = vec![Candidate {
             text: "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW".to_string(),
+            display_text: None,
             semantic: false,
             snippet: false,
         }];
@@ -1774,6 +1819,7 @@ mod tests {
         e.candidates = vec![Candidate {
             text: "very_wide_completion_candidate_name_that_should_not_escape_the_viewport"
                 .to_string(),
+            display_text: None,
             semantic: true,
             snippet: false,
         }];
@@ -1875,12 +1921,25 @@ mod tests {
     }
 
     #[test]
+    fn lsp_scrape_candidates_preserves_label_as_display_text() {
+        let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"println!","insertText":"println($1)"},{"label":"plain"}]}"#;
+        let candidates = super::lsp::scrape_candidates(json);
+
+        assert_eq!(candidates.len(), 2);
+        assert_eq!(candidates[0].text, "println($1)");
+        assert_eq!(candidates[0].display_text.as_deref(), Some("println!"));
+        assert_eq!(candidates[1].text, "plain");
+        assert_eq!(candidates[1].display_text, None);
+    }
+
+    #[test]
     fn lsp_scrape_candidates_preserves_filter_text() {
         let json = r#"{"jsonrpc":"2.0","id":2,"result":[{"label":"numpy","insertText":"numpy","filterText":"np"},{"label":"plain"}]}"#;
         let candidates = super::lsp::scrape_candidates(json);
 
         assert_eq!(candidates.len(), 2);
         assert_eq!(candidates[0].text, "numpy");
+        assert_eq!(candidates[0].display_text, None);
         assert_eq!(candidates[0].filter_text.as_deref(), Some("np"));
         assert_eq!(candidates[1].text, "plain");
         assert_eq!(candidates[1].filter_text, None);
