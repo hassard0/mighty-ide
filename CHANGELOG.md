@@ -34,9 +34,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   ghost completion now surface read-only limitations before a mutation path is
   attempted.
 - **Command Palette file-backed commands explain scratch buffers**: Hover,
-  Go to Definition, Peek Definition, Signature Help, Rename Symbol, Format, Run,
-  Run Test at Cursor, Debug Start, and Run in Browser now tell users to save
-  untitled buffers before those file-backed operations.
+  Go to Definition, Peek Definition, Signature Help, Rename Symbol, Code
+  Actions, Format, Run, Run Test at Cursor, Debug Start, and Run in Browser now
+  tell users to save untitled buffers before those file-backed operations.
 - **Command Palette Run Tests mirrors workspace target state**: Run Tests now
   tells untitled buffers to save or open a Mighty folder only when neither an
   active file nor discoverable workspace test target exists, matching the test
@@ -71,6 +71,9 @@ driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
   Code Action Apply now reject binary/read-only buffers before applying LSP
   edits or fallback edits, with command-specific feedback instead of a silent
   no-op or preview mutation.
+- **Code Actions explain untitled buffers before LSP requests**: explicit
+  Code Actions on scratch tabs now ask the user to save before requesting code
+  actions instead of reporting a generic no-actions result.
 - **Format Document respects read-only previews**: direct format requests now
   reject binary/read-only buffers before spawning `mty fmt`, preserving preview
   contents with explicit feedback.

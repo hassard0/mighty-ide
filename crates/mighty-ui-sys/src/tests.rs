@@ -13300,9 +13300,11 @@ fn codeaction_no_actions_toasts_feedback() {
     let h = (&mut ctx as *mut MuiContext) as usize as i64;
 
     assert_eq!(crate::mui_codeaction_request(h, 0, 0), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
     assert_eq!(
-        ctx.toasts.toasts().last().unwrap().message,
-        "No code actions available at (scratch):1:1"
+        toast.message,
+        "Save (scratch) before code actions"
     );
 
     let root =

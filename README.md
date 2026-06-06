@@ -67,8 +67,8 @@ This checkout's final stop pass uses the same rule for all platforms:
   Find remains available while Replace, autocomplete acceptance, Rename Symbol,
   code-action edits, and inline AI edits are unavailable
 - Command Palette file-backed commands explain unsaved scratch buffers before
-  language lookup, format, run, test-at-cursor, debug, or browser-run actions
-  need a saved path
+  language lookup, code actions, format, run, test-at-cursor, debug, or
+  browser-run actions need a saved path
 - Command Palette Run Tests mirrors the test runner's target rules, explaining
   when an untitled tab needs either a saved file or a Mighty workspace target
 - Command Palette rows for Format, Run, Test, Debug, and Run in Browser report
@@ -215,6 +215,8 @@ This checkout's final stop pass uses the same rule for all platforms:
   results instead of opening an empty tab
 - Empty explicit code-action requests name the active file or scratch buffer
   and cursor position, so no-quick-fix feedback points to the queried site
+- Code Actions explain untitled scratch buffers before requesting LSP actions,
+  matching the Command Palette's saved-file guidance
 - Applying or moving code actions with no active quick-fix menu reports
   `No code action menu open`, while active selection misses keep their own
   feedback

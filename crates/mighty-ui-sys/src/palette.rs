@@ -1529,6 +1529,7 @@ fn command_contextual_desc_with_workspace<'a>(
         CMD_PEEK_DEFINITION if !active_has_path => Cow::Borrowed("Save this untitled file before Peek Definition"),
         CMD_SIGNATURE_HELP if !active_has_path => Cow::Borrowed("Save this untitled file before signature help"),
         CMD_RENAME_SYMBOL if !active_has_path => Cow::Borrowed("Save this untitled file before symbol rename"),
+        CMD_CODE_ACTIONS if !active_has_path => Cow::Borrowed("Save this untitled file before code actions"),
         CMD_FORMAT_DOCUMENT if !active_has_path => Cow::Borrowed("Save this untitled file before formatting"),
         CMD_RUN_FILE if !active_has_path => Cow::Borrowed("Save this untitled file before running"),
         CMD_RUN_TESTS if !active_has_path && !workspace_test_target => {
@@ -2188,6 +2189,7 @@ mod tests {
             (CMD_PEEK_DEFINITION, "Save this untitled file before Peek Definition"),
             (CMD_SIGNATURE_HELP, "Save this untitled file before signature help"),
             (CMD_RENAME_SYMBOL, "Save this untitled file before symbol rename"),
+            (CMD_CODE_ACTIONS, "Save this untitled file before code actions"),
             (CMD_FORMAT_DOCUMENT, "Save this untitled file before formatting"),
             (CMD_RUN_FILE, "Save this untitled file before running"),
             (CMD_RUN_TEST_AT_CURSOR, "Save this untitled file before running test at cursor"),

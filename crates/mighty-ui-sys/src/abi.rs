@@ -12109,6 +12109,13 @@ pub extern "C" fn mui_codeaction_request(handle: i64, line: i32, col: i32) -> i3
         return 0;
     };
     ctx.codeaction.cancel();
+    if ctx.file_path.is_none() {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            language_needs_file_message(ctx, "code actions"),
+        );
+        return 0;
+    }
     let actions = compute_line_actions(ctx, line, col);
     if actions.is_empty() {
         println!("codeaction: line={line} total=0");
