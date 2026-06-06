@@ -4,7 +4,7 @@ All notable changes to the Mighty IDE. The IDE is written in
 [Mighty](https://github.com/hassard0/Mighty) (`src/main.mty`) and rendered with
 [Vello](https://github.com/linebender/vello); every language friction point is
 logged in [`docs/mighty-language-lessons.md`](docs/mighty-language-lessons.md)
-(lessons L1-L1182).
+(lessons L1-L1183).
 
 ## v0.3.0
 
@@ -12,6 +12,10 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~2,050 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Persisted numeric preferences require token boundaries**: editor
+  `font_size`, `tab_width`, and saved zoom values now ignore plus-prefixed or
+  non-decimal numeric tokens instead of silently applying malformed startup
+  preferences.
 - **Persisted shortcut overrides require numeric token boundaries**:
   `keybindings.toml` command IDs and `mods:codepoint` override values now
   ignore plus-prefixed numeric tokens instead of silently applying malformed

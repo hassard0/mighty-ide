@@ -224,12 +224,12 @@ pub fn parse(text: &str) -> Settings {
         let (k, v) = (k.trim().to_ascii_lowercase(), v.trim());
         match k.as_str() {
             "font_size" => {
-                if let Ok(n) = v.parse::<f32>() {
+                if let Some(n) = crate::parse_decimal_f32_token(v) {
                     s.font_size = n;
                 }
             }
             "tab_width" => {
-                if let Ok(n) = v.parse::<i32>() {
+                if let Some(n) = crate::parse_signed_decimal_i32_token(v) {
                     s.tab_width = n;
                 }
             }
@@ -373,6 +373,18 @@ mod tests {
         assert!(!s.inline_ai); // "off" -> false
         // inline_ai defaults ON when unset.
         assert!(parse("font_size=15\n").inline_ai);
+    }
+
+    #[test]
+    fn parse_rejects_plus_prefixed_numeric_preferences() {
+        let s = parse("font_size=+15.5\ntab_width=+4\nword_wrap=on\n");
+        assert!((s.font_size - DEFAULT_FONT_SIZE).abs() < 0.001);
+        assert_eq!(s.tab_width, 2);
+        assert!(s.word_wrap);
+
+        let valid = parse("font_size=15.5\ntab_width=4\n");
+        assert!((valid.font_size - 15.5).abs() < 0.001);
+        assert_eq!(valid.tab_width, 4);
     }
 
     #[test]

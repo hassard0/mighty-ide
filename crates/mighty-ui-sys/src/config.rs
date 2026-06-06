@@ -141,9 +141,15 @@ pub fn load_zoom() -> f32 {
         return 1.0;
     };
     match std::fs::read_to_string(&path) {
-        Ok(text) => crate::uiscale::clamp_zoom(text.trim().parse::<f32>().unwrap_or(1.0)),
+        Ok(text) => parse_zoom_value(&text),
         Err(_) => 1.0,
     }
+}
+
+fn parse_zoom_value(text: &str) -> f32 {
+    crate::parse_decimal_f32_token(text.trim())
+        .map(crate::uiscale::clamp_zoom)
+        .unwrap_or(1.0)
 }
 
 /// Persist the user `zoom`. Best-effort (returns `false` + logs on I/O error).
@@ -275,6 +281,13 @@ mod tests {
             let blob = render(id);
             assert_eq!(parse_theme(&blob), Some(id), "round-trip {id:?}");
         }
+    }
+
+    #[test]
+    fn parse_zoom_value_rejects_plus_prefixed_token() {
+        assert_eq!(parse_zoom_value("+1.2"), 1.0);
+        assert_eq!(parse_zoom_value("1.2"), crate::uiscale::clamp_zoom(1.2));
+        assert_eq!(parse_zoom_value("1.2x"), 1.0);
     }
 
     #[test]

@@ -123,9 +123,34 @@ pub(crate) fn parse_signed_decimal_i32_token(text: &str) -> Option<i32> {
     text.parse::<i32>().ok()
 }
 
+pub(crate) fn parse_decimal_f32_token(text: &str) -> Option<f32> {
+    let bytes = text.as_bytes();
+    if bytes.is_empty() || bytes[0] == b'+' {
+        return None;
+    }
+
+    let mut digits = 0usize;
+    let mut dots = 0usize;
+    for (idx, b) in bytes.iter().copied().enumerate() {
+        match b {
+            b'-' if idx == 0 => {}
+            b'.' => dots += 1,
+            b'0'..=b'9' => digits += 1,
+            _ => return None,
+        }
+    }
+    if digits == 0 || dots > 1 {
+        return None;
+    }
+    text.parse::<f32>().ok().filter(|n| n.is_finite())
+}
+
 #[cfg(test)]
 mod env_numeric_token_tests {
-    use super::{parse_signed_decimal_i32_token, parse_unsigned_decimal_u32_token};
+    use super::{
+        parse_decimal_f32_token, parse_signed_decimal_i32_token,
+        parse_unsigned_decimal_u32_token,
+    };
 
     #[test]
     fn unsigned_env_tokens_reject_signs_and_partial_numbers() {
@@ -143,6 +168,17 @@ mod env_numeric_token_tests {
         assert_eq!(parse_signed_decimal_i32_token("+240"), None);
         assert_eq!(parse_signed_decimal_i32_token("240frames"), None);
         assert_eq!(parse_signed_decimal_i32_token("2e2"), None);
+    }
+
+    #[test]
+    fn decimal_float_tokens_reject_plus_prefixes_and_non_decimal_forms() {
+        assert_eq!(parse_decimal_f32_token("13.5"), Some(13.5));
+        assert_eq!(parse_decimal_f32_token("-1.25"), Some(-1.25));
+        assert_eq!(parse_decimal_f32_token(".5"), Some(0.5));
+        assert_eq!(parse_decimal_f32_token("+13.5"), None);
+        assert_eq!(parse_decimal_f32_token("13px"), None);
+        assert_eq!(parse_decimal_f32_token("1e2"), None);
+        assert_eq!(parse_decimal_f32_token("."), None);
     }
 }
 
