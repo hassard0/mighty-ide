@@ -63,7 +63,8 @@ fn stale_web_target_reason(path: &std::path::Path) -> Option<String> {
 fn web_port() -> u16 {
     std::env::var("MIGHTY_WEB_PORT")
         .ok()
-        .and_then(|v| v.trim().parse::<u16>().ok())
+        .and_then(|v| crate::parse_unsigned_decimal_u16_token(v.trim()))
+        .filter(|port| *port > 0)
         .unwrap_or(8000)
 }
 
@@ -738,6 +739,19 @@ fn fit_ui_text(text: &mut crate::text::Text, s: &str, max_px: f32, size: f32) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn web_port_env_rejects_malformed_tokens() {
+        let _guard = crate::settings::TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::set_var("MIGHTY_WEB_PORT", "8123");
+        assert_eq!(web_port(), 8123);
+
+        for value in ["+8123", "8e3", "0", "70000"] {
+            std::env::set_var("MIGHTY_WEB_PORT", value);
+            assert_eq!(web_port(), 8000, "malformed port {value:?}");
+        }
+        std::env::remove_var("MIGHTY_WEB_PORT");
+    }
 
     #[test]
     fn fit_ui_text_ellipsizes_inside_measured_width() {

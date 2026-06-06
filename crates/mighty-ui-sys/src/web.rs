@@ -674,10 +674,7 @@ fn is_loopback_host(host: &str) -> bool {
 }
 
 fn parse_positive_port(raw: &str) -> Option<u16> {
-    if raw.is_empty() || !raw.bytes().all(|b| b.is_ascii_digit()) {
-        return None;
-    }
-    raw.parse::<u16>().ok().filter(|port| *port > 0)
+    crate::parse_unsigned_decimal_u16_token(raw).filter(|port| *port > 0)
 }
 
 /// `true` if a line looks like a build error (an `[MTxxxx]` header, `Error:`,
@@ -824,8 +821,10 @@ mod tests {
         assert!(extract_url("docs: https://example.com:443/help").is_none());
         assert!(extract_url("open http://127.0.0.1/").is_none());
         assert!(extract_url("open http://127.0.0.1:0/").is_none());
+        assert!(extract_url("open http://127.0.0.1:+8000/").is_none());
         assert!(extract_url("open http://127.0.0.1:-8000/").is_none());
         assert!(extract_url("open http://127.0.0.1:8e3/").is_none());
+        assert!(extract_url("open http://127.0.0.1:70000/").is_none());
         assert!(extract_url("open http://[::1]/").is_none());
         assert!(extract_url("open http://::1:8123/").is_none());
     }
