@@ -9147,6 +9147,11 @@ pub extern "C" fn mui_complete_request(handle: i64, line: i32, col: i32) -> i32 
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.complete.cancel();
+        ctx.complete_lsp_notice = None;
+        return 0;
+    }
     let cursor = line_col_to_offset(&ctx.complete_buf, line, col);
 
     // Best-effort semantic labels from mty-lsp. The buffer is the live source;
@@ -9189,6 +9194,13 @@ pub extern "C" fn mui_complete_report_empty(handle: i64) -> i32 {
     };
     if ctx.complete.count() > 0 {
         return 1;
+    }
+    if ctx.tabs.active_read_only() {
+        ctx.push_toast(
+            crate::toast::Kind::Warn,
+            read_only_active_file_message(ctx),
+        );
+        return 0;
     }
     let mut message = completion_not_found_message(ctx);
     if let Some(notice) = ctx.complete_lsp_notice.take() {
@@ -14782,6 +14794,11 @@ pub extern "C" fn mui_ed_complete_request(handle: i64) -> i32 {
     let Some(ctx) = (unsafe { ctx(handle) }) else {
         return 0;
     };
+    if ctx.tabs.active_read_only() {
+        ctx.complete.cancel();
+        ctx.complete_lsp_notice = None;
+        return 0;
+    }
     let (line, col) = {
         let m = ctx.tabs.active_model();
         (m.cursor_line() as i32, m.cursor_col() as i32)

@@ -3173,7 +3173,7 @@ fn main() {
               let _c = mui_ed_complete_request(h)
               mui_snippet_inject_completions(h)
               let cnt = mui_complete_count(h)
-              if cnt == 0 { let _cc = mui_complete_cancel(h); completing = false }
+              if cnt == 0 { completing = false }
             }
           } else {
             let _cc = mui_complete_cancel(h)
@@ -3229,7 +3229,7 @@ fn main() {
               let _c = mui_ed_complete_request(h)
               mui_snippet_inject_completions(h)
               let cnt = mui_complete_count(h)
-              if cnt == 0 { let _cc = mui_complete_cancel(h); completing = false }
+              if cnt == 0 { completing = false }
             }
           } else {
             let _cc = mui_complete_cancel(h)
@@ -3605,7 +3605,7 @@ fn main() {
           let _c = mui_ed_complete_request(h)
           mui_snippet_inject_completions(h)                 // snippet prefixes appear with a "snippet" badge
           let cnt = mui_complete_count(h)
-          if cnt > 0 { completing = true } else { let _cc = mui_complete_cancel(h); let _ce = mui_complete_report_empty(h) }
+          if cnt > 0 { completing = true } else { let _ce = mui_complete_report_empty(h) }
         } else if is_delete_line_chord(cp, mods) {
           let _cc = mui_complete_cancel(h)
           completing = false
@@ -6138,7 +6138,7 @@ fn main() {
           let _c = mui_ed_complete_request(h)
           mui_snippet_inject_completions(h)
           let cnt = mui_complete_count(h)
-          if cnt > 0 { completing = true } else { let _cc = mui_complete_cancel(h); let _ce = mui_complete_report_empty(h) }
+          if cnt > 0 { completing = true } else { let _ce = mui_complete_report_empty(h) }
           run_focus = false
           web_focus = false
           test_focus = false

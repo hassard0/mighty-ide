@@ -13993,3 +13993,20 @@ though accepting is a separate command path.
 - **Language note:** no compiler gap surfaced. Palette descriptions should name
   the command's immediate action, especially when one command can be both an
   opener and a refresher depending on shim-owned transient state.
+
+## L1105 - Explicit Empty-Result Feedback Should Own Read-Only Autocomplete
+
+Autocomplete request and autocomplete empty-result reporting were split across
+the Mighty event loop and Rust shim. Read-only previews already blocked
+accepting a completion, but request paths could still create a dropdown, and
+adding a request guard alone would have let the Mighty loop emit an unrelated
+`No autocomplete suggestions open` cancel toast before the real explanation.
+
+- **IDE note:** read-only autocomplete requests now clear stale suggestions
+  silently, and explicit request paths call only
+  `mui_complete_report_empty`, which emits the file-specific
+  `<name> is read-only in the text editor` warning once.
+- **Language note:** no compiler gap surfaced. When an operation is split into
+  a silent state mutation and an explicit report function, the report function
+  should own the user-facing blocked-state text so callers do not stack generic
+  cleanup messages ahead of the actionable one.

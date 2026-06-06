@@ -16359,6 +16359,44 @@ fn completion_accept_preflight_tracks_editability() {
 }
 
 #[test]
+fn autocomplete_request_reports_read_only_preview_once() {
+    let mut ctx = ctx_or_skip!();
+    ctx.tabs.ensure_scratch();
+    let h = (&mut ctx as *mut MuiContext) as usize as i64;
+
+    let root = std::env::temp_dir().join("mui_autocomplete_read_only_request");
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let path = root.join("asset.bin");
+    std::fs::write(&path, b"\0binary preview").unwrap();
+    ctx.tabs.open_path(path);
+    assert!(ctx.tabs.active_read_only());
+
+    ctx.complete_buf = b"alpha al".to_vec();
+    assert!(ctx.complete.request(&ctx.complete_buf, ctx.complete_buf.len(), &[]) > 0);
+    assert_eq!(crate::mui_complete_request(h, 0, 8), 0);
+    assert_eq!(crate::mui_complete_active(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_complete_report_empty(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
+
+    ctx.toasts.clear();
+    ctx.complete_buf = b"alpha al".to_vec();
+    assert!(ctx.complete.request(&ctx.complete_buf, ctx.complete_buf.len(), &[]) > 0);
+    assert_eq!(crate::mui_ed_complete_request(h), 0);
+    assert_eq!(crate::mui_complete_active(h), 0);
+    assert!(ctx.toasts.toasts().is_empty());
+    assert_eq!(crate::mui_complete_report_empty(h), 0);
+    let toast = ctx.toasts.toasts().last().unwrap();
+    assert_eq!(toast.kind, crate::toast::Kind::Warn);
+    assert_eq!(toast.message, "asset.bin is read-only in the text editor");
+
+    let _ = std::fs::remove_dir_all(root);
+}
+
+#[test]
 fn autocomplete_accept_misses_report_visible_feedback() {
     let mut ctx = ctx_or_skip!();
     ctx.tabs.ensure_scratch();
