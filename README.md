@@ -17,19 +17,18 @@ repository. A clean release package must be built on the same operating system
 that will run it because Mighty IDE ships a native executable plus a native
 `mighty-ui-sys` shim.
 
-Current stop-pass rule: finish the source, README, and docs; commit them; rebuild
+Final stop-pass rule: finish the source, README, and docs; commit them; rebuild
 the Windows package from that exact commit; record the Windows ZIP size and
-SHA-256; verify the packaged Windows executable launches; record macOS and
-Linux as `unbuilt` unless native runners completed the same pass; and stop. No
-further feature work belongs in the same pass after artifact evidence is
-recorded.
+SHA-256; verify that the packaged Windows executable launches; record macOS and
+Linux as `unbuilt` unless native runners completed the same pass; and stop. Any
+source change after packaging makes the archive stale and requires a new native
+package run.
 
-For this final pass, the README and release docs are the source-controlled
-contract. Generated Windows archive hash, ZIP size, and native payload hashes
-belong to the package manifest and final handoff response after
-`.\package-win.ps1` runs from the committed tree. Do not edit source-controlled
-docs after that package run unless the Windows archive is rebuilt from the new
-commit.
+The README and release docs are the source-controlled contract. Generated
+archive hashes, ZIP or tarball sizes, timestamps, and native payload hashes
+belong to `PACKAGE-MANIFEST.txt`, the release upload note, and the final
+handoff response after the platform package script runs from the committed
+tree.
 
 | Platform | Package command | Archive | Clean-binary requirement |
 |----------|-----------------|---------|--------------------------|
@@ -59,57 +58,12 @@ the README, build notes, keybindings, changelog, release verification docs, and
 samples. Do not publish placeholder archives or rename a package from another
 OS; record unavailable native runners as `unbuilt`.
 
-Final release handoff is source-to-artifact strict. Commit the README,
-changelog, build notes, and release docs first; then run the native package
-script from that clean commit. If any source file changes afterward, rebuild the
-affected platform archive before publishing it. From a Windows-only pass, the
-only locally clean binary is the Windows PE ZIP after `.\package-win.ps1` and a
-packaged launch succeed; macOS and Linux stay `unbuilt` until their native
-runners produce and launch the Mach-O and ELF packages.
-
-This final pass stops at release evidence. Do not continue feature work after
-the Windows ZIP size, Windows ZIP SHA-256, package-script checks, packaged
-launch result, and explicit macOS/Linux `unbuilt` decisions are recorded. New
-feature or polish work creates a new source state and requires a fresh package
-run before any binary is publishable.
-
-This checkout's final stop pass uses the same rule for all platforms:
-
-- Windows x64: publish only after the PowerShell packager rebuilds
-  `dist\mighty-ide-v0.3.0-win64.zip` from the clean committed tree, verifies PE
-  payloads, scans the staged tree and ZIP, writes `PACKAGE-MANIFEST.txt`, and
-  the packaged executable launches from `dist\mighty-ide-win64`.
-- macOS: unbuilt until `./package-macos.sh` completes and launches the app on
-  native macOS or a matching CI runner.
-- Linux x64: unbuilt until `./package-linux.sh` completes and launches the
-  executable on native Linux or a matching CI runner.
-
-For the final handoff, the release docs are source-controlled and the binary
-evidence is artifact-scoped: the Windows ZIP carries `PACKAGE-MANIFEST.txt`
-with the source commit, payload hashes, payload sizes, and clean-binary checks;
-macOS and Linux publish only when their native tarballs carry equivalent
-Mach-O or ELF manifests from the same pass.
-
 Final handoff output for a Windows-hosted pass must contain the committed
 source hash, Windows archive path, ZIP size, ZIP SHA-256, package-script checks,
 packaged launch result, and explicit `unbuilt` decisions for macOS and Linux
 unless matching native runners produced those archives during the same pass.
 After those fields are recorded, stop; further implementation work starts a new
 source state and requires a new package run.
-
-Final release artifact status for this Windows-hosted pass:
-
-- Windows x64: build, scan, manifest, hash, and launch the clean PE archive
-  from the committed tree before publishing.
-- macOS: leave `unbuilt` until a native macOS host or matching CI runner builds,
-  scans, manifests, hashes, and launches the Mach-O app archive.
-- Linux x64: leave `unbuilt` until a native Linux host or matching CI runner
-  builds, scans, manifests, hashes, and launches the ELF tarball.
-
-Source-controlled docs define the release contract. Exact archive sizes,
-archive hashes, generated timestamps, and native payload hashes are generated
-artifact evidence and belong in `PACKAGE-MANIFEST.txt`, the release upload note,
-and the final handoff response after packaging.
 
 ### Editing & Multi-cursor
 - Live edit / save (Ctrl+S), Save As (Ctrl+Shift+S), Save All (Ctrl+Alt+S), and New File... (Ctrl+N, native file picker) with syntax coloring, a current-line band, line-number gutter, click-to-place cursor, mouse-wheel + cursor-following scroll

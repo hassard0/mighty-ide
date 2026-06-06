@@ -165,3 +165,23 @@ actual upload belongs with the release artifact:
   macOS or a matching CI runner during this pass.
 - Linux x64: unbuilt unless `./package-linux.sh` completed and launched on
   native Linux or a matching CI runner during this pass.
+
+## Stop-Pass Handoff Fields
+
+Record these fields in the final handoff after the Windows package is rebuilt
+from the final source commit:
+
+```text
+Source commit:
+Windows archive:
+Windows archive size:
+Windows SHA-256:
+Windows package checks:
+Windows packaged launch:
+macOS decision:
+Linux decision:
+```
+
+Do not edit source-controlled files after recording those generated values. If
+a source edit is required, commit it first and rebuild the affected native
+package before publishing.
