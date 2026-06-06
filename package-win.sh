@@ -64,6 +64,9 @@ if [ -d .git ] && command -v git >/dev/null 2>&1; then
     echo "ERROR: package-win.sh requires a clean git worktree before building release artifacts." >&2
     exit 1
   fi
+  SOURCE_COMMIT="$(git rev-parse HEAD)"
+else
+  SOURCE_COMMIT="unknown"
 fi
 DIST="dist/$PKG"
 ZIP="mighty-ide-$VERSION-win64.zip"
@@ -161,6 +164,7 @@ fi
   echo "Mighty IDE package verification"
   echo "Platform: Windows x64"
   echo "Version: $VERSION"
+  echo "Source commit: $SOURCE_COMMIT"
   echo "Generated: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
   echo
   echo "Native payloads:"

@@ -165,6 +165,41 @@ fn package_scripts_scan_finished_archives_for_sidecars_and_foreign_payloads() {
 }
 
 #[test]
+fn package_scripts_write_manifest_with_release_evidence() {
+    for script in [
+        "package-win.ps1",
+        "package-win.sh",
+        "package-macos.sh",
+        "package-linux.sh",
+    ] {
+        let body = std::fs::read_to_string(repo_file(script)).unwrap_or_else(|e| {
+            panic!("failed to read {script}: {e}");
+        });
+        assert!(
+            body.contains("PACKAGE-MANIFEST.txt"),
+            "{script} must write PACKAGE-MANIFEST.txt into the assembled package"
+        );
+        for field in [
+            "Source commit:",
+            "Generated:",
+            "Native payloads:",
+            "SHA256",
+            "Archive:",
+            "Clean binary checks:",
+        ] {
+            assert!(
+                body.contains(field),
+                "{script} package manifest must include `{field}`"
+            );
+        }
+        assert!(
+            body.contains("No compiler/linker sidecars found"),
+            "{script} manifest must record the clean sidecar scan"
+        );
+    }
+}
+
+#[test]
 fn build_and_package_scripts_reject_stale_mty_compilers() {
     for script in [
         "build-ide.ps1",

@@ -361,6 +361,13 @@ reporting success. The source tree remains binary-clean because platform
 archives and native payloads are generated only under ignored build/package
 directories.
 
+The release claim is intentionally narrow and evidence-based: a platform binary
+is clean only after that platform's own package script has run on the matching
+native OS or CI runner, the finished archive scan has passed, the packaged app
+has launched from inside the assembled package, and `PACKAGE-MANIFEST.txt`
+records the source commit, generated time, native payload hashes and sizes,
+archive name, and clean-binary checks.
+
 | Platform | Command | Archive | Native payload checks |
 |----------|---------|---------|-----------------------|
 | Windows x64 | `.\package-win.ps1` on Windows | `dist\mighty-ide-v0.3.0-win64.zip` | PE `mighty-ide.exe` and PE `mighty_ui_sys.dll`; staged tree and ZIP contain no sidecars (`.pdb`, `.lib`, `.exp`, `.ilk`, `.obj`, `.o`, `.a`, `.rlib`, `.log`, `.debug`, `.map`, `.dSYM`) or `.dylib`/`.so` files |

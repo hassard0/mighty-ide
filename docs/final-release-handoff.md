@@ -88,6 +88,9 @@ Windows package from that clean commit, confirm `PACKAGE-MANIFEST.txt` records
 that source commit, record the Windows archive hash and size, confirm the
 packaged Windows executable launched from
 `dist\mighty-ide-win64`, and stop.
+The manifest must include the source commit, generated UTC timestamp, native
+payload hash and size rows, archive path, and clean-binary checks. A package
+that lacks any of those fields is incomplete even if the executable launches.
 The final package must be generated after the documentation commit that defines
 this handoff. If any source file changes after the package is generated, the
 artifact no longer matches the source handoff and must be rebuilt before it is
