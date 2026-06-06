@@ -13971,6 +13971,7 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     let mut untitled_unavailable = 0_i32;
     let mut read_only = 0_i32;
     let mut dirty_conflicts = 0_i32;
+    let mut dirty_conflict_names = std::collections::BTreeSet::new();
     let mut first_failed_message: Option<String> = None;
     let original_active = ctx.tabs.active();
     for idx in dirty {
@@ -13980,6 +13981,9 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
             .is_some_and(|path| ctx.tabs.any_dirty_path_except(&path, idx));
         if path_conflict {
             dirty_conflicts += 1;
+            if let Some(path) = ctx.tabs.path(idx) {
+                dirty_conflict_names.insert(basename(&path));
+            }
             continue;
         }
         let Some(tab) = ctx.tabs.get_mut(idx) else {
@@ -14077,11 +14081,16 @@ pub extern "C" fn mui_save_all(handle: i64) -> i32 {
     refresh_workspace_file_views(ctx);
     match (saved, failed, untitled, read_only + dirty_conflicts) {
         (0, 0, 0, skipped) if skipped > 0 => {
-            let noun = if skipped == 1 { "file" } else { "files" };
-            ctx.push_toast(
-                crate::toast::Kind::Warn,
-                format!("{skipped} {noun} skipped"),
-            );
+            let message = if read_only == 0 && dirty_conflict_names.len() == 1 {
+                format!(
+                    "Save All skipped {}: duplicate unsaved edits",
+                    dirty_conflict_names.iter().next().unwrap()
+                )
+            } else {
+                let noun = if skipped == 1 { "file" } else { "files" };
+                format!("{skipped} {noun} skipped")
+            };
+            ctx.push_toast(crate::toast::Kind::Warn, message);
             0
         }
         (0, 0, u, 0) if u > 0 && untitled_cancelled > 0 => {

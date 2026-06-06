@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Save All names single duplicate-edit blockers**: when duplicate dirty tabs
+  all point at one file, Save All and the Command Palette now name that file
+  instead of only reporting a skipped count.
 - **Duplicate Save blockers name the target**: plain Save and the Command
   Palette now report the file whose duplicate unsaved edits blocked the write.
 - **Command Palette contextual Save As names typed-path fallback**: Save As rows

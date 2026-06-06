@@ -1437,15 +1437,24 @@ impl PaletteEngine {
         }
         let dirty_count = ctx.tabs.dirty_count();
         if id == CMD_SAVE_ALL {
+            let mut dirty_conflict_names = std::collections::BTreeSet::new();
             let dirty_conflicts = (0..ctx.tabs.count())
                 .filter(|idx| ctx.tabs.is_dirty(*idx))
                 .filter(|idx| {
-                    ctx.tabs
-                        .path(*idx)
-                        .is_some_and(|path| ctx.tabs.any_dirty_path_except(&path, *idx))
+                    let Some(path) = ctx.tabs.path(*idx) else {
+                        return false;
+                    };
+                    if ctx.tabs.any_dirty_path_except(&path, *idx) {
+                        dirty_conflict_names.insert(palette_basename(&path));
+                        true
+                    } else {
+                        false
+                    }
                 })
                 .count();
-            if let Some(desc) = save_all_dirty_conflict_desc(dirty_conflicts, dirty_count) {
+            if let Some(desc) =
+                save_all_dirty_conflict_desc(dirty_conflicts, dirty_count, &dirty_conflict_names)
+            {
                 return desc;
             }
             let dirty_untitled = (0..ctx.tabs.count())
@@ -2810,12 +2819,20 @@ fn reload_revert_stale_target_desc(id: u32, path: &std::path::Path) -> Option<St
 fn save_all_dirty_conflict_desc(
     dirty_conflicts: usize,
     dirty_count: usize,
+    dirty_conflict_names: &std::collections::BTreeSet<String>,
 ) -> Option<Cow<'static, str>> {
     if dirty_conflicts == 0 {
         None
     } else if dirty_conflicts == dirty_count {
-        let noun = if dirty_conflicts == 1 { "file" } else { "files" };
-        Some(Cow::Owned(format!("{dirty_conflicts} {noun} skipped")))
+        if dirty_conflict_names.len() == 1 {
+            Some(Cow::Owned(format!(
+                "Save All skipped {}: duplicate unsaved edits",
+                dirty_conflict_names.iter().next().unwrap()
+            )))
+        } else {
+            let noun = if dirty_conflicts == 1 { "file" } else { "files" };
+            Some(Cow::Owned(format!("{dirty_conflicts} {noun} skipped")))
+        }
     } else {
         let noun = if dirty_conflicts == 1 {
             "dirty duplicate file"
@@ -5977,7 +5994,7 @@ mod tests {
         let engine = PaletteEngine::new();
         assert_eq!(
             engine.contextual_desc(&ctx, CMD_SAVE_ALL, "Write dirty tabs"),
-            Cow::Borrowed("2 files skipped")
+            Cow::Borrowed("Save All skipped same.mty: duplicate unsaved edits")
         );
 
         let _ = std::fs::remove_dir_all(&root);
