@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Undo and redo palette mirrors empty stacks**: Command Palette now reports
+  `Nothing to undo` and `Nothing to redo` before dispatch when the active tab's
+  edit stacks are empty, while preserving read-only preview feedback.
 - **Zoom palette names current and next scale**: Command Palette zoom rows now
   report the current percent, next zoom step, and min/max/100% reset no-op
   states before dispatch.

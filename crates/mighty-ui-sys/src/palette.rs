@@ -1601,6 +1601,14 @@ impl PaletteEngine {
                 .unwrap_or_else(|| "This preview".to_string());
             return Cow::Owned(read_only_text_editor_desc(&name));
         }
+        if matches!(id, CMD_UNDO | CMD_REDO) {
+            let (can_undo, can_redo) = ctx
+                .tabs
+                .get(ctx.tabs.active())
+                .map(|tab| (!tab.undo.is_empty(), !tab.redo.is_empty()))
+                .unwrap_or((false, false));
+            return undo_redo_contextual_desc(id, base, can_undo, can_redo);
+        }
         if id == CMD_SAVE && !active_read_only {
             if let Some(path) = ctx.tabs.active_path() {
                 if ctx.tabs.any_dirty_path_except(&path, ctx.tabs.active()) {
@@ -2539,6 +2547,19 @@ fn zoom_contextual_desc<'a>(id: u32, base: &'a str, user_zoom: f32) -> Cow<'a, s
         CMD_ZOOM_RESET => Cow::Owned(format!(
             "Reset IDE UI scale from {current_pct}% to 100%"
         )),
+        _ => Cow::Borrowed(base),
+    }
+}
+
+fn undo_redo_contextual_desc<'a>(
+    id: u32,
+    base: &'a str,
+    can_undo: bool,
+    can_redo: bool,
+) -> Cow<'a, str> {
+    match id {
+        CMD_UNDO if !can_undo => Cow::Borrowed("Nothing to undo"),
+        CMD_REDO if !can_redo => Cow::Borrowed("Nothing to redo"),
         _ => Cow::Borrowed(base),
     }
 }
@@ -6019,6 +6040,63 @@ mod tests {
         assert_eq!(
             zoom_contextual_desc(CMD_ZOOM_OUT, "base", 0.0).as_ref(),
             "Zoom is already at minimum (50%)"
+        );
+    }
+
+    #[test]
+    fn undo_redo_command_descriptions_reflect_runtime_state() {
+        assert_eq!(
+            undo_redo_contextual_desc(CMD_UNDO, "base", false, false),
+            Cow::Borrowed("Nothing to undo")
+        );
+        assert_eq!(
+            undo_redo_contextual_desc(CMD_REDO, "base", false, false),
+            Cow::Borrowed("Nothing to redo")
+        );
+        assert_eq!(
+            undo_redo_contextual_desc(CMD_UNDO, "base", true, false),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            undo_redo_contextual_desc(CMD_REDO, "base", false, true),
+            Cow::Borrowed("base")
+        );
+    }
+
+    #[test]
+    fn undo_redo_palette_descriptions_probe_active_tab_stacks() {
+        let Some(mut ctx) = crate::MuiContext::new_offscreen(900, 700) else {
+            return;
+        };
+        let engine = PaletteEngine::new();
+
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_UNDO, "base").as_ref(),
+            "Nothing to undo"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_REDO, "base").as_ref(),
+            "Nothing to redo"
+        );
+
+        let active = ctx.tabs.active();
+        let before = ctx.tabs.active_model().clone();
+        ctx.tabs.get_mut(active).unwrap().undo.push(before);
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_UNDO, "base").as_ref(),
+            "base"
+        );
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_REDO, "base").as_ref(),
+            "Nothing to redo"
+        );
+
+        let active = ctx.tabs.active();
+        let after = ctx.tabs.active_model().clone();
+        ctx.tabs.get_mut(active).unwrap().redo.push(after);
+        assert_eq!(
+            engine.contextual_desc(&ctx, CMD_REDO, "base").as_ref(),
+            "base"
         );
     }
 
