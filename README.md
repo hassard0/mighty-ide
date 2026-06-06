@@ -266,7 +266,7 @@ and the final handoff response after packaging.
 - Command Palette tab-management rows for moving, sorting, closing saved tabs,
   closing duplicate tabs, reload, and revert mirror their no-op runtime feedback
   before dispatch, including stale missing or directory-backed reload/revert
-  targets
+  targets and dirty reload blockers that name the active file
 - Command Palette active-file utility rows for Reveal and Copy Path/Name/Folder
   report scratch buffers and stale missing or directory-backed active targets
   before dispatch; Show in File Manager also reports unavailable platform reveal

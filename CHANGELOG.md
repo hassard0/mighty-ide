@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Command Palette names dirty reload blockers**: Reload Active File now names
+  the dirty active file before dispatch, matching the runtime guard that refuses
+  to overwrite local edits.
 - **Command Palette previews file-manager reveal blockers**: Reveal Active File
   rows now report scratch buffers before dispatch, and Show Active File in File
   Manager reports unavailable platform reveal support before launch.

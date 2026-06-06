@@ -1386,9 +1386,12 @@ impl PaletteEngine {
                 }
             }
         }
-        if matches!(id, CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE)
-            && !(id == CMD_RELOAD_ACTIVE_FILE && ctx.tabs.is_dirty(ctx.tabs.active()))
-        {
+        if id == CMD_RELOAD_ACTIVE_FILE && ctx.tabs.is_dirty(ctx.tabs.active()) {
+            if let Some(path) = ctx.tabs.active_path() {
+                return Cow::Owned(reload_dirty_target_desc(&path));
+            }
+        }
+        if matches!(id, CMD_RELOAD_ACTIVE_FILE | CMD_REVERT_ACTIVE_FILE) {
             if let Some(path) = ctx.tabs.active_path() {
                 if let Some(desc) = reload_revert_stale_target_desc(id, &path) {
                     return Cow::Owned(desc);
@@ -2626,6 +2629,13 @@ fn active_file_os_reveal_unavailable_desc(
     } else {
         Some(crate::abi::file_manager_reveal_unavailable_message(path))
     }
+}
+
+fn reload_dirty_target_desc(path: &std::path::Path) -> String {
+    format!(
+        "Save or discard changes before reloading: {}",
+        palette_basename(path)
+    )
 }
 
 fn palette_basename(path: &std::path::Path) -> String {
@@ -5534,6 +5544,14 @@ mod tests {
             Some("Reveal in file manager is unavailable: main.mty".to_string())
         );
         assert_eq!(active_file_os_reveal_unavailable_desc(path, true), None);
+    }
+
+    #[test]
+    fn reload_dirty_description_names_target() {
+        assert_eq!(
+            reload_dirty_target_desc(std::path::Path::new("src/reload_me.mty")),
+            "Save or discard changes before reloading: reload_me.mty"
+        );
     }
 
     #[test]
