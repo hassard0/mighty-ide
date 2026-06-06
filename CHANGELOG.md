@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Open Recent palette mirrors empty history**: Command Palette now reports
+  `No recent files or folders` when every recorded recent file or workspace is
+  missing before dispatch, matching the runtime empty-state feedback.
 - **Pane command palette mirrors split no-ops**: Command Palette now reports
   `Editor is already split` and `Only one editor pane` before dispatch for
   split, focus-next-pane, and close-pane commands that would no-op.

@@ -1235,6 +1235,15 @@ impl PaletteEngine {
         if matches!(id, CMD_SPLIT_RIGHT | CMD_FOCUS_NEXT_PANE | CMD_CLOSE_PANE) {
             return pane_contextual_desc(id, base, ctx.panes.count());
         }
+        if id == CMD_OPEN_RECENT {
+            return open_recent_contextual_desc(
+                base,
+                has_actionable_recent_paths(
+                    &ctx.quickopen.recent_paths(),
+                    ctx.recent_workspaces.entries(),
+                ),
+            );
+        }
         if id == CMD_AUTOCOMPLETE && active_has_path && !active_read_only {
             return autocomplete_contextual_desc(base, ctx.language);
         }
@@ -2360,6 +2369,21 @@ fn pane_contextual_desc<'a>(id: u32, base: &'a str, pane_count: usize) -> Cow<'a
             Cow::Borrowed("Only one editor pane")
         }
         _ => Cow::Borrowed(base),
+    }
+}
+
+fn has_actionable_recent_paths(
+    recent_files: &[std::path::PathBuf],
+    recent_folders: &[std::path::PathBuf],
+) -> bool {
+    recent_files.iter().any(|p| p.is_file()) || recent_folders.iter().any(|p| p.is_dir())
+}
+
+fn open_recent_contextual_desc(base: &str, has_actionable_recents: bool) -> Cow<'_, str> {
+    if has_actionable_recents {
+        Cow::Borrowed(base)
+    } else {
+        Cow::Borrowed("No recent files or folders")
     }
 }
 
@@ -5222,6 +5246,49 @@ mod tests {
             open_surface_desc_for_flags(CMD_VIEW_WEB_PLAYGROUND, [false; 15]),
             Cow::Borrowed("base")
         );
+    }
+
+    #[test]
+    fn open_recent_command_description_reflects_actionable_history() {
+        let root = std::env::temp_dir().join(format!(
+            "mui_palette_open_recent_{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let file = root.join("recent.mty");
+        std::fs::write(&file, "fn main() {}\n").unwrap();
+        let folder = root.join("workspace");
+        std::fs::create_dir_all(&folder).unwrap();
+        let missing = root.join("missing.mty");
+
+        assert_eq!(
+            open_recent_contextual_desc("base", has_actionable_recent_paths(&[], &[])),
+            Cow::Borrowed("No recent files or folders")
+        );
+        assert_eq!(
+            open_recent_contextual_desc(
+                "base",
+                has_actionable_recent_paths(std::slice::from_ref(&missing), &[])
+            ),
+            Cow::Borrowed("No recent files or folders")
+        );
+        assert_eq!(
+            open_recent_contextual_desc(
+                "base",
+                has_actionable_recent_paths(std::slice::from_ref(&file), &[])
+            ),
+            Cow::Borrowed("base")
+        );
+        assert_eq!(
+            open_recent_contextual_desc(
+                "base",
+                has_actionable_recent_paths(&[], std::slice::from_ref(&folder))
+            ),
+            Cow::Borrowed("base")
+        );
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
