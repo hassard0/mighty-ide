@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Tab and sidebar lifecycle toasts are regression-covered**: saved-tab
+  close no-op feedback and Sidebar open/close feedback now have explicit
+  coalescing coverage, preventing stale navigation/layout toasts from stacking.
 - **Web Playground lifecycle toasts are regression-covered**: Web output clear,
   server stop, and panel close feedback now have explicit coalescing coverage
   so stale Web toasts are replaced consistently.

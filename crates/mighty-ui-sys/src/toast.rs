@@ -1483,10 +1483,37 @@ mod tests {
         assert_eq!(q.toasts()[2].message, "No tab at that position");
         assert!(!q.toasts().iter().any(|t| t.message == "Closed 1 saved tab"));
 
+        q.push_at(
+            Kind::Info,
+            "No saved tabs to close",
+            t0 + Duration::from_millis(1850),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "No saved tabs to close");
+        assert!(!q.toasts().iter().any(|t| t.message == "No tab at that position"));
+
+        q.push_at(
+            Kind::Info,
+            "No saved tabs to the right",
+            t0 + Duration::from_millis(1875),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "No saved tabs to the right");
+        assert!(!q.toasts().iter().any(|t| t.message == "No saved tabs to close"));
+
+        q.push_at(
+            Kind::Info,
+            "No saved tabs to the left",
+            t0 + Duration::from_millis(1885),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "No saved tabs to the left");
+        assert!(!q.toasts().iter().any(|t| t.message == "No saved tabs to the right"));
+
         q.push_at(Kind::Info, "Tab is already first", t0 + Duration::from_millis(1900));
         assert_eq!(q.len(), 3);
         assert_eq!(q.toasts()[2].message, "Tab is already first");
-        assert!(!q.toasts().iter().any(|t| t.message == "No tab at that position"));
+        assert!(!q.toasts().iter().any(|t| t.message == "No saved tabs to the left"));
 
         q.push_at(Kind::Info, "Tabs already sorted", t0 + Duration::from_millis(2000));
         assert_eq!(q.len(), 3);
@@ -2452,6 +2479,15 @@ mod tests {
         assert_eq!(q.len(), 1);
         assert_eq!(q.toasts()[0].message, "No bottom dock is open");
         assert!(!q.toasts().iter().any(|t| t.message == "Bottom dock closed"));
+
+        q.push_at(Kind::Info, "Sidebar opened", t0 + Duration::from_millis(1010));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Sidebar opened");
+
+        q.push_at(Kind::Info, "Sidebar closed", t0 + Duration::from_millis(1015));
+        assert_eq!(q.len(), 1);
+        assert_eq!(q.toasts()[0].message, "Sidebar closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Sidebar opened"));
 
         q.push_at(Kind::Info, "Dock resized to 228px", t0 + Duration::from_millis(1025));
         q.push_at(
