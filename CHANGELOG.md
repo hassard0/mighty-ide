@@ -12,6 +12,9 @@ A code-reading, layout, and workspace pass — all shim-side, Vello-rendered,
 driven by `src/main.mty`. ~649 shim tests; clean `clippy -D warnings`.
 
 ### Workspace and file handling
+- **Web Playground lifecycle toasts are regression-covered**: Web output clear,
+  server stop, and panel close feedback now have explicit coalescing coverage
+  so stale Web toasts are replaced consistently.
 - **Source Control diff feedback drops legacy no-row text**: diff-open toast
   coalescing now tracks the runtime `No source control row selected` wording
   instead of a stale hyphenated variant.

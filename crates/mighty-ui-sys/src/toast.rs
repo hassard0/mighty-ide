@@ -2211,6 +2211,49 @@ mod tests {
         assert!(q.toasts().iter().any(|t| t.message == "Opened workspace"));
 
         q.push_at(
+            Kind::Info,
+            "Web output cleared",
+            t0 + Duration::from_millis(396),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[1].message, "Opened workspace");
+        assert_eq!(q.toasts()[2].message, "Web output cleared");
+
+        q.push_at(
+            Kind::Info,
+            "Web output already empty",
+            t0 + Duration::from_millis(397),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Web output already empty");
+        assert!(!q.toasts().iter().any(|t| t.message == "Web output cleared"));
+
+        q.push_at(
+            Kind::Info,
+            "Web server stopped",
+            t0 + Duration::from_millis(398),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Web server stopped");
+
+        q.push_at(
+            Kind::Info,
+            "Web Playground closed",
+            t0 + Duration::from_millis(399),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Web Playground closed");
+
+        q.push_at(
+            Kind::Info,
+            "Web Playground is already closed",
+            t0 + Duration::from_millis(399),
+        );
+        assert_eq!(q.len(), 3);
+        assert_eq!(q.toasts()[2].message, "Web Playground is already closed");
+        assert!(!q.toasts().iter().any(|t| t.message == "Web Playground closed"));
+
+        q.push_at(
             Kind::Error,
             "Format failed: main.mty via missing-mty.exe fmt: process spawn denied",
             t0 + Duration::from_millis(400),
