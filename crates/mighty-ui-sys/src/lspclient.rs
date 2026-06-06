@@ -377,6 +377,12 @@ fn apply_edit_request_id(stream: &[u8]) -> Option<String> {
         if method != "workspace/applyEdit" {
             continue;
         }
+        if top_level_object_field(obj, b"params")
+            .and_then(|params| top_level_object_field(params, b"edit"))
+            .is_none()
+        {
+            continue;
+        }
         let id_at = top_level_field_value_start(obj, b"id")?;
         return read_json_id_at(obj, id_at).map(|(id, _)| id);
     }
@@ -1567,6 +1573,20 @@ mod tests {
     fn apply_edit_request_id_ignores_nested_apply_edit_without_request() {
         let stream = br#"{"jsonrpc":"2.0","id":1,"method":"client/registerCapability","params":{"metadata":{"method":"workspace/applyEdit","id":99}}}"#;
         assert_eq!(apply_edit_request_id(stream), None);
+    }
+
+    #[test]
+    fn apply_edit_request_id_requires_params_owned_edit() {
+        let missing_params = br#"{"jsonrpc":"2.0","id":7,"method":"workspace/applyEdit"}"#;
+        let missing_edit =
+            br#"{"jsonrpc":"2.0","id":8,"method":"workspace/applyEdit","params":{"label":"apply"}}"#;
+        let nested_edit = br#"{"jsonrpc":"2.0","id":9,"method":"workspace/applyEdit","params":{"metadata":{"edit":{"changes":{}}}}}"#;
+        let valid = br#"{"jsonrpc":"2.0","id":10,"method":"workspace/applyEdit","params":{"metadata":{"edit":{"changes":{"file:///wrong":[{"newText":"x"}]}}},"edit":{"changes":{}}}}"#;
+
+        assert_eq!(apply_edit_request_id(missing_params), None);
+        assert_eq!(apply_edit_request_id(missing_edit), None);
+        assert_eq!(apply_edit_request_id(nested_edit), None);
+        assert_eq!(apply_edit_request_id(valid), Some("10".to_string()));
     }
 
     #[test]
